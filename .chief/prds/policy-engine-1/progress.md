@@ -318,3 +318,16 @@
   - For Blade testing, `Blade::render($template)` compiles and renders inline templates — no need for view files
   - Tests use `$this->actingAs($user)` for authenticated context and skip it for unauthenticated tests
 ---
+
+## 2026-02-26 - US-020
+- What was implemented: JsonDocumentParser — parses JSON to PolicyDocument DTO, serializes DTOs to pretty-printed JSON, validates JSON structure with detailed error messages
+- Files changed:
+  - `src/Documents/JsonDocumentParser.php` — implements DocumentParser contract: parse (JSON decode + DTO mapping), serialize (JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), validate (structure checks with error accumulation)
+  - `tests/Feature/JsonDocumentParserTest.php` — 17 Pest tests covering parse (valid, partial, invalid JSON, non-object JSON), serialize (structure, unescaped slashes), round-trip, validate (valid, minimal, invalid JSON, missing version, bad permissions/roles/assignments/boundaries, multiple errors)
+- **Learnings for future iterations:**
+  - JsonDocumentParser is a pure class (no dependencies) — instantiate directly for testing, no container needed
+  - `validate()` accumulates all errors in a single pass using private helper methods that accept `&$errors` by reference
+  - All document sections (permissions, roles, assignments, boundaries) are optional — only `version` is required for validation
+  - `parse()` throws `InvalidArgumentException` for invalid JSON; `validate()` returns `ValidationResult` with errors — different error handling strategies for different use cases
+  - `serialize()` always includes all five fields (version, permissions, roles, assignments, boundaries) in the output
+---
