@@ -1,0 +1,52 @@
+{
+    "name": "dynamik-dev/laravel-policy-engine",
+    "description": "A Laravel-native scoped permissions package. Composable, contract-driven authorization that integrates with Gates, Policies, middleware, and Blade.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "permissions",
+        "authorization",
+        "roles",
+        "policy",
+        "rbac",
+        "scoped-permissions"
+    ],
+    "require": {
+        "php": "^8.4",
+        "illuminate/contracts": "^11.0|^12.0",
+        "illuminate/database": "^11.0|^12.0",
+        "illuminate/support": "^11.0|^12.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.27",
+        "orchestra/testbench": "^9.0|^10.0",
+        "pestphp/pest": "^3.0",
+        "pestphp/pest-plugin-laravel": "^3.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "DynamikDev\\PolicyEngine\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "DynamikDev\\PolicyEngine\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "DynamikDev\\PolicyEngine\\PolicyEngineServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
