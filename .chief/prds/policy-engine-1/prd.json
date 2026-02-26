@@ -505,8 +505,7 @@
         "All tests use RefreshDatabase trait (or equivalent for package testing)"
       ],
       "priority": 31,
-      "passes": true,
-      "inProgress": false
+      "passes": true
     },
     {
       "id": "US-032",
@@ -519,7 +518,8 @@
         "Run vendor/bin/pest — all tests pass with zero failures"
       ],
       "priority": 32,
-      "passes": false
+      "passes": true,
+      "inProgress": false
     }
   ]
 }
