@@ -13,6 +13,8 @@
 - Eloquent stores: use `firstOrCreate` + `wasRecentlyCreated` for idempotent register with event dispatch
 - Event classes: pass Eloquent models (not IDs) as readonly constructor-promoted properties in `src/Events/`
 - Feature tests for stores use `RefreshDatabase` trait and `Event::fake()` for event assertions
+- SQLite does NOT enforce FK cascades by default — don't rely on cascade deletes in tests; explicitly clean up related records
+- Use `config()->set('policy-engine.cache.store', 'array')` in cache-related tests for isolation
 
 ---
 
@@ -226,4 +228,19 @@
   - `cacheHit` is always `false` in DefaultEvaluator — reserved for CachedEvaluator decorator
   - Tests use real Eloquent stores + WildcardMatcher (no mocks) — tests through the full stack
   - `Event::fake([AuthorizationDenied::class])` in specific tests to avoid interfering with store events in beforeEach
+---
+
+## 2026-02-26 - US-014
+- What was implemented: CachedEvaluator decorator and InvalidatePermissionCache listener for event-driven cache invalidation
+- Files changed:
+  - `src/Evaluators/CachedEvaluator.php` — implements Evaluator, wraps DefaultEvaluator with cache-aside pattern; caches effectivePermissions per subject+scope; bypasses cache when disabled; delegates explain/effectivePermissions to inner
+  - `src/Listeners/InvalidatePermissionCache.php` — handles AssignmentCreated, AssignmentRevoked, RoleUpdated, RoleDeleted, PermissionDeleted events; flushes the cache store
+  - `tests/Feature/CachedEvaluatorTest.php` — 10 Pest tests covering cache miss, cache hit, invalidation on assignment/role changes, cache disabled bypass, delegation of explain/effectivePermissions, scoped cache keys
+- **Learnings for future iterations:**
+  - CachedEvaluator caches `effectivePermissions` (not individual `can()` results) — this allows checking any permission against the cached set
+  - Cache key format: `policy-engine:{subjectType}:{subjectId}` (global) or `policy-engine:{subjectType}:{subjectId}:{scope}` (scoped)
+  - SQLite does NOT enforce FK cascades by default — tests relying on cascade behavior should explicitly clean up related records
+  - `CacheManager::store('array')` returns a consistent store instance across calls — safe for cross-class cache sharing in tests
+  - The `cacheKey()` method is `public static` so tests can verify cache contents directly
+  - For cache invalidation, flushing the entire configured cache store is the simplest correct approach — scoped key enumeration would require taggable stores
 ---
