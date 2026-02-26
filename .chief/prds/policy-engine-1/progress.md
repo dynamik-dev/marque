@@ -9,6 +9,7 @@
 - Use `vendor/bin/pest` for testing
 - Use `casts()` method (not `$casts` property) for Eloquent model casts (PHP 8.4+ style)
 - Use PHPDoc generics on relationship return types: `@return BelongsToMany<Permission, $this>`
+- DTOs use `readonly class` with constructor promotion and sensible defaults
 
 ---
 
@@ -80,4 +81,34 @@
   - Contract interfaces can reference DTO types that don't exist yet — PHP resolves type hints lazily
   - Use PHPDoc `@return Collection<int, Model>` generics on Collection return types for IDE support
   - Keep interfaces minimal — no docblocks beyond method purpose and `@param`/`@return` generics
+---
+
+## 2026-02-26 - US-005
+- What was implemented: All 5 DTO/value object classes (EvaluationTrace, PolicyDocument, ImportOptions, ImportResult, ValidationResult)
+- Files changed:
+  - `src/DTOs/EvaluationTrace.php` — readonly class: subject, required, result, assignments array, boundary, cacheHit
+  - `src/DTOs/PolicyDocument.php` — readonly class: version (default '1.0'), permissions, roles, assignments, boundaries (all default empty arrays)
+  - `src/DTOs/ImportOptions.php` — readonly class: validate (true), merge (true), dryRun (false), skipAssignments (false)
+  - `src/DTOs/ImportResult.php` — readonly class: permissionsCreated, rolesCreated, rolesUpdated, assignmentsCreated, warnings
+  - `src/DTOs/ValidationResult.php` — readonly class: valid bool, errors array (default empty)
+  - Deleted `src/DTOs/.gitkeep`
+- **Learnings for future iterations:**
+  - PHP 8.4 `readonly class` makes all properties implicitly readonly — no need for property-level `readonly`
+  - DTOs use constructor promotion with sensible defaults where the spec requires them
+  - PHPDoc `@param` annotations with array shape types (e.g., `array{role: string, scope: ?string}`) help IDE support
+  - The contracts already reference these DTOs via `use` statements — types resolve correctly now
+---
+
+## 2026-02-26 - US-006
+- What was implemented: WildcardMatcher — segment-based wildcard permission matching with scope support
+- Files changed:
+  - `src/Matchers/WildcardMatcher.php` — implements Matcher contract with segment-by-segment matching, scope splitting, and wildcard expansion
+  - `tests/Feature/WildcardMatcherTest.php` — 27 Pest tests covering exact match, wildcard verb/resource, full wildcard, single star, scope matching, deep verb matching, and edge cases
+  - Deleted `src/Matchers/.gitkeep`
+- **Learnings for future iterations:**
+  - WildcardMatcher is a pure class (no dependencies) — can be instantiated directly without the container for testing
+  - Permission format: `resource.verb[:scope]` — split on first `:` for scope, then `.` for segments
+  - Unscoped grants cover any scope; scoped grants require exact scope match
+  - `*` segment matches one or more segments (greedy) — `posts.delete.*` matches `posts.delete.own` but NOT `posts.delete`
+  - Deny prefix (`!`) is NOT handled by matcher — that's the evaluator's responsibility
 ---

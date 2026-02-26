@@ -83,7 +83,7 @@
         "All DTOs use PHP 8.4 readonly classes with typed constructor parameters"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
@@ -105,7 +105,8 @@
         "Pest feature tests in tests/Feature/WildcardMatcherTest.php covering all cases above"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true,
+      "inProgress": false
     },
     {
       "id": "US-007",
