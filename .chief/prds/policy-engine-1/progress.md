@@ -288,3 +288,19 @@
   - `file_exists()` check in `import()` distinguishes file paths from raw JSON content strings
   - PHPDoc `@method` annotations on the facade class enable IDE autocompletion for static calls
 ---
+
+## 2026-02-26 - US-018
+- What was implemented: CanDoMiddleware and RoleMiddleware — route-level permission and role authorization middleware registered as `can_do` and `role` aliases
+- Files changed:
+  - `src/Middleware/CanDoMiddleware.php` — injects ScopeResolver, resolves scope from route params, delegates to `$user->cannotDo()`, aborts 401/403
+  - `src/Middleware/RoleMiddleware.php` — injects AssignmentStore + ScopeResolver, checks role assignments via `forSubjectInScope()` or `forSubject()`, aborts 401/403
+  - `src/PolicyEngineServiceProvider.php` — registered middleware aliases `can_do` and `role` via `Router::aliasMiddleware()` in `boot()`
+  - `tests/Feature/MiddlewareTest.php` — 13 Pest tests covering allow/deny/401 for both middleware, scoped checks, route model binding
+- **Learnings for future iterations:**
+  - Register middleware aliases via `Router::aliasMiddleware()` in the service provider's `boot()` method — inject `Router $router` as a parameter
+  - For middleware tests, define routes inline in the test using `Route::middleware()->get()` and test via `$this->get()`/`$this->actingAs()->get()`
+  - Unauthenticated users get 401, unauthorized users get 403 — separate concerns
+  - RoleMiddleware uses `forSubjectInScope()` for scoped checks (strict) and `forSubject()` for unscoped — global assignments do NOT satisfy scoped role checks
+  - Use collection `->contains('role_id', $role)` to check assignment membership
+  - Route model binding works with Scopeable models — the ScopeResolver handles both string and Model values from route params
+---

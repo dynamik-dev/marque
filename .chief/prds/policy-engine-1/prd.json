@@ -310,7 +310,7 @@
         "Pest feature tests in tests/Feature/MiddlewareTest.php covering: can_do allows, can_do denies (403), can_do with scope parameter, role allows, role denies (403), unauthenticated user (401 or redirect)"
       ],
       "priority": 18,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-019",
