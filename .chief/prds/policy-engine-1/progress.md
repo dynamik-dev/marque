@@ -260,3 +260,15 @@
   - `roles()` and `rolesFor()` use pluck→unique→map→filter→values pipeline to resolve Role models from assignments
   - The `explain()` method throws `RuntimeException` when `config('policy-engine.explain')` is false — tested with config toggle
 ---
+
+## 2026-02-26 - US-016
+- What was implemented: Scopeable trait — turns Eloquent models into scope containers with toScope(), members(), and membersWithRole() methods
+- Files changed:
+  - `src/Concerns/Scopeable.php` — trait with `toScope()` (returns `{type}::{id}`), `members()` and `membersWithRole()` (both delegate to AssignmentStore::subjectsInScope)
+  - `tests/Feature/ScopeableTraitTest.php` — 8 Pest tests covering toScope format, different instances, members (all, empty, cross-scope isolation), membersWithRole (filter, empty, cross-scope isolation)
+- **Learnings for future iterations:**
+  - The Scopeable trait follows the same pattern as HasPermissions — resolves contracts via `app()` per call, no constructor injection
+  - The using model must define `protected string $scopeType` — the trait reads this property directly via `$this->scopeType`
+  - Morphs store `subject_id` as a string in SQLite — use `(int)` cast when comparing against `getKey()` in test assertions
+  - Test models (TestGroup, TestScopeableUser) defined inline in the test file with in-memory migration tables created/dropped in beforeEach/afterEach
+---

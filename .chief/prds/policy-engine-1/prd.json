@@ -278,7 +278,7 @@
         "Pest feature tests in tests/Feature/ScopeableTraitTest.php using a test Group model, covering: toScope output format, members, membersWithRole"
       ],
       "priority": 16,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-017",
