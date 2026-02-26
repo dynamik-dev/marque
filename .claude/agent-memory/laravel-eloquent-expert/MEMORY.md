@@ -51,15 +51,18 @@
 - Builds scoped permission strings as `permission:scope` for the Evaluator's `can()`/`explain()` methods
 - Requires the using class to be an Eloquent Model (uses `getMorphClass()` and `getKey()`)
 
-## Service Provider Bindings
-- As of US-015, service provider has NO contract bindings yet (US-029 will add them)
-- Tests must manually bind contracts via `app()->instance()` when testing traits/code that resolves from container
+## Service Provider Bindings (US-029 complete)
+- All 10 contracts bound in `register()`: PermissionStore, RoleStore, AssignmentStore, BoundaryStore, Matcher, ScopeResolver, DocumentParser, DocumentImporter, DocumentExporter, Evaluator
+- Evaluator binding uses closure: `CachedEvaluator` wrapping `DefaultEvaluator` (manually resolved deps)
+- `PrimitivesManager` registered as singleton (Laravel auto-resolves its constructor deps from bound contracts)
+- 5 event listeners for cache invalidation in `boot()` via `registerEventListeners()`: AssignmentCreated, AssignmentRevoked, RoleUpdated, RoleDeleted, PermissionDeleted -> InvalidatePermissionCache
+- Tests should no longer need manual `app()->instance()` bindings for these contracts (service provider handles it)
 
 ## Primitives Facade (DX Layer)
 - `src/PrimitivesManager.php` - Orchestrates PermissionStore, RoleStore, BoundaryStore, DocumentParser, DocumentImporter, DocumentExporter
 - `src/Support/RoleBuilder.php` - Fluent builder returned by `PrimitivesManager::role()` with `grant()`, `ungrant()`, `remove()`
 - `src/Facades/Primitives.php` - Facade accessor resolves `PrimitivesManager::class` from container
-- PrimitivesManager must be bound in container manually until US-029 adds service provider bindings
+- PrimitivesManager bound as singleton in service provider (US-029)
 - `JsonDocumentParser` implemented (US-020); DocumentImporter, DocumentExporter implementations don't exist yet (US-021/022); PrimitivesManager tests use anonymous class mocks for importer/exporter
 
 ## Matchers
@@ -101,8 +104,16 @@
 - `src/Commands/ListPermissionsCommand.php` - `primitives:permissions` - lists all permissions in table format
 - `src/Commands/ListRolesCommand.php` - `primitives:roles` - lists roles with permissions indented below each
 - `src/Commands/ListAssignmentsCommand.php` - `primitives:assignments {subject?} {--scope=}` - lists assignments by subject (`type::id`) or scope
-- All resolve store contracts via method injection; registered in service provider's `runningInConsole()` block via `$this->commands([])`
+- `src/Commands/ExplainCommand.php` - `primitives:explain {subject} {permission} {--scope=}` - explains permission evaluation
+- `src/Commands/ImportCommand.php` - `primitives:import {path} {--dry-run}` - imports policy document from file
+- `src/Commands/ExportCommand.php` - `primitives:export {--path=} {--scope=}` - exports authorization state
+- `src/Commands/ValidateCommand.php` - `primitives:validate {path}` - validates policy document without importing
+- `src/Commands/SyncCommand.php` - `primitives:sync` - re-runs PermissionSeeder via `$this->call('db:seed')`; catches errors gracefully
+- `src/Commands/CacheClearCommand.php` - `primitives:cache-clear` - flushes configured cache store; injects `CacheManager` via method injection
+- All resolve contracts via method injection; registered in service provider's `runningInConsole()` block via `$this->commands([])`
 - Artisan command tests use `$this->artisan()` with `expectsTable()` and `expectsOutput()` / `expectsOutputToContain()`
+- **IMPORTANT**: Orchestra Testbench's `Console\Kernel` is final -- cannot mock `Artisan` facade in tests. Use `$this->call()` in commands instead of `Artisan::call()`
+- **IMPORTANT**: `db:seed --class` resolves in `Database\Seeders\` namespace. To test SyncCommand with a real seeder, eval the class in that namespace
 
 ## Pint Style Notes
 - Uses `concat_space` fixer (no spaces around `.` concatenation operator)

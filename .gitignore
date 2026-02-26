@@ -9,3 +9,5 @@ composer.lock
 *.swp
 *.swo
 .DS_Store
+.chief/
+.claude/

@@ -492,3 +492,17 @@
   - Cache invalidation via store flush still works correctly with per-permission caching
   - Pipeline tests should rely on service provider bindings (not manual `app()->instance()`) to test the real full stack
 ---
+
+## 2026-02-26 - US-032
+- What was implemented: Two comprehensive DX feature test files — DocumentRoundTripTest (3 tests) and CacheInvalidationTest (4 tests) — bringing total to 300 tests with 647 assertions
+- Files changed:
+  - `tests/Feature/DocumentRoundTripTest.php` — 3 Pest tests: full round-trip (seed→export→serialize→clear→parse→import→re-export→verify), scoped export/import (team::5 subset only), partial document import (roles and permissions only)
+  - `tests/Feature/CacheInvalidationTest.php` — 4 Pest tests: cache invalidated on assignment creation, assignment revocation, role permission update, and permission deletion. Uses full stack with HasPermissions trait and service provider event listeners.
+  - `.chief/prds/policy-engine-1/prd.json` — marked US-032 as passes: true
+- **Learnings for future iterations:**
+  - For full round-trip tests, clear DB in FK-safe order: Assignment → RolePermission → Boundary → Role → Permission
+  - When comparing re-exported documents, use order-independent checks for roles and assignments (collections may reorder)
+  - CacheInvalidationTest relies on the service provider's event listeners firing automatically — no manual listener invocation needed
+  - Cache invalidation tests use `CacheTestUser` model with `HasPermissions` trait and `config()->set('policy-engine.cache.store', 'array')` for isolation
+  - This is the final user story — all 32 stories are now complete and passing
+---
