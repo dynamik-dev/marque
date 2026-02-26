@@ -38,8 +38,8 @@ class EloquentRoleStore implements RoleStore
 
         Event::dispatch(
             $role->wasRecentlyCreated
-                ? new RoleCreated($id)
-                : new RoleUpdated($id),
+                ? new RoleCreated($role)
+                : new RoleUpdated($role, $role->getChanges()),
         );
 
         return $role;
@@ -60,7 +60,7 @@ class EloquentRoleStore implements RoleStore
 
         $role->delete();
 
-        Event::dispatch(new RoleDeleted($id));
+        Event::dispatch(new RoleDeleted($role));
     }
 
     /**

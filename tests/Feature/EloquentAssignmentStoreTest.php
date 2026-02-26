@@ -46,10 +46,10 @@ it('dispatches AssignmentCreated for new assignment', function (): void {
     $this->store->assign('App\\Models\\User', 1, 'editor', 'team::5');
 
     Event::assertDispatched(AssignmentCreated::class, function (AssignmentCreated $event): bool {
-        return $event->subjectType === 'App\\Models\\User'
-            && $event->subjectId === 1
-            && $event->roleId === 'editor'
-            && $event->scope === 'team::5';
+        return $event->assignment->subject_type === 'App\\Models\\User'
+            && (int) $event->assignment->subject_id === 1
+            && $event->assignment->role_id === 'editor'
+            && $event->assignment->scope === 'team::5';
     });
 });
 
@@ -84,10 +84,10 @@ it('dispatches AssignmentRevoked on removal', function (): void {
     $this->store->revoke('App\\Models\\User', 1, 'editor', 'team::5');
 
     Event::assertDispatched(AssignmentRevoked::class, function (AssignmentRevoked $event): bool {
-        return $event->subjectType === 'App\\Models\\User'
-            && $event->subjectId === 1
-            && $event->roleId === 'editor'
-            && $event->scope === 'team::5';
+        return $event->assignment->subject_type === 'App\\Models\\User'
+            && (int) $event->assignment->subject_id === 1
+            && $event->assignment->role_id === 'editor'
+            && $event->assignment->scope === 'team::5';
     });
 });
 

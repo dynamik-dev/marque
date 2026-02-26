@@ -7,6 +7,6 @@ namespace DynamikDev\PolicyEngine\Events;
 class PermissionDeleted
 {
     public function __construct(
-        public readonly string $permissionId,
+        public readonly string $permission,
     ) {}
 }

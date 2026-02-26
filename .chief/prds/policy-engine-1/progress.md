@@ -11,7 +11,7 @@
 - Use PHPDoc generics on relationship return types: `@return BelongsToMany<Permission, $this>`
 - DTOs use `readonly class` with constructor promotion and sensible defaults
 - Eloquent stores: use `firstOrCreate` + `wasRecentlyCreated` for idempotent register with event dispatch
-- Event classes: simple readonly constructor-promoted DTOs in `src/Events/`
+- Event classes: pass Eloquent models (not IDs) as readonly constructor-promoted properties in `src/Events/`
 - Feature tests for stores use `RefreshDatabase` trait and `Event::fake()` for event assertions
 
 ---
@@ -174,4 +174,41 @@
   - For revoke, use `->delete()` return value (int count) to determine whether to dispatch event
   - `when($roleId, fn ...)` is clean for optional query filters — used in `subjectsInScope`
   - Tests need to create Role records in beforeEach due to FK constraint on assignments table
+---
+
+## 2026-02-26 - US-011
+- What was implemented: EloquentBoundaryStore — Eloquent-backed implementation of BoundaryStore contract
+- Files changed:
+  - `src/Stores/EloquentBoundaryStore.php` — implements BoundaryStore: set (updateOrCreate), remove (where+delete), find (where+first)
+  - `tests/Feature/EloquentBoundaryStoreTest.php` — 6 Pest tests covering set (create, update), remove (existing, non-existing), find (exists, null)
+- **Learnings for future iterations:**
+  - EloquentBoundaryStore is the simplest store — no events, no FK cascading, no protection logic
+  - `updateOrCreate` with `['scope' => $scope]` as match key and `['max_permissions' => $maxPermissions]` as values handles both create and update in one call
+  - No need for event dispatch in boundary store — boundaries are simple config-style records
+  - Boundary model's `max_permissions` cast to `array` handles JSON encode/decode automatically
+---
+
+## 2026-02-26 - US-012
+- What was implemented: Updated all 7 existing event classes to match spec signatures, created 2 new event classes (AuthorizationDenied, DocumentImported), updated stores and tests
+- Files changed:
+  - `src/Events/PermissionCreated.php` — renamed `$permissionId` to `$permission`
+  - `src/Events/PermissionDeleted.php` — renamed `$permissionId` to `$permission`
+  - `src/Events/RoleCreated.php` — changed from `string $roleId` to `Role $role`
+  - `src/Events/RoleUpdated.php` — changed from `string $roleId` to `Role $role, array $changes`
+  - `src/Events/RoleDeleted.php` — changed from `string $roleId` to `Role $role`
+  - `src/Events/AssignmentCreated.php` — consolidated four fields into `Assignment $assignment`
+  - `src/Events/AssignmentRevoked.php` — consolidated four fields into `Assignment $assignment`
+  - `src/Events/AuthorizationDenied.php` — new event: `string $subject, string $permission, ?string $scope`
+  - `src/Events/DocumentImported.php` — new event: `ImportResult $result`
+  - `src/Stores/EloquentRoleStore.php` — updated event dispatch to pass Role model and changes array
+  - `src/Stores/EloquentAssignmentStore.php` — updated event dispatch to pass Assignment model; refactored revoke to fetch-then-delete
+  - `tests/Feature/EloquentPermissionStoreTest.php` — updated event assertions for new property names
+  - `tests/Feature/EloquentRoleStoreTest.php` — updated event assertions to use `$event->role->id`
+  - `tests/Feature/EloquentAssignmentStoreTest.php` — updated event assertions to use `$event->assignment->*`
+- **Learnings for future iterations:**
+  - Event signatures should pass Eloquent models (not just IDs) for richer event payloads — stores already have the models loaded
+  - For revoke operations, fetch the model with `->first()` before `->delete()` so the model is available for the event payload
+  - `$role->getChanges()` returns attributes changed during the last `updateOrCreate` save — useful for RoleUpdated event
+  - Morphs store `subject_id` as a string in the DB — use `(int)` cast when comparing in test assertions
+  - Positional constructor args mean renaming a parameter doesn't break call sites, but test assertions checking properties by name must be updated
 ---

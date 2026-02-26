@@ -67,7 +67,7 @@ it('dispatches RoleCreated for new roles', function (): void {
     $this->store->save('editor', 'Editor', []);
 
     Event::assertDispatched(RoleCreated::class, function (RoleCreated $event): bool {
-        return $event->roleId === 'editor';
+        return $event->role->id === 'editor';
     });
 });
 
@@ -79,7 +79,7 @@ it('dispatches RoleUpdated for existing roles', function (): void {
     $this->store->save('editor', 'Senior Editor', []);
 
     Event::assertDispatched(RoleUpdated::class, function (RoleUpdated $event): bool {
-        return $event->roleId === 'editor';
+        return $event->role->id === 'editor';
     });
 });
 
@@ -119,7 +119,7 @@ it('dispatches RoleDeleted on removal', function (): void {
     $this->store->remove('editor');
 
     Event::assertDispatched(RoleDeleted::class, function (RoleDeleted $event): bool {
-        return $event->roleId === 'editor';
+        return $event->role->id === 'editor';
     });
 });
 

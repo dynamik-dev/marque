@@ -26,7 +26,7 @@ class EloquentAssignmentStore implements AssignmentStore
         ]);
 
         if ($assignment->wasRecentlyCreated) {
-            Event::dispatch(new AssignmentCreated($subjectType, $subjectId, $roleId, $scope));
+            Event::dispatch(new AssignmentCreated($assignment));
         }
     }
 
@@ -35,15 +35,16 @@ class EloquentAssignmentStore implements AssignmentStore
      */
     public function revoke(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
     {
-        $deleted = Assignment::query()
+        $assignment = Assignment::query()
             ->where('subject_type', $subjectType)
             ->where('subject_id', $subjectId)
             ->where('role_id', $roleId)
             ->where('scope', $scope)
-            ->delete();
+            ->first();
 
-        if ($deleted > 0) {
-            Event::dispatch(new AssignmentRevoked($subjectType, $subjectId, $roleId, $scope));
+        if ($assignment) {
+            $assignment->delete();
+            Event::dispatch(new AssignmentRevoked($assignment));
         }
     }
 

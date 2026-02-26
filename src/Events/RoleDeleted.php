@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine\Events;
 
+use DynamikDev\PolicyEngine\Models\Role;
+
 class RoleDeleted
 {
     public function __construct(
-        public readonly string $roleId,
+        public readonly Role $role,
     ) {}
 }

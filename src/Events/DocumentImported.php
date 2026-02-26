@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine\Events;
 
-class PermissionCreated
+use DynamikDev\PolicyEngine\DTOs\ImportResult;
+
+class DocumentImported
 {
     public function __construct(
-        public readonly string $permission,
+        public readonly ImportResult $result,
     ) {}
 }

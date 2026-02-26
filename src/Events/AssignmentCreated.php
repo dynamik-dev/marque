@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine\Events;
 
+use DynamikDev\PolicyEngine\Models\Assignment;
+
 class AssignmentCreated
 {
     public function __construct(
-        public readonly string $subjectType,
-        public readonly string|int $subjectId,
-        public readonly string $roleId,
-        public readonly ?string $scope,
+        public readonly Assignment $assignment,
     ) {}
 }

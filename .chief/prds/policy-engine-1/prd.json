@@ -171,8 +171,7 @@
         "Pest feature tests in tests/Feature/EloquentAssignmentStoreTest.php covering assign (new, idempotent), revoke, forSubject, forSubjectInScope, subjectsInScope (with and without roleId)"
       ],
       "priority": 10,
-      "passes": true,
-      "inProgress": false
+      "passes": true
     },
     {
       "id": "US-011",
@@ -187,7 +186,7 @@
         "Pest feature tests in tests/Feature/EloquentBoundaryStoreTest.php covering set (create, update), remove, find (exists, not exists)"
       ],
       "priority": 11,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-012",
@@ -208,7 +207,8 @@
         "No event extends any base class (plain classes, not Eloquent events)"
       ],
       "priority": 12,
-      "passes": false
+      "passes": true,
+      "inProgress": false
     },
     {
       "id": "US-013",

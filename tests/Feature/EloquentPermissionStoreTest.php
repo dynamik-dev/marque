@@ -44,10 +44,10 @@ it('dispatches PermissionCreated event for new permissions', function (): void {
     $this->store->register(['posts.create', 'posts.delete']);
 
     Event::assertDispatched(PermissionCreated::class, function (PermissionCreated $event): bool {
-        return $event->permissionId === 'posts.create';
+        return $event->permission === 'posts.create';
     });
     Event::assertDispatched(PermissionCreated::class, function (PermissionCreated $event): bool {
-        return $event->permissionId === 'posts.delete';
+        return $event->permission === 'posts.delete';
     });
     Event::assertDispatched(PermissionCreated::class, 2);
 });
@@ -90,7 +90,7 @@ it('dispatches PermissionDeleted event', function (): void {
     $this->store->remove('posts.create');
 
     Event::assertDispatched(PermissionDeleted::class, function (PermissionDeleted $event): bool {
-        return $event->permissionId === 'posts.create';
+        return $event->permission === 'posts.create';
     });
 });
 
