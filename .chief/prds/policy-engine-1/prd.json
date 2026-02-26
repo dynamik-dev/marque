@@ -1,6 +1,6 @@
 {
-  "project": "Laravel Policy Engine — Full Package Implementation",
-  "description": "Build dynamik-dev/laravel-policy-engine, a Laravel-native scoped permissions package. It provides composable, contract-driven authorization that integrates with Gates, Policies, middleware, and Blade. Everything is coded to an interface — swap any implementation without touching the DX layer. The package replaces flat permission systems (like Spatie) with structured resource.verb permissions, scoped role assignments, deny rules, permission boundaries, wildcard matching, and portable JSON policy documents. It follows a 3-layer architecture: DX layer (traits, middleware, blade, facade, commands) delegates to contracts (interfaces), which are backed by default implementations (Eloquent stores, cached evaluator, wildcard matcher).",
+  "project": "Laravel Policy Engine \u2014 Full Package Implementation",
+  "description": "Build dynamik-dev/laravel-policy-engine, a Laravel-native scoped permissions package. It provides composable, contract-driven authorization that integrates with Gates, Policies, middleware, and Blade. Everything is coded to an interface \u2014 swap any implementation without touching the DX layer. The package replaces flat permission systems (like Spatie) with structured resource.verb permissions, scoped role assignments, deny rules, permission boundaries, wildcard matching, and portable JSON policy documents. It follows a 3-layer architecture: DX layer (traits, middleware, blade, facade, commands) delegates to contracts (interfaces), which are backed by default implementations (Eloquent stores, cached evaluator, wildcard matcher).",
   "userStories": [
     {
       "id": "US-001",
@@ -9,7 +9,7 @@
       "acceptanceCriteria": [
         "composer.json exists with name dynamik-dev/laravel-policy-engine, PHP ^8.4 requirement, Laravel ^11.0|^12.0 requirement, pestphp/pest as dev dependency, PSR-4 autoload mapping DynamikDev\\PolicyEngine\\ to src/, and DynamikDev\\PolicyEngine\\Tests\\ to tests/",
         "src/PolicyEngineServiceProvider.php exists as a skeleton class extending Illuminate\\Support\\ServiceProvider with empty register() and boot() methods. It must be registered in composer.json extra.laravel.providers",
-        "config/policy-engine.php exists returning the configuration array from spec section 4 (cache settings, protect_system_roles, log_denials, explain toggle, document_format) — use config key policy-engine",
+        "config/policy-engine.php exists returning the configuration array from spec section 4 (cache settings, protect_system_roles, log_denials, explain toggle, document_format) \u2014 use config key policy-engine",
         "phpunit.xml (or pest equivalent) configured for the tests/ directory",
         "Directory structure created: src/Contracts/, src/Stores/, src/Models/, src/Concerns/, src/Events/, src/Facades/, src/Middleware/, src/Commands/, src/DTOs/, src/Documents/, tests/Feature/",
         "vendor/bin/pest runs with zero tests and no errors"
@@ -22,12 +22,12 @@
       "title": "Create database migrations",
       "description": "As a developer, I need the database tables so Eloquent stores can persist data.",
       "acceptanceCriteria": [
-        "Migration create_permissions_table: permissions table with string('id')-\u003eprimary(), nullable string('description'), timestamps()",
-        "Migration create_roles_table: roles table with string('id')-\u003eprimary(), string('name'), boolean('is_system')-\u003edefault(false), timestamps()",
+        "Migration create_permissions_table: permissions table with string('id')->primary(), nullable string('description'), timestamps()",
+        "Migration create_roles_table: roles table with string('id')->primary(), string('name'), boolean('is_system')->default(false), timestamps()",
         "Migration create_role_permissions_table: role_permissions table with string('role_id'), string('permission_id'), composite primary(['role_id', 'permission_id']), foreign key role_id referencing roles.id with cascade on delete",
         "Migration create_assignments_table: assignments table with id() (auto-increment PK), morphs('subject') (creates subject_type and subject_id), string('role_id'), nullable string('scope'), timestamps(), unique constraint on ['subject_id', 'subject_type', 'role_id', 'scope'], foreign key role_id referencing roles.id with cascade on delete, index on scope",
-        "Migration create_boundaries_table: boundaries table with id(), string('scope')-\u003eunique(), json('max_permissions'), timestamps()",
-        "Migrations are publishable via the service provider's boot() method using $this-\u003epublishesMigrations()",
+        "Migration create_boundaries_table: boundaries table with id(), string('scope')->unique(), json('max_permissions'), timestamps()",
+        "Migrations are publishable via the service provider's boot() method using $this->publishesMigrations()",
         "All migrations use anonymous classes (return new class extends Migration)"
       ],
       "priority": 2,
@@ -38,11 +38,11 @@
       "title": "Create Eloquent models",
       "description": "As a developer, I need Eloquent models for each table so stores can use them for database operations.",
       "acceptanceCriteria": [
-        "src/Models/Permission.php — model with $table = 'permissions', $primaryKey = 'id', $keyType = 'string', $incrementing = false, fillable: ['id', 'description']",
-        "src/Models/Role.php — model with $table = 'roles', $primaryKey = 'id', $keyType = 'string', $incrementing = false, fillable: ['id', 'name', 'is_system'], cast is_system to boolean. Has a permissions() belongsToMany relationship through role_permissions table (related model: Permission, pivot table: role_permissions, foreign pivot key: role_id, related pivot key: permission_id)",
-        "src/Models/RolePermission.php — model with $table = 'role_permissions', $incrementing = false, no primary key auto-increment, fillable: ['role_id', 'permission_id'], belongs to Role and Permission",
-        "src/Models/Assignment.php — model with $table = 'assignments', fillable: ['subject_type', 'subject_id', 'role_id', 'scope'], has a subject() morphTo relationship, belongs to Role",
-        "src/Models/Boundary.php — model with $table = 'boundaries', fillable: ['scope', 'max_permissions'], cast max_permissions to array",
+        "src/Models/Permission.php \u2014 model with $table = 'permissions', $primaryKey = 'id', $keyType = 'string', $incrementing = false, fillable: ['id', 'description']",
+        "src/Models/Role.php \u2014 model with $table = 'roles', $primaryKey = 'id', $keyType = 'string', $incrementing = false, fillable: ['id', 'name', 'is_system'], cast is_system to boolean. Has a permissions() belongsToMany relationship through role_permissions table (related model: Permission, pivot table: role_permissions, foreign pivot key: role_id, related pivot key: permission_id)",
+        "src/Models/RolePermission.php \u2014 model with $table = 'role_permissions', $incrementing = false, no primary key auto-increment, fillable: ['role_id', 'permission_id'], belongs to Role and Permission",
+        "src/Models/Assignment.php \u2014 model with $table = 'assignments', fillable: ['subject_type', 'subject_id', 'role_id', 'scope'], has a subject() morphTo relationship, belongs to Role",
+        "src/Models/Boundary.php \u2014 model with $table = 'boundaries', fillable: ['scope', 'max_permissions'], cast max_permissions to array",
         "All models have full PHP 8.4 type hints on properties and return types on methods"
       ],
       "priority": 3,
@@ -53,16 +53,16 @@
       "title": "Define all contracts (interfaces)",
       "description": "As a developer, I need the contract interfaces so all implementations code to a stable API.",
       "acceptanceCriteria": [
-        "src/Contracts/PermissionStore.php — interface with methods: register(string|array $permissions): void, remove(string $id): void, all(?string $prefix = null): Collection, exists(string $id): bool. Import Illuminate\\Support\\Collection",
-        "src/Contracts/RoleStore.php — interface with methods: save(string $id, string $name, array $permissions, bool $system = false): Role, remove(string $id): void, find(string $id): ?Role, all(): Collection, permissionsFor(string $roleId): array. The Role return type refers to the DynamikDev\\PolicyEngine\\Models\\Role Eloquent model",
-        "src/Contracts/AssignmentStore.php — interface with methods: assign(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void, revoke(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void, forSubject(string $subjectType, string|int $subjectId): Collection, forSubjectInScope(string $subjectType, string|int $subjectId, string $scope): Collection, subjectsInScope(string $scope, ?string $roleId = null): Collection",
-        "src/Contracts/BoundaryStore.php — interface with methods: set(string $scope, array $maxPermissions): void, remove(string $scope): void, find(string $scope): ?Boundary. The Boundary return type refers to the DynamikDev\\PolicyEngine\\Models\\Boundary Eloquent model",
-        "src/Contracts/Evaluator.php — interface with methods: can(string $subjectType, string|int $subjectId, string $permission): bool, explain(string $subjectType, string|int $subjectId, string $permission): EvaluationTrace, effectivePermissions(string $subjectType, string|int $subjectId, ?string $scope = null): array. The EvaluationTrace type refers to DynamikDev\\PolicyEngine\\DTOs\\EvaluationTrace",
-        "src/Contracts/Matcher.php — interface with method: matches(string $granted, string $required): bool",
-        "src/Contracts/ScopeResolver.php — interface with method: resolve(mixed $scope): ?string",
-        "src/Contracts/DocumentParser.php — interface with methods: parse(string $content): PolicyDocument, serialize(PolicyDocument $document): string, validate(string $content): ValidationResult. Types refer to DTOs in DynamikDev\\PolicyEngine\\DTOs\\",
-        "src/Contracts/DocumentImporter.php — interface with method: import(PolicyDocument $document, ImportOptions $options): ImportResult",
-        "src/Contracts/DocumentExporter.php — interface with method: export(?string $scope = null): PolicyDocument",
+        "src/Contracts/PermissionStore.php \u2014 interface with methods: register(string|array $permissions): void, remove(string $id): void, all(?string $prefix = null): Collection, exists(string $id): bool. Import Illuminate\\Support\\Collection",
+        "src/Contracts/RoleStore.php \u2014 interface with methods: save(string $id, string $name, array $permissions, bool $system = false): Role, remove(string $id): void, find(string $id): ?Role, all(): Collection, permissionsFor(string $roleId): array. The Role return type refers to the DynamikDev\\PolicyEngine\\Models\\Role Eloquent model",
+        "src/Contracts/AssignmentStore.php \u2014 interface with methods: assign(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void, revoke(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void, forSubject(string $subjectType, string|int $subjectId): Collection, forSubjectInScope(string $subjectType, string|int $subjectId, string $scope): Collection, subjectsInScope(string $scope, ?string $roleId = null): Collection",
+        "src/Contracts/BoundaryStore.php \u2014 interface with methods: set(string $scope, array $maxPermissions): void, remove(string $scope): void, find(string $scope): ?Boundary. The Boundary return type refers to the DynamikDev\\PolicyEngine\\Models\\Boundary Eloquent model",
+        "src/Contracts/Evaluator.php \u2014 interface with methods: can(string $subjectType, string|int $subjectId, string $permission): bool, explain(string $subjectType, string|int $subjectId, string $permission): EvaluationTrace, effectivePermissions(string $subjectType, string|int $subjectId, ?string $scope = null): array. The EvaluationTrace type refers to DynamikDev\\PolicyEngine\\DTOs\\EvaluationTrace",
+        "src/Contracts/Matcher.php \u2014 interface with method: matches(string $granted, string $required): bool",
+        "src/Contracts/ScopeResolver.php \u2014 interface with method: resolve(mixed $scope): ?string",
+        "src/Contracts/DocumentParser.php \u2014 interface with methods: parse(string $content): PolicyDocument, serialize(PolicyDocument $document): string, validate(string $content): ValidationResult. Types refer to DTOs in DynamikDev\\PolicyEngine\\DTOs\\",
+        "src/Contracts/DocumentImporter.php \u2014 interface with method: import(PolicyDocument $document, ImportOptions $options): ImportResult",
+        "src/Contracts/DocumentExporter.php \u2014 interface with method: export(?string $scope = null): PolicyDocument",
         "All interfaces are in DynamikDev\\PolicyEngine\\Contracts\\ namespace",
         "All method signatures have full PHP 8.4 type hints and return types"
       ],
@@ -74,11 +74,11 @@
       "title": "Create DTOs and value objects",
       "description": "As a developer, I need data transfer objects so contracts have well-typed parameters and return values.",
       "acceptanceCriteria": [
-        "src/DTOs/EvaluationTrace.php — readonly class with public properties: string $subject, string $required, string $result (either 'ALLOW' or 'DENY'), array $assignments (each entry is an array with keys: role, scope, permissions_checked), ?string $boundary, bool $cacheHit. Constructor accepts all properties",
-        "src/DTOs/PolicyDocument.php — readonly class with public properties: string $version (default '1.0'), array $permissions (string[]), array $roles (each is array with keys: id, name, permissions, optional system), array $assignments (each is array with keys: subject, role, optional scope), array $boundaries (each is array with keys: scope, max_permissions). Constructor accepts all properties with sensible defaults (empty arrays)",
-        "src/DTOs/ImportOptions.php — readonly class with public properties: bool $validate (default true), bool $merge (default true), bool $dryRun (default false), bool $skipAssignments (default false). Constructor accepts all properties",
-        "src/DTOs/ImportResult.php — readonly class with public properties: array $permissionsCreated, array $rolesCreated, array $rolesUpdated, int $assignmentsCreated, array $warnings. Constructor accepts all properties",
-        "src/DTOs/ValidationResult.php — readonly class with public properties: bool $valid, array $errors (string[])",
+        "src/DTOs/EvaluationTrace.php \u2014 readonly class with public properties: string $subject, string $required, string $result (either 'ALLOW' or 'DENY'), array $assignments (each entry is an array with keys: role, scope, permissions_checked), ?string $boundary, bool $cacheHit. Constructor accepts all properties",
+        "src/DTOs/PolicyDocument.php \u2014 readonly class with public properties: string $version (default '1.0'), array $permissions (string[]), array $roles (each is array with keys: id, name, permissions, optional system), array $assignments (each is array with keys: subject, role, optional scope), array $boundaries (each is array with keys: scope, max_permissions). Constructor accepts all properties with sensible defaults (empty arrays)",
+        "src/DTOs/ImportOptions.php \u2014 readonly class with public properties: bool $validate (default true), bool $merge (default true), bool $dryRun (default false), bool $skipAssignments (default false). Constructor accepts all properties",
+        "src/DTOs/ImportResult.php \u2014 readonly class with public properties: array $permissionsCreated, array $rolesCreated, array $rolesUpdated, int $assignmentsCreated, array $warnings. Constructor accepts all properties",
+        "src/DTOs/ValidationResult.php \u2014 readonly class with public properties: bool $valid, array $errors (string[])",
         "All DTOs are in DynamikDev\\PolicyEngine\\DTOs\\ namespace",
         "All DTOs use PHP 8.4 readonly classes with typed constructor parameters"
       ],
@@ -91,17 +91,17 @@
       "description": "As a developer, I need a wildcard matcher so permission strings like posts.* can match posts.create.",
       "acceptanceCriteria": [
         "src/Matchers/WildcardMatcher.php implements DynamikDev\\PolicyEngine\\Contracts\\Matcher",
-        "Exact match: posts.create matches posts.create — returns true",
-        "Wildcard verb match: posts.* matches posts.create, posts.delete, posts.update.own — returns true",
-        "Wildcard resource match: *.create matches posts.create, comments.create — returns true",
-        "Full wildcard: *.* matches any permission string — returns true",
-        "Single * matches any permission string — returns true",
-        "No match: posts.create does NOT match posts.delete — returns false",
-        "No match: posts.create does NOT match comments.create — returns false",
-        "Scope matching: posts.create:group::5 matches posts.create:group::5 — returns true",
-        "Scope wildcard: posts.create (no scope) matches posts.create:group::5 (scoped) — returns true (unscoped grants cover scoped checks)",
-        "Deep verb matching: posts.delete.* matches posts.delete.own and posts.delete.any — returns true",
-        "Deny prefix is NOT handled by matcher — deny logic (! prefix) is the evaluator's responsibility. Matcher only compares raw permission strings without the ! prefix",
+        "Exact match: posts.create matches posts.create \u2014 returns true",
+        "Wildcard verb match: posts.* matches posts.create, posts.delete, posts.update.own \u2014 returns true",
+        "Wildcard resource match: *.create matches posts.create, comments.create \u2014 returns true",
+        "Full wildcard: *.* matches any permission string \u2014 returns true",
+        "Single * matches any permission string \u2014 returns true",
+        "No match: posts.create does NOT match posts.delete \u2014 returns false",
+        "No match: posts.create does NOT match comments.create \u2014 returns false",
+        "Scope matching: posts.create:group::5 matches posts.create:group::5 \u2014 returns true",
+        "Scope wildcard: posts.create (no scope) matches posts.create:group::5 (scoped) \u2014 returns true (unscoped grants cover scoped checks)",
+        "Deep verb matching: posts.delete.* matches posts.delete.own and posts.delete.any \u2014 returns true",
+        "Deny prefix is NOT handled by matcher \u2014 deny logic (! prefix) is the evaluator's responsibility. Matcher only compares raw permission strings without the ! prefix",
         "Pest feature tests in tests/Feature/WildcardMatcherTest.php covering all cases above"
       ],
       "priority": 6,
@@ -128,7 +128,7 @@
       "description": "As a developer, I need an Eloquent-backed permission store so permissions can be persisted to the database.",
       "acceptanceCriteria": [
         "src/Stores/EloquentPermissionStore.php implements DynamikDev\\PolicyEngine\\Contracts\\PermissionStore",
-        "register(string|array $permissions): accepts a single permission string or array of strings. For each permission, creates a Permission model if it doesn't already exist (idempotent). Uses Permission::query()-\u003efirstOrCreate(['id' =\u003e $perm]) or equivalent. Dispatches PermissionCreated event for each newly created permission",
+        "register(string|array $permissions): accepts a single permission string or array of strings. For each permission, creates a Permission model if it doesn't already exist (idempotent). Uses Permission::query()->firstOrCreate(['id' => $perm]) or equivalent. Dispatches PermissionCreated event for each newly created permission",
         "remove(string $id): deletes the permission by ID. Also deletes related role_permissions rows (handled by the model or explicit query). Dispatches PermissionDeleted event",
         "all(?string $prefix = null): returns all permissions as a Collection. If $prefix is provided, filters to permissions whose id starts with the prefix (e.g., prefix 'posts' returns posts.create, posts.delete, etc.)",
         "exists(string $id): returns true if a permission with the given ID exists, false otherwise",
@@ -145,7 +145,7 @@
       "description": "As a developer, I need an Eloquent-backed role store so roles and their permission associations can be persisted.",
       "acceptanceCriteria": [
         "src/Stores/EloquentRoleStore.php implements DynamikDev\\PolicyEngine\\Contracts\\RoleStore",
-        "save(string $id, string $name, array $permissions, bool $system = false): creates or updates a role. Uses Role::query()-\u003eupdateOrCreate(['id' =\u003e $id], ['name' =\u003e $name, 'is_system' =\u003e $system]). Syncs the role's permissions in role_permissions table (delete existing, insert new). Dispatches RoleCreated event if new, RoleUpdated event if updated. Returns the Role model",
+        "save(string $id, string $name, array $permissions, bool $system = false): creates or updates a role. Uses Role::query()->updateOrCreate(['id' => $id], ['name' => $name, 'is_system' => $system]). Syncs the role's permissions in role_permissions table (delete existing, insert new). Dispatches RoleCreated event if new, RoleUpdated event if updated. Returns the Role model",
         "remove(string $id): deletes the role. If config('policy-engine.protect_system_roles') is true and the role has is_system = true, throws an exception (e.g., \\RuntimeException). Cascading delete of role_permissions and assignments is handled by foreign keys. Dispatches RoleDeleted event",
         "find(string $id): returns the Role model or null",
         "all(): returns all roles as a Collection",
@@ -162,7 +162,7 @@
       "description": "As a developer, I need an Eloquent-backed assignment store so role assignments to subjects (with optional scoping) can be persisted.",
       "acceptanceCriteria": [
         "src/Stores/EloquentAssignmentStore.php implements DynamikDev\\PolicyEngine\\Contracts\\AssignmentStore",
-        "assign(...): creates an assignment. Uses Assignment::query()-\u003efirstOrCreate(...) with all four fields (subject_type, subject_id, role_id, scope) to enforce uniqueness. Dispatches AssignmentCreated event only if newly created",
+        "assign(...): creates an assignment. Uses Assignment::query()->firstOrCreate(...) with all four fields (subject_type, subject_id, role_id, scope) to enforce uniqueness. Dispatches AssignmentCreated event only if newly created",
         "revoke(...): deletes the matching assignment. Dispatches AssignmentRevoked event if a row was deleted",
         "forSubject(string $subjectType, string|int $subjectId): returns all assignments for the subject as a Collection",
         "forSubjectInScope(...): returns assignments for the subject filtered by exact scope match",
@@ -171,7 +171,8 @@
         "Pest feature tests in tests/Feature/EloquentAssignmentStoreTest.php covering assign (new, idempotent), revoke, forSubject, forSubjectInScope, subjectsInScope (with and without roleId)"
       ],
       "priority": 10,
-      "passes": false
+      "passes": true,
+      "inProgress": false
     },
     {
       "id": "US-011",
@@ -179,7 +180,7 @@
       "description": "As a developer, I need an Eloquent-backed boundary store so permission boundaries can be set per scope.",
       "acceptanceCriteria": [
         "src/Stores/EloquentBoundaryStore.php implements DynamikDev\\PolicyEngine\\Contracts\\BoundaryStore",
-        "set(string $scope, array $maxPermissions): creates or updates a boundary. Uses Boundary::query()-\u003eupdateOrCreate(['scope' =\u003e $scope], ['max_permissions' =\u003e $maxPermissions])",
+        "set(string $scope, array $maxPermissions): creates or updates a boundary. Uses Boundary::query()->updateOrCreate(['scope' => $scope], ['max_permissions' => $maxPermissions])",
         "remove(string $scope): deletes the boundary for the given scope",
         "find(string $scope): returns the Boundary model or null",
         "Uses Model::query() for queries",
@@ -193,15 +194,15 @@
       "title": "Create event classes",
       "description": "As a developer, I need event classes so store implementations can dispatch observable events for cache invalidation and auditing.",
       "acceptanceCriteria": [
-        "src/Events/PermissionCreated.php — public readonly property string $permission",
-        "src/Events/PermissionDeleted.php — public readonly property string $permission",
-        "src/Events/RoleCreated.php — public readonly property Role $role (Eloquent model)",
-        "src/Events/RoleUpdated.php — public readonly properties Role $role, array $changes",
-        "src/Events/RoleDeleted.php — public readonly property Role $role",
-        "src/Events/AssignmentCreated.php — public readonly property Assignment $assignment (Eloquent model)",
-        "src/Events/AssignmentRevoked.php — public readonly property Assignment $assignment",
-        "src/Events/AuthorizationDenied.php — public readonly properties string $subject, string $permission, ?string $scope",
-        "src/Events/DocumentImported.php — public readonly property ImportResult $result",
+        "src/Events/PermissionCreated.php \u2014 public readonly property string $permission",
+        "src/Events/PermissionDeleted.php \u2014 public readonly property string $permission",
+        "src/Events/RoleCreated.php \u2014 public readonly property Role $role (Eloquent model)",
+        "src/Events/RoleUpdated.php \u2014 public readonly properties Role $role, array $changes",
+        "src/Events/RoleDeleted.php \u2014 public readonly property Role $role",
+        "src/Events/AssignmentCreated.php \u2014 public readonly property Assignment $assignment (Eloquent model)",
+        "src/Events/AssignmentRevoked.php \u2014 public readonly property Assignment $assignment",
+        "src/Events/AuthorizationDenied.php \u2014 public readonly properties string $subject, string $permission, ?string $scope",
+        "src/Events/DocumentImported.php \u2014 public readonly property ImportResult $result",
         "All events are in DynamikDev\\PolicyEngine\\Events\\ namespace",
         "All events use constructor promotion for properties",
         "No event extends any base class (plain classes, not Eloquent events)"
@@ -216,9 +217,9 @@
       "acceptanceCriteria": [
         "src/Evaluators/DefaultEvaluator.php implements DynamikDev\\PolicyEngine\\Contracts\\Evaluator",
         "Constructor accepts: AssignmentStore $assignments, RoleStore $roles, BoundaryStore $boundaries, Matcher $matcher",
-        "can(string $subjectType, string|int $subjectId, string $permission): bool — evaluation order: 1. Parse scope from permission string if present (format: permission:scope, e.g., posts.create:group::5) 2. Get all assignments for the subject (global + scoped if scope is present) 3. For each assignment, get the role's permissions via RoleStore::permissionsFor() 4. Check boundary: if scope is present, get boundary via BoundaryStore::find(). If a boundary exists, verify the required permission is covered by at least one max_permissions entry using the Matcher. If not covered, deny 5. Collect all deny permissions (prefixed with !) and all allow permissions (no prefix) 6. Deny wins: if any deny permission (after stripping !) matches the required permission via Matcher, return false 7. If any allow permission matches the required permission via Matcher, return true 8. Default: return false (no match = deny) 9. If result is false and config('policy-engine.log_denials') is true, dispatch AuthorizationDenied event",
-        "explain(...) — returns an EvaluationTrace DTO with the full resolution chain. If config('policy-engine.explain') is false, throws \\RuntimeException",
-        "effectivePermissions(string $subjectType, string|int $subjectId, ?string $scope = null) — returns array of all permission strings the subject is effectively granted (after deny filtering) in the given scope (or globally if null)",
+        "can(string $subjectType, string|int $subjectId, string $permission): bool \u2014 evaluation order: 1. Parse scope from permission string if present (format: permission:scope, e.g., posts.create:group::5) 2. Get all assignments for the subject (global + scoped if scope is present) 3. For each assignment, get the role's permissions via RoleStore::permissionsFor() 4. Check boundary: if scope is present, get boundary via BoundaryStore::find(). If a boundary exists, verify the required permission is covered by at least one max_permissions entry using the Matcher. If not covered, deny 5. Collect all deny permissions (prefixed with !) and all allow permissions (no prefix) 6. Deny wins: if any deny permission (after stripping !) matches the required permission via Matcher, return false 7. If any allow permission matches the required permission via Matcher, return true 8. Default: return false (no match = deny) 9. If result is false and config('policy-engine.log_denials') is true, dispatch AuthorizationDenied event",
+        "explain(...) \u2014 returns an EvaluationTrace DTO with the full resolution chain. If config('policy-engine.explain') is false, throws \\RuntimeException",
+        "effectivePermissions(string $subjectType, string|int $subjectId, ?string $scope = null) \u2014 returns array of all permission strings the subject is effectively granted (after deny filtering) in the given scope (or globally if null)",
         "Pest feature tests in tests/Feature/DefaultEvaluatorTest.php covering: basic allow, basic deny, deny-wins-over-allow, wildcard grants, scoped evaluation, boundary enforcement (permission within boundary, permission outside boundary), no-assignment-means-deny, explain output structure"
       ],
       "priority": 13,
@@ -234,10 +235,10 @@
         "Cache key format: policy-engine:{subjectType}:{subjectId} for global, policy-engine:{subjectType}:{subjectId}:{scope} for scoped",
         "can(): checks cache for the subject's effective permissions first. If cache hit, evaluate against cached set. If cache miss, delegates to inner evaluator and caches the result",
         "Cache TTL is read from config('policy-engine.cache.ttl')",
-        "Cache store is read from config('policy-engine.cache.store') — use 'default' if not set",
+        "Cache store is read from config('policy-engine.cache.store') \u2014 use 'default' if not set",
         "If config('policy-engine.cache.enabled') is false, delegates directly to inner evaluator without caching",
         "explain() and effectivePermissions() delegate to inner evaluator (no caching on these)",
-        "src/Listeners/InvalidatePermissionCache.php — a listener class that flushes relevant cache keys. Register it to listen for: AssignmentCreated, AssignmentRevoked, RoleUpdated, RoleDeleted, PermissionDeleted. On each event, flush the affected subject's cache keys (or flush all policy-engine cache keys if the affected subject cannot be determined, e.g., role changes affect all subjects with that role)",
+        "src/Listeners/InvalidatePermissionCache.php \u2014 a listener class that flushes relevant cache keys. Register it to listen for: AssignmentCreated, AssignmentRevoked, RoleUpdated, RoleDeleted, PermissionDeleted. On each event, flush the affected subject's cache keys (or flush all policy-engine cache keys if the affected subject cannot be determined, e.g., role changes affect all subjects with that role)",
         "Pest feature tests in tests/Feature/CachedEvaluatorTest.php covering: cache hit behavior, cache miss behavior, cache invalidation on assignment change, cache invalidation on role change, cache disabled config"
       ],
       "priority": 14,
@@ -248,18 +249,18 @@
       "title": "Implement HasPermissions trait",
       "description": "As a developer, I need the HasPermissions trait so any Eloquent model can perform permission checks and role assignments through a clean API.",
       "acceptanceCriteria": [
-        "src/Concerns/HasPermissions.php — trait in DynamikDev\\PolicyEngine\\Concerns\\ namespace",
-        "canDo(string $permission, mixed $scope = null): bool — resolves scope via ScopeResolver, builds full permission string (permission:scope if scoped), delegates to Evaluator::can() using $this-\u003egetMorphClass() and $this-\u003egetKey()",
-        "cannotDo(string $permission, mixed $scope = null): bool — negation of canDo()",
-        "assign(string $roleId, mixed $scope = null): void — resolves scope, delegates to AssignmentStore::assign()",
-        "revoke(string $roleId, mixed $scope = null): void — resolves scope, delegates to AssignmentStore::revoke()",
-        "assignments(): Collection — delegates to AssignmentStore::forSubject()",
-        "assignmentsFor(mixed $scope): Collection — resolves scope, delegates to AssignmentStore::forSubjectInScope()",
-        "effectivePermissions(mixed $scope = null): array — resolves scope, delegates to Evaluator::effectivePermissions()",
-        "roles(): Collection — gets assignments, plucks unique role_ids, returns collection of Role models via RoleStore::find()",
-        "rolesFor(mixed $scope): Collection — same as roles() but filtered to scope",
-        "explain(string $permission, mixed $scope = null): EvaluationTrace — resolves scope, delegates to Evaluator::explain()",
-        "All methods resolve contracts from the container via app() — the trait holds no logic, only delegation",
+        "src/Concerns/HasPermissions.php \u2014 trait in DynamikDev\\PolicyEngine\\Concerns\\ namespace",
+        "canDo(string $permission, mixed $scope = null): bool \u2014 resolves scope via ScopeResolver, builds full permission string (permission:scope if scoped), delegates to Evaluator::can() using $this->getMorphClass() and $this->getKey()",
+        "cannotDo(string $permission, mixed $scope = null): bool \u2014 negation of canDo()",
+        "assign(string $roleId, mixed $scope = null): void \u2014 resolves scope, delegates to AssignmentStore::assign()",
+        "revoke(string $roleId, mixed $scope = null): void \u2014 resolves scope, delegates to AssignmentStore::revoke()",
+        "assignments(): Collection \u2014 delegates to AssignmentStore::forSubject()",
+        "assignmentsFor(mixed $scope): Collection \u2014 resolves scope, delegates to AssignmentStore::forSubjectInScope()",
+        "effectivePermissions(mixed $scope = null): array \u2014 resolves scope, delegates to Evaluator::effectivePermissions()",
+        "roles(): Collection \u2014 gets assignments, plucks unique role_ids, returns collection of Role models via RoleStore::find()",
+        "rolesFor(mixed $scope): Collection \u2014 same as roles() but filtered to scope",
+        "explain(string $permission, mixed $scope = null): EvaluationTrace \u2014 resolves scope, delegates to Evaluator::explain()",
+        "All methods resolve contracts from the container via app() \u2014 the trait holds no logic, only delegation",
         "Pest feature tests in tests/Feature/HasPermissionsTraitTest.php using a test User model, covering: canDo/cannotDo, assign/revoke, assignments/assignmentsFor, roles/rolesFor, effectivePermissions"
       ],
       "priority": 15,
@@ -270,11 +271,11 @@
       "title": "Implement Scopeable trait",
       "description": "As a developer, I need the Scopeable trait so models that represent scopes (e.g., Group, Organization) can produce scope strings and query membership.",
       "acceptanceCriteria": [
-        "src/Concerns/Scopeable.php — trait in DynamikDev\\PolicyEngine\\Concerns\\ namespace",
+        "src/Concerns/Scopeable.php \u2014 trait in DynamikDev\\PolicyEngine\\Concerns\\ namespace",
         "The model using this trait must define a protected string $scopeType property (e.g., 'group')",
-        "toScope(): string — returns \"{$this-\u003escopeType}::{$this-\u003egetKey()}\" (e.g., \"group::5\")",
-        "members(): Collection — delegates to AssignmentStore::subjectsInScope($this-\u003etoScope()), returns the collection of assignments",
-        "membersWithRole(string $roleId): Collection — delegates to AssignmentStore::subjectsInScope($this-\u003etoScope(), $roleId)",
+        "toScope(): string \u2014 returns \"{$this->scopeType}::{$this->getKey()}\" (e.g., \"group::5\")",
+        "members(): Collection \u2014 delegates to AssignmentStore::subjectsInScope($this->toScope()), returns the collection of assignments",
+        "membersWithRole(string $roleId): Collection \u2014 delegates to AssignmentStore::subjectsInScope($this->toScope(), $roleId)",
         "Pest feature tests in tests/Feature/ScopeableTraitTest.php using a test Group model, covering: toScope output format, members, membersWithRole"
       ],
       "priority": 16,
@@ -285,15 +286,15 @@
       "title": "Implement Primitives facade",
       "description": "As a developer, I need the Primitives facade so seeding and runtime management have a clean, static API.",
       "acceptanceCriteria": [
-        "src/Facades/Primitives.php — extends Illuminate\\Support\\Facades\\Facade",
-        "src/PrimitivesManager.php — the underlying class the facade proxies to. Constructor accepts PermissionStore, RoleStore, BoundaryStore, DocumentParser, DocumentImporter, DocumentExporter via dependency injection",
-        "permissions(array $permissions): void — delegates to PermissionStore::register()",
-        "role(string $id, string $name, bool $system = false): RoleBuilder — creates/saves a role via RoleStore::save() with empty permissions, returns a RoleBuilder fluent object",
-        "src/Support/RoleBuilder.php — fluent builder with grant(array $permissions): self (adds permissions to role via RoleStore::save()) and ungrant(array $permissions): self (removes specific permissions) and remove(): void (delegates to RoleStore::remove())",
-        "boundary(string $scope, array $maxPermissions): void — delegates to BoundaryStore::set()",
-        "import(string $pathOrContent, ?ImportOptions $options = null): ImportResult — if $pathOrContent is a file path (file_exists check), reads the file contents. Parses via DocumentParser::parse(), then delegates to DocumentImporter::import(). If $options is null, uses default ImportOptions",
-        "export(?string $scope = null): string — delegates to DocumentExporter::export() then DocumentParser::serialize()",
-        "exportToFile(string $path, ?string $scope = null): void — same as export() but writes result to file",
+        "src/Facades/Primitives.php \u2014 extends Illuminate\\Support\\Facades\\Facade",
+        "src/PrimitivesManager.php \u2014 the underlying class the facade proxies to. Constructor accepts PermissionStore, RoleStore, BoundaryStore, DocumentParser, DocumentImporter, DocumentExporter via dependency injection",
+        "permissions(array $permissions): void \u2014 delegates to PermissionStore::register()",
+        "role(string $id, string $name, bool $system = false): RoleBuilder \u2014 creates/saves a role via RoleStore::save() with empty permissions, returns a RoleBuilder fluent object",
+        "src/Support/RoleBuilder.php \u2014 fluent builder with grant(array $permissions): self (adds permissions to role via RoleStore::save()) and ungrant(array $permissions): self (removes specific permissions) and remove(): void (delegates to RoleStore::remove())",
+        "boundary(string $scope, array $maxPermissions): void \u2014 delegates to BoundaryStore::set()",
+        "import(string $pathOrContent, ?ImportOptions $options = null): ImportResult \u2014 if $pathOrContent is a file path (file_exists check), reads the file contents. Parses via DocumentParser::parse(), then delegates to DocumentImporter::import(). If $options is null, uses default ImportOptions",
+        "export(?string $scope = null): string \u2014 delegates to DocumentExporter::export() then DocumentParser::serialize()",
+        "exportToFile(string $path, ?string $scope = null): void \u2014 same as export() but writes result to file",
         "Pest feature tests in tests/Feature/PrimitivesFacadeTest.php covering: permissions registration, role creation with grant chaining, boundary setting, import from string, export"
       ],
       "priority": 17,
@@ -304,8 +305,8 @@
       "title": "Implement middleware",
       "description": "As a developer, I need can_do and role middleware so routes can be protected with permission and role checks.",
       "acceptanceCriteria": [
-        "src/Middleware/CanDoMiddleware.php — middleware class with handle(Request $request, Closure $next, string $permission, ?string $scopeParam = null). Gets the authenticated user via $request-\u003euser(). If $scopeParam is provided, resolves the scope from route parameters: $request-\u003eroute($scopeParam). The route parameter value will be a model (via route model binding) or a string — pass it through ScopeResolver. Calls $user-\u003ecanDo($permission, scope: $resolvedScope). If denied, aborts with 403. If allowed, passes to $next",
-        "src/Middleware/RoleMiddleware.php — middleware class with handle(Request $request, Closure $next, string $role, ?string $scopeParam = null). Gets the authenticated user. Resolves scope same as CanDoMiddleware. Checks if user has the required role in scope by querying AssignmentStore::forSubjectInScope() (or forSubject() if no scope) and checking if any assignment has the required role_id. If no matching assignment, aborts with 403. If found, passes to $next",
+        "src/Middleware/CanDoMiddleware.php \u2014 middleware class with handle(Request $request, Closure $next, string $permission, ?string $scopeParam = null). Gets the authenticated user via $request->user(). If $scopeParam is provided, resolves the scope from route parameters: $request->route($scopeParam). The route parameter value will be a model (via route model binding) or a string \u2014 pass it through ScopeResolver. Calls $user->canDo($permission, scope: $resolvedScope). If denied, aborts with 403. If allowed, passes to $next",
+        "src/Middleware/RoleMiddleware.php \u2014 middleware class with handle(Request $request, Closure $next, string $role, ?string $scopeParam = null). Gets the authenticated user. Resolves scope same as CanDoMiddleware. Checks if user has the required role in scope by querying AssignmentStore::forSubjectInScope() (or forSubject() if no scope) and checking if any assignment has the required role_id. If no matching assignment, aborts with 403. If found, passes to $next",
         "Both middleware are registered in the service provider with aliases can_do and role",
         "Pest feature tests in tests/Feature/MiddlewareTest.php covering: can_do allows, can_do denies (403), can_do with scope parameter, role allows, role denies (403), unauthenticated user (401 or redirect)"
       ],
@@ -317,9 +318,9 @@
       "title": "Implement Blade directives",
       "description": "As a developer, I need Blade directives so views can conditionally render based on permissions and roles.",
       "acceptanceCriteria": [
-        "@canDo('permission', $scope) / @endCanDo — compiles to a PHP if-block that calls auth()-\u003euser()-\u003ecanDo('permission', $scope). The second argument ($scope) is optional",
-        "@cannotDo('permission', $scope) / @endCannotDo — compiles to the negation",
-        "@hasRole('role', $scope) / @endHasRole — compiles to check if the user has the role assignment in the given scope. Uses AssignmentStore to check",
+        "@canDo('permission', $scope) / @endCanDo \u2014 compiles to a PHP if-block that calls auth()->user()->canDo('permission', $scope). The second argument ($scope) is optional",
+        "@cannotDo('permission', $scope) / @endCannotDo \u2014 compiles to the negation",
+        "@hasRole('role', $scope) / @endHasRole \u2014 compiles to check if the user has the role assignment in the given scope. Uses AssignmentStore to check",
         "Directives are registered in the service provider's boot() method via Blade::if()",
         "If no user is authenticated, all directives evaluate to false (never throws)",
         "Pest feature tests in tests/Feature/BladeDirectivesTest.php covering: canDo renders content when allowed, canDo hides content when denied, cannotDo inverse behavior, hasRole with and without scope, unauthenticated user sees nothing"
@@ -333,10 +334,10 @@
       "description": "As a developer, I need a JSON document parser so policy documents can be parsed from and serialized to JSON strings.",
       "acceptanceCriteria": [
         "src/Documents/JsonDocumentParser.php implements DynamikDev\\PolicyEngine\\Contracts\\DocumentParser",
-        "parse(string $content): PolicyDocument — decodes JSON string, validates structure, returns a PolicyDocument DTO. Throws \\InvalidArgumentException if JSON is invalid",
-        "serialize(PolicyDocument $document): string — encodes the DTO to a pretty-printed JSON string (JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)",
-        "validate(string $content): ValidationResult — validates JSON structure without importing. Checks: valid JSON, version field exists, permissions is array of strings (if present), roles entries have id, name, permissions keys (if present), assignments entries have subject and role keys (if present), boundaries entries have scope and max_permissions keys (if present). Returns ValidationResult with valid = true or valid = false with error messages",
-        "All sections of the document (permissions, roles, assignments, boundaries) are optional — a document with only roles is valid",
+        "parse(string $content): PolicyDocument \u2014 decodes JSON string, validates structure, returns a PolicyDocument DTO. Throws \\InvalidArgumentException if JSON is invalid",
+        "serialize(PolicyDocument $document): string \u2014 encodes the DTO to a pretty-printed JSON string (JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)",
+        "validate(string $content): ValidationResult \u2014 validates JSON structure without importing. Checks: valid JSON, version field exists, permissions is array of strings (if present), roles entries have id, name, permissions keys (if present), assignments entries have subject and role keys (if present), boundaries entries have scope and max_permissions keys (if present). Returns ValidationResult with valid = true or valid = false with error messages",
+        "All sections of the document (permissions, roles, assignments, boundaries) are optional \u2014 a document with only roles is valid",
         "Pest feature tests in tests/Feature/JsonDocumentParserTest.php covering: parse valid document, parse partial document (roles only), parse invalid JSON, serialize round-trip, validate valid document, validate invalid document"
       ],
       "priority": 20,
@@ -349,7 +350,7 @@
       "acceptanceCriteria": [
         "src/Documents/DefaultDocumentImporter.php implements DynamikDev\\PolicyEngine\\Contracts\\DocumentImporter",
         "Constructor accepts: PermissionStore, RoleStore, AssignmentStore, BoundaryStore",
-        "import(PolicyDocument $document, ImportOptions $options): ImportResult: If $options-\u003evalidate is true, validate that permission strings referenced in roles exist in the document's permissions list or are already registered. Collect warnings for unregistered permissions. If $options-\u003emerge is true (default), merge with existing state (create new, update existing, don't delete missing). If false, replace: remove all existing permissions/roles/assignments/boundaries before importing. If $options-\u003edryRun is true, compute the result without writing to any store. Return the ImportResult showing what would change. If $options-\u003eskipAssignments is true, skip importing assignments. Processing order: permissions first, then roles, then boundaries, then assignments. Register all permissions via PermissionStore::register(). Save all roles via RoleStore::save(). Set all boundaries via BoundaryStore::set(). Create all assignments via AssignmentStore::assign() (parse subject field as type::id). Dispatch DocumentImported event with the ImportResult. Return ImportResult with counts and warnings",
+        "import(PolicyDocument $document, ImportOptions $options): ImportResult: If $options->validate is true, validate that permission strings referenced in roles exist in the document's permissions list or are already registered. Collect warnings for unregistered permissions. If $options->merge is true (default), merge with existing state (create new, update existing, don't delete missing). If false, replace: remove all existing permissions/roles/assignments/boundaries before importing. If $options->dryRun is true, compute the result without writing to any store. Return the ImportResult showing what would change. If $options->skipAssignments is true, skip importing assignments. Processing order: permissions first, then roles, then boundaries, then assignments. Register all permissions via PermissionStore::register(). Save all roles via RoleStore::save(). Set all boundaries via BoundaryStore::set(). Create all assignments via AssignmentStore::assign() (parse subject field as type::id). Dispatch DocumentImported event with the ImportResult. Return ImportResult with counts and warnings",
         "Pest feature tests in tests/Feature/DefaultDocumentImporterTest.php covering: full import, merge mode, replace mode, dry run (no DB changes), skip assignments, validation warnings, round-trip with exporter"
       ],
       "priority": 21,
@@ -373,9 +374,9 @@
       "title": "Implement listing Artisan commands",
       "description": "As a developer, I need Artisan commands to list permissions, roles, and assignments for inspection and debugging.",
       "acceptanceCriteria": [
-        "src/Commands/ListPermissionsCommand.php — signature: primitives:permissions. Lists all registered permissions in a table format (ID, description). Resolves PermissionStore from container",
-        "src/Commands/ListRolesCommand.php — signature: primitives:roles. Lists all roles in a table (ID, name, system flag, permission count). For each role, shows its permissions indented below",
-        "src/Commands/ListAssignmentsCommand.php — signature: primitives:assignments {subject?} {--scope=}. If subject argument is provided, lists assignments for that subject (expects format type::id, e.g., user::42). If --scope option is provided, lists all assignments in that scope. If neither, shows usage help. Resolves AssignmentStore from container",
+        "src/Commands/ListPermissionsCommand.php \u2014 signature: primitives:permissions. Lists all registered permissions in a table format (ID, description). Resolves PermissionStore from container",
+        "src/Commands/ListRolesCommand.php \u2014 signature: primitives:roles. Lists all roles in a table (ID, name, system flag, permission count). For each role, shows its permissions indented below",
+        "src/Commands/ListAssignmentsCommand.php \u2014 signature: primitives:assignments {subject?} {--scope=}. If subject argument is provided, lists assignments for that subject (expects format type::id, e.g., user::42). If --scope option is provided, lists all assignments in that scope. If neither, shows usage help. Resolves AssignmentStore from container",
         "All commands are registered in the service provider",
         "Pest feature tests in tests/Feature/ArtisanCommandsTest.php covering: each command runs without error, output contains expected data"
       ],
@@ -387,8 +388,8 @@
       "title": "Implement explain Artisan command",
       "description": "As a developer, I need an Artisan command to explain why a permission check passes or fails.",
       "acceptanceCriteria": [
-        "src/Commands/ExplainCommand.php — signature: primitives:explain {subject} {permission} {--scope=}",
-        "subject argument expects format type::id (e.g., user::42) — parse into subjectType and subjectId",
+        "src/Commands/ExplainCommand.php \u2014 signature: primitives:explain {subject} {permission} {--scope=}",
+        "subject argument expects format type::id (e.g., user::42) \u2014 parse into subjectType and subjectId",
         "Delegates to Evaluator::explain(), building the full permission string with scope if --scope is provided",
         "Outputs the EvaluationTrace in a human-readable format: subject, required permission, result (ALLOW/DENY), each assignment checked with its role and which permissions matched/didn't match, boundary info, cache hit status",
         "If config('policy-engine.explain') is false, shows an error message telling the user to enable it",
@@ -402,7 +403,7 @@
       "title": "Implement import Artisan command",
       "description": "As a developer, I need an Artisan command to import policy documents from JSON files.",
       "acceptanceCriteria": [
-        "src/Commands/ImportCommand.php — signature: primitives:import {path} {--dry-run} {--skip-assignments} {--replace} {--force}",
+        "src/Commands/ImportCommand.php \u2014 signature: primitives:import {path} {--dry-run} {--skip-assignments} {--replace} {--force}",
         "Reads the file at {path}, delegates to Primitives::import() with appropriate ImportOptions",
         "--dry-run: sets ImportOptions::dryRun = true, outputs what would change without applying",
         "--skip-assignments: sets ImportOptions::skipAssignments = true",
@@ -419,7 +420,7 @@
       "title": "Implement export Artisan command",
       "description": "As a developer, I need an Artisan command to export authorization state to JSON.",
       "acceptanceCriteria": [
-        "src/Commands/ExportCommand.php — signature: primitives:export {--scope=} {--path=} {--stdout}",
+        "src/Commands/ExportCommand.php \u2014 signature: primitives:export {--scope=} {--path=} {--stdout}",
         "If --path is provided, writes the JSON to that file path",
         "If --stdout is provided, outputs the JSON to stdout (useful for piping to jq)",
         "If neither --path nor --stdout, defaults to outputting to stdout",
@@ -434,7 +435,7 @@
       "title": "Implement validate Artisan command",
       "description": "As a developer, I need an Artisan command to validate a policy document without importing it.",
       "acceptanceCriteria": [
-        "src/Commands/ValidateCommand.php — signature: primitives:validate {path}",
+        "src/Commands/ValidateCommand.php \u2014 signature: primitives:validate {path}",
         "Reads the file, delegates to DocumentParser::validate()",
         "If valid, outputs success message",
         "If invalid, outputs each validation error",
@@ -449,8 +450,8 @@
       "title": "Implement sync and cache-clear Artisan commands",
       "description": "As a developer, I need utility Artisan commands for syncing permissions and clearing cache.",
       "acceptanceCriteria": [
-        "src/Commands/SyncCommand.php — signature: primitives:sync. Calls Artisan::call('db:seed', ['--class' =\u003e 'PermissionSeeder']) or a configurable seeder class. Outputs success message. This re-runs the seeder idempotently",
-        "src/Commands/CacheClearCommand.php — signature: primitives:cache-clear. Flushes all cache keys with the policy-engine: prefix. Uses the configured cache store from config('policy-engine.cache.store'). Outputs success message with count of cleared entries (or a generic \"Cache cleared\" if count is unavailable)",
+        "src/Commands/SyncCommand.php \u2014 signature: primitives:sync. Calls Artisan::call('db:seed', ['--class' => 'PermissionSeeder']) or a configurable seeder class. Outputs success message. This re-runs the seeder idempotently",
+        "src/Commands/CacheClearCommand.php \u2014 signature: primitives:cache-clear. Flushes all cache keys with the policy-engine: prefix. Uses the configured cache store from config('policy-engine.cache.store'). Outputs success message with count of cleared entries (or a generic \"Cache cleared\" if count is unavailable)",
         "Both commands are registered in the service provider",
         "Pest feature tests in tests/Feature/ArtisanCommandsTest.php covering: cache-clear runs without error"
       ],
@@ -462,9 +463,9 @@
       "title": "Wire service provider with all bindings",
       "description": "As a developer, I need the service provider to bind all contracts to default implementations and register all DX surfaces so the package works on install.",
       "acceptanceCriteria": [
-        "register() method binds all contracts to default implementations: PermissionStore::class =\u003e EloquentPermissionStore::class, RoleStore::class =\u003e EloquentRoleStore::class, AssignmentStore::class =\u003e EloquentAssignmentStore::class, BoundaryStore::class =\u003e EloquentBoundaryStore::class, Matcher::class =\u003e WildcardMatcher::class, ScopeResolver::class =\u003e ModelScopeResolver::class, DocumentParser::class =\u003e JsonDocumentParser::class, DocumentImporter::class =\u003e DefaultDocumentImporter::class, DocumentExporter::class =\u003e DefaultDocumentExporter::class, Evaluator::class =\u003e CachedEvaluator::class (with DefaultEvaluator as the inner evaluator — use $this-\u003eapp-\u003ebind() with a closure that constructs CachedEvaluator wrapping DefaultEvaluator), PrimitivesManager::class as singleton",
-        "boot() method: Publishes config: $this-\u003epublishes([config_path =\u003e config_path('policy-engine.php')], 'policy-engine-config'). Publishes migrations via $this-\u003epublishesMigrations(). Loads migrations from package path. Registers middleware aliases: can_do =\u003e CanDoMiddleware::class, role =\u003e RoleMiddleware::class. Registers Blade directives: @canDo, @endCanDo, @cannotDo, @endCannotDo, @hasRole, @endHasRole. Registers Artisan commands (all 8 commands) when running in console. Registers event listeners for cache invalidation",
-        "Merges config in register() via $this-\u003emergeConfigFrom()",
+        "register() method binds all contracts to default implementations: PermissionStore::class => EloquentPermissionStore::class, RoleStore::class => EloquentRoleStore::class, AssignmentStore::class => EloquentAssignmentStore::class, BoundaryStore::class => EloquentBoundaryStore::class, Matcher::class => WildcardMatcher::class, ScopeResolver::class => ModelScopeResolver::class, DocumentParser::class => JsonDocumentParser::class, DocumentImporter::class => DefaultDocumentImporter::class, DocumentExporter::class => DefaultDocumentExporter::class, Evaluator::class => CachedEvaluator::class (with DefaultEvaluator as the inner evaluator \u2014 use $this->app->bind() with a closure that constructs CachedEvaluator wrapping DefaultEvaluator), PrimitivesManager::class as singleton",
+        "boot() method: Publishes config: $this->publishes([config_path => config_path('policy-engine.php')], 'policy-engine-config'). Publishes migrations via $this->publishesMigrations(). Loads migrations from package path. Registers middleware aliases: can_do => CanDoMiddleware::class, role => RoleMiddleware::class. Registers Blade directives: @canDo, @endCanDo, @cannotDo, @endCannotDo, @hasRole, @endHasRole. Registers Artisan commands (all 8 commands) when running in console. Registers event listeners for cache invalidation",
+        "Merges config in register() via $this->mergeConfigFrom()",
         "Pest feature test: the service provider can be booted in a test Laravel app without errors, and all contracts resolve from the container"
       ],
       "priority": 29,
@@ -475,10 +476,10 @@
       "title": "Implement Sanctum token scoping",
       "description": "As a developer, I need the evaluator to intersect Sanctum token abilities with role-based permissions so tokens can only exercise permissions they explicitly declare.",
       "acceptanceCriteria": [
-        "In DefaultEvaluator::can(), after the normal evaluation resolves to true, check if the current request is authenticated via Sanctum (check if $user-\u003ecurrentAccessToken() exists and is a Sanctum PersonalAccessToken)",
+        "In DefaultEvaluator::can(), after the normal evaluation resolves to true, check if the current request is authenticated via Sanctum (check if $user->currentAccessToken() exists and is a Sanctum PersonalAccessToken)",
         "If a Sanctum token is present, get the token's abilities array",
         "The final result is true only if BOTH the role-based evaluation allows the permission AND the token's abilities include a matching permission (using the Matcher for wildcard support)",
-        "If no Sanctum token is present (session auth, etc.), skip the token check — role-based result stands",
+        "If no Sanctum token is present (session auth, etc.), skip the token check \u2014 role-based result stands",
         "This behavior is in DefaultEvaluator so it flows through CachedEvaluator automatically",
         "Pest feature tests in tests/Feature/SanctumScopingTest.php covering: token with matching ability allows, token without matching ability denies, no token (session auth) allows normally. These tests should be skippable if Sanctum is not installed"
       ],
@@ -487,10 +488,10 @@
     },
     {
       "id": "US-031",
-      "title": "Core feature tests — matching, evaluation, boundaries",
+      "title": "Core feature tests \u2014 matching, evaluation, boundaries",
       "description": "As a developer, I need comprehensive tests for the core evaluation pipeline to ensure correctness.",
       "acceptanceCriteria": [
-        "tests/Feature/EvaluationPipelineTest.php — end-to-end tests that set up permissions, roles, assignments, and boundaries, then assert canDo() results. Tests should use the HasPermissions trait on a test User model and exercise the full stack (stores → evaluator → trait)",
+        "tests/Feature/EvaluationPipelineTest.php \u2014 end-to-end tests that set up permissions, roles, assignments, and boundaries, then assert canDo() results. Tests should use the HasPermissions trait on a test User model and exercise the full stack (stores \u2192 evaluator \u2192 trait)",
         "Test case: User with member role can do posts.create (has permission)",
         "Test case: User with member role cannot do members.remove (lacks permission)",
         "Test case: User with moderator role with !posts.delete.any deny rule cannot delete (deny wins)",
@@ -509,13 +510,13 @@
     },
     {
       "id": "US-032",
-      "title": "DX feature tests — middleware, blade, documents, commands",
+      "title": "DX feature tests \u2014 middleware, blade, documents, commands",
       "description": "As a developer, I need comprehensive tests for the DX layer to ensure all user-facing surfaces work correctly.",
       "acceptanceCriteria": [
-        "tests/Feature/DocumentRoundTripTest.php — tests that create permissions/roles/assignments/boundaries, export to JSON, clear the database, import the JSON, and verify the state matches. Covers: full round-trip, scoped export/import, partial document import (roles only)",
-        "tests/Feature/CacheInvalidationTest.php — tests that verify cache is invalidated when assignments change, roles change, or permissions are deleted. Verify that after invalidation, subsequent canDo() checks reflect the updated state",
+        "tests/Feature/DocumentRoundTripTest.php \u2014 tests that create permissions/roles/assignments/boundaries, export to JSON, clear the database, import the JSON, and verify the state matches. Covers: full round-trip, scoped export/import, partial document import (roles only)",
+        "tests/Feature/CacheInvalidationTest.php \u2014 tests that verify cache is invalidated when assignments change, roles change, or permissions are deleted. Verify that after invalidation, subsequent canDo() checks reflect the updated state",
         "All existing test files from prior stories should pass",
-        "Run vendor/bin/pest — all tests pass with zero failures"
+        "Run vendor/bin/pest \u2014 all tests pass with zero failures"
       ],
       "priority": 32,
       "passes": false

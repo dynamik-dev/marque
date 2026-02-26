@@ -144,3 +144,34 @@
   - Feature tests for Eloquent stores need `RefreshDatabase` trait — pure unit testing won't work
   - `Event::fake()` must be called before the action under test for assertions to work
 ---
+
+## 2026-02-26 - US-009
+- What was implemented: EloquentRoleStore — Eloquent-backed implementation of RoleStore contract, plus RoleCreated/RoleUpdated/RoleDeleted event classes
+- Files changed:
+  - `src/Events/RoleCreated.php` — readonly event class with `roleId` property
+  - `src/Events/RoleUpdated.php` — readonly event class with `roleId` property
+  - `src/Events/RoleDeleted.php` — readonly event class with `roleId` property
+  - `src/Stores/EloquentRoleStore.php` — implements RoleStore: save (create/update with permission sync), remove (system-role protection), find, all, permissionsFor
+  - `tests/Feature/EloquentRoleStoreTest.php` — 15 Pest tests covering save (create, update, permission sync), remove (normal, system-protected, protection-disabled), find, all, permissionsFor
+- **Learnings for future iterations:**
+  - Use `updateOrCreate` + `wasRecentlyCreated` for create-or-update with event dispatch (RoleCreated vs RoleUpdated)
+  - Permission sync: delete all existing RolePermission rows, then insert new ones — simpler than `sync()` since RolePermission is a manual model
+  - System role protection: check `config('policy-engine.protect_system_roles')` before allowing deletion of `is_system` roles
+  - Foreign key cascade on `role_permissions` and `assignments` tables handles cleanup when a role is deleted
+  - `permissionsFor` uses `RolePermission::query()->where()->pluck()->all()` to return a plain array of string IDs
+---
+
+## 2026-02-26 - US-010
+- What was implemented: EloquentAssignmentStore — Eloquent-backed implementation of AssignmentStore contract, plus AssignmentCreated/AssignmentRevoked event classes
+- Files changed:
+  - `src/Events/AssignmentCreated.php` — readonly event class with subjectType, subjectId, roleId, scope properties
+  - `src/Events/AssignmentRevoked.php` — readonly event class with subjectType, subjectId, roleId, scope properties
+  - `src/Stores/EloquentAssignmentStore.php` — implements AssignmentStore: assign (idempotent firstOrCreate), revoke (with delete count check), forSubject, forSubjectInScope, subjectsInScope (with optional roleId filter)
+  - `tests/Feature/EloquentAssignmentStoreTest.php` — 11 Pest tests covering assign (new, idempotent, events), revoke (removal, events, no-op), forSubject, forSubjectInScope, subjectsInScope (with/without roleId)
+- **Learnings for future iterations:**
+  - Assignment events carry all four fields (subjectType, subjectId, roleId, scope) since assignments are identified by composite key
+  - `firstOrCreate` with all four fields enforces uniqueness via DB constraint and returns `wasRecentlyCreated` for event dispatch
+  - For revoke, use `->delete()` return value (int count) to determine whether to dispatch event
+  - `when($roleId, fn ...)` is clean for optional query filters — used in `subjectsInScope`
+  - Tests need to create Role records in beforeEach due to FK constraint on assignments table
+---
