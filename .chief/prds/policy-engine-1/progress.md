@@ -358,3 +358,19 @@
   - Assignment serialization: omit `scope` key entirely when null — don't include `'scope' => null`
   - `whereIn()` on a Collection (not query builder) filters in-memory after `roleStore->all()` — acceptable for typical role counts
 ---
+
+## 2026-02-26 - US-023
+- What was implemented: Three listing Artisan commands (ListPermissionsCommand, ListRolesCommand, ListAssignmentsCommand) registered in the service provider
+- Files changed:
+  - `src/Commands/ListPermissionsCommand.php` — signature `primitives:permissions`, table output of ID + description, resolves PermissionStore
+  - `src/Commands/ListRolesCommand.php` — signature `primitives:roles`, table output of ID + name + system flag + permission count, with indented permissions below each role
+  - `src/Commands/ListAssignmentsCommand.php` — signature `primitives:assignments {subject?} {--scope=}`, supports subject lookup (type::id format), scope filtering, and usage help
+  - `src/PolicyEngineServiceProvider.php` — registered all three commands via `$this->commands()` in `runningInConsole()` block
+  - `tests/Feature/ArtisanCommandsTest.php` — 11 Pest tests covering all commands with data verification
+- **Learnings for future iterations:**
+  - Artisan commands use method injection in `handle()` to resolve contracts from the container
+  - `$this->table()` renders tabular output cleanly in Artisan commands
+  - Subject format for assignments is `type::id` — split on first `::` using `strpos` + `substr`
+  - Commands registered via `$this->commands([...])` inside the `runningInConsole()` block in the service provider
+  - Tests bind contracts to Eloquent implementations via `app()->instance()` in `beforeEach()` since US-029 (full service provider bindings) isn't done yet
+---

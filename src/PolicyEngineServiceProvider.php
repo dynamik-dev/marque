@@ -29,6 +29,12 @@ class PolicyEngineServiceProvider extends ServiceProvider
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         if ($this->app->runningInConsole()) {
+            $this->commands([
+                Commands\ListPermissionsCommand::class,
+                Commands\ListRolesCommand::class,
+                Commands\ListAssignmentsCommand::class,
+            ]);
+
             $this->publishes([
                 __DIR__.'/../config/policy-engine.php' => config_path('policy-engine.php'),
             ], 'policy-engine-config');

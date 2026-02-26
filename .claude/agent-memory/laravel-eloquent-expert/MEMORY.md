@@ -60,7 +60,7 @@
 - `src/Support/RoleBuilder.php` - Fluent builder returned by `PrimitivesManager::role()` with `grant()`, `ungrant()`, `remove()`
 - `src/Facades/Primitives.php` - Facade accessor resolves `PrimitivesManager::class` from container
 - PrimitivesManager must be bound in container manually until US-029 adds service provider bindings
-- DocumentParser, DocumentImporter, DocumentExporter implementations don't exist yet (US-020/021/022); tests use anonymous class mocks
+- `JsonDocumentParser` implemented (US-020); DocumentImporter, DocumentExporter implementations don't exist yet (US-021/022); PrimitivesManager tests use anonymous class mocks for importer/exporter
 
 ## Matchers
 - `src/Matchers/WildcardMatcher.php` - `*` matches one or more segments; unscoped grants cover any scope; scoped grants require exact scope match
@@ -77,6 +77,32 @@
 - Registered in service provider `boot()` via `Router::aliasMiddleware()` as `can_do` and `role`
 - Route model binding tests require `SubstituteBindings` middleware in the stack (runs before our middleware)
 - Middleware test models must extend `Illuminate\Foundation\Auth\User` (Authenticatable) for `actingAs()` to work
+
+## Blade Directives (DX Layer)
+- Registered in `PolicyEngineServiceProvider::boot()` via `Blade::if()`
+- `@canDo($permission, $scope)` / `@endcanDo` - delegates to `auth()->user()->canDo()`
+- `@cannotDo($permission, $scope)` / `@endcannotDo` - delegates to `auth()->user()->cannotDo()`
+- `@hasRole($role, $scope)` / `@endhasRole` - checks `AssignmentStore` directly (scoped via `ScopeResolver`)
+- All directives return `false` when no user is authenticated (never throws)
+- **IMPORTANT**: `Blade::if('canDo')` registers `@endcanDo` (lowercase `c` after `end`), NOT `@endCanDo`
+- **IMPORTANT**: Blade's regex uses `\B` before `@`, so directives must NOT appear directly after word characters without whitespace (e.g., `VISIBLE@endcanDo` fails to compile; use newline or space before `@endcanDo`)
+- Tests use `Blade::render()` with heredoc templates and `trim()` to verify rendered output
+- `@else` and `@elsecanDo` / `@elsehasRole` are automatically registered by `Blade::if()`
+
+## Documents (Policy Document Layer)
+- `src/Documents/JsonDocumentParser.php` - Implements `DocumentParser` contract; pure class, no dependencies
+- `parse()` decodes JSON to `PolicyDocument` DTO; throws `\InvalidArgumentException` on invalid JSON
+- `serialize()` encodes to pretty-printed JSON (`JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR`)
+- `validate()` returns `ValidationResult` with structural checks: version required, permissions array of strings, roles need id/name/permissions, assignments need subject/role, boundaries need scope/max_permissions
+- All document sections (permissions, roles, assignments, boundaries) are optional
+- Can be instantiated directly for testing (no container needed)
+
+## Artisan Commands (DX Layer)
+- `src/Commands/ListPermissionsCommand.php` - `primitives:permissions` - lists all permissions in table format
+- `src/Commands/ListRolesCommand.php` - `primitives:roles` - lists roles with permissions indented below each
+- `src/Commands/ListAssignmentsCommand.php` - `primitives:assignments {subject?} {--scope=}` - lists assignments by subject (`type::id`) or scope
+- All resolve store contracts via method injection; registered in service provider's `runningInConsole()` block via `$this->commands([])`
+- Artisan command tests use `$this->artisan()` with `expectsTable()` and `expectsOutput()` / `expectsOutputToContain()`
 
 ## Pint Style Notes
 - Uses `concat_space` fixer (no spaces around `.` concatenation operator)
