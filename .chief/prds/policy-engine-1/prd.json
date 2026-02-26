@@ -241,8 +241,7 @@
         "Pest feature tests in tests/Feature/CachedEvaluatorTest.php covering: cache hit behavior, cache miss behavior, cache invalidation on assignment change, cache invalidation on role change, cache disabled config"
       ],
       "priority": 14,
-      "passes": true,
-      "inProgress": false
+      "passes": true
     },
     {
       "id": "US-015",
@@ -264,7 +263,7 @@
         "Pest feature tests in tests/Feature/HasPermissionsTraitTest.php using a test User model, covering: canDo/cannotDo, assign/revoke, assignments/assignmentsFor, roles/rolesFor, effectivePermissions"
       ],
       "priority": 15,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-016",
