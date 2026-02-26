@@ -212,3 +212,18 @@
   - Morphs store `subject_id` as a string in the DB — use `(int)` cast when comparing in test assertions
   - Positional constructor args mean renaming a parameter doesn't break call sites, but test assertions checking properties by name must be updated
 ---
+
+## 2026-02-26 - US-013
+- What was implemented: DefaultEvaluator — core evaluation engine resolving subject assignments into allow/deny decisions with boundary enforcement, deny-wins logic, scoped evaluation, and explain traces
+- Files changed:
+  - `src/Evaluators/DefaultEvaluator.php` — implements Evaluator contract: can() with 9-step evaluation, explain() with EvaluationTrace DTO, effectivePermissions() with deny filtering
+  - `tests/Feature/DefaultEvaluatorTest.php` — 23 Pest tests covering basic allow/deny, deny-wins-over-allow, wildcard grants, scoped evaluation, boundary enforcement, no-assignment-means-deny, AuthorizationDenied event dispatch, explain traces, effectivePermissions
+- **Learnings for future iterations:**
+  - DefaultEvaluator uses constructor injection of 4 contracts (AssignmentStore, RoleStore, BoundaryStore, Matcher) — fully swappable
+  - `gatherAssignments()` returns global-only when unscoped; global + scoped when scope is present — global assignments always apply
+  - Scope parsing splits on first `:` only — scopes can contain colons (e.g., `group::5`)
+  - Boundary check only applies when a scope is present — unscoped permissions skip boundary enforcement
+  - `cacheHit` is always `false` in DefaultEvaluator — reserved for CachedEvaluator decorator
+  - Tests use real Eloquent stores + WildcardMatcher (no mocks) — tests through the full stack
+  - `Event::fake([AuthorizationDenied::class])` in specific tests to avoid interfering with store events in beforeEach
+---

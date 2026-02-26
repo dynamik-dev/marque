@@ -207,8 +207,7 @@
         "No event extends any base class (plain classes, not Eloquent events)"
       ],
       "priority": 12,
-      "passes": true,
-      "inProgress": false
+      "passes": true
     },
     {
       "id": "US-013",
@@ -223,7 +222,8 @@
         "Pest feature tests in tests/Feature/DefaultEvaluatorTest.php covering: basic allow, basic deny, deny-wins-over-allow, wildcard grants, scoped evaluation, boundary enforcement (permission within boundary, permission outside boundary), no-assignment-means-deny, explain output structure"
       ],
       "priority": 13,
-      "passes": false
+      "passes": true,
+      "inProgress": false
     },
     {
       "id": "US-014",
