@@ -105,8 +105,7 @@
         "Pest feature tests in tests/Feature/WildcardMatcherTest.php covering all cases above"
       ],
       "priority": 6,
-      "passes": true,
-      "inProgress": false
+      "passes": true
     },
     {
       "id": "US-007",
@@ -121,7 +120,7 @@
         "Pest feature tests in tests/Feature/ModelScopeResolverTest.php covering null, string, Scopeable model, and invalid input"
       ],
       "priority": 7,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",
@@ -138,7 +137,8 @@
         "Pest feature tests in tests/Feature/EloquentPermissionStoreTest.php covering register (single, array, idempotent), remove (with cascade), all (with and without prefix), exists"
       ],
       "priority": 8,
-      "passes": false
+      "passes": true,
+      "inProgress": false
     },
     {
       "id": "US-009",

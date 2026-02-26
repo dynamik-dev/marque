@@ -10,6 +10,9 @@
 - Use `casts()` method (not `$casts` property) for Eloquent model casts (PHP 8.4+ style)
 - Use PHPDoc generics on relationship return types: `@return BelongsToMany<Permission, $this>`
 - DTOs use `readonly class` with constructor promotion and sensible defaults
+- Eloquent stores: use `firstOrCreate` + `wasRecentlyCreated` for idempotent register with event dispatch
+- Event classes: simple readonly constructor-promoted DTOs in `src/Events/`
+- Feature tests for stores use `RefreshDatabase` trait and `Event::fake()` for event assertions
 
 ---
 
@@ -99,6 +102,19 @@
   - The contracts already reference these DTOs via `use` statements — types resolve correctly now
 ---
 
+## 2026-02-26 - US-007
+- What was implemented: ModelScopeResolver — resolves null, string, and Scopeable Model scopes to canonical scope strings
+- Files changed:
+  - `src/Resolvers/ModelScopeResolver.php` — implements ScopeResolver contract: null→null, string→string, Model with toScope()→toScope() result, else throws InvalidArgumentException
+  - `tests/Feature/ModelScopeResolverTest.php` — 8 Pest tests covering null, string, empty string, Model with toScope(), integer, array, stdClass, Model without toScope()
+- **Learnings for future iterations:**
+  - ModelScopeResolver is a pure class (no dependencies) — instantiate directly for testing
+  - Use `method_exists($scope, 'toScope')` to check for Scopeable trait since the trait doesn't exist yet
+  - Check `instanceof Model` AND `method_exists()` — a non-Model with toScope() should still be rejected
+  - Use `get_debug_type()` in exception messages for better DX
+  - The Scopeable trait (US-016) will add the `toScope()` method — the resolver is ready for it
+---
+
 ## 2026-02-26 - US-006
 - What was implemented: WildcardMatcher — segment-based wildcard permission matching with scope support
 - Files changed:
@@ -111,4 +127,20 @@
   - Unscoped grants cover any scope; scoped grants require exact scope match
   - `*` segment matches one or more segments (greedy) — `posts.delete.*` matches `posts.delete.own` but NOT `posts.delete`
   - Deny prefix (`!`) is NOT handled by matcher — that's the evaluator's responsibility
+---
+
+## 2026-02-26 - US-008
+- What was implemented: EloquentPermissionStore — Eloquent-backed implementation of PermissionStore contract, plus PermissionCreated/PermissionDeleted event classes
+- Files changed:
+  - `src/Events/PermissionCreated.php` — readonly event class with `permissionId` property
+  - `src/Events/PermissionDeleted.php` — readonly event class with `permissionId` property
+  - `src/Stores/EloquentPermissionStore.php` — implements PermissionStore: register (idempotent), remove (with role_permissions cascade), all (with prefix filter), exists
+  - `tests/Feature/EloquentPermissionStoreTest.php` — 13 Pest tests covering all store methods, idempotency, event dispatch, and cascade deletion
+  - Deleted `src/Events/.gitkeep` and `src/Stores/.gitkeep`
+- **Learnings for future iterations:**
+  - Use `firstOrCreate` + `wasRecentlyCreated` to detect genuinely new records for event dispatch
+  - Manually delete `role_permissions` rows before deleting a permission — the Permission model doesn't auto-cascade
+  - Prefix filtering uses `$prefix . '.%'` with LIKE query for dot-notated permission namespacing
+  - Feature tests for Eloquent stores need `RefreshDatabase` trait — pure unit testing won't work
+  - `Event::fake()` must be called before the action under test for assertions to work
 ---
