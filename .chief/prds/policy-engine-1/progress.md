@@ -22,6 +22,7 @@
 - Use `auth()->user()` (not `request()->user()`) in package code — `request()->user()` doesn't resolve in test contexts without HTTP request cycle
 - Test user models needing `actingAs()` must extend `Illuminate\Foundation\Auth\User`, not plain `Model`
 - `laravel/sanctum` is a dev dependency — guard with `class_exists()` in production code
+- CachedEvaluator caches per-permission boolean `can()` results (not `effectivePermissions` arrays) — wildcards + deny rules only work correctly when the inner evaluator handles the full logic
 
 ---
 
@@ -474,4 +475,20 @@
   - Guard against Sanctum absence with `class_exists(\Laravel\Sanctum\PersonalAccessToken::class)` — returns `true` early when Sanctum is not installed
   - Use `$user->getKey() != $subjectId` (loose comparison) for subject matching since morph subject IDs may be stored as strings
   - The `*` ability in Sanctum tokens is a special "all permissions" wildcard — check it separately before iterating through the Matcher
+---
+
+## 2026-02-26 - US-031
+- What was implemented: EvaluationPipelineTest — 10 end-to-end tests exercising the full stack (stores → CachedEvaluator → HasPermissions trait) covering all acceptance criteria. Also fixed CachedEvaluator bug where wildcard matching and deny rules were broken in the cached path.
+- Files changed:
+  - `tests/Feature/EvaluationPipelineTest.php` — new file with 10 Pest tests: member allow, member deny, deny-wins with moderator, admin wildcard `*.*`, scoped assignment allow, scoped assignment deny (different scope), global assignment covers any scope, boundary restricts wildcard, boundary allows within ceiling, no-assignment deny
+  - `src/Evaluators/CachedEvaluator.php` — refactored from caching `effectivePermissions` array to caching per-permission `can()` boolean results. Removed Matcher/BoundaryStore dependencies (inner evaluator handles all logic). This fixes: wildcard matching, deny-wins-over-allow, and boundary enforcement in the cached path.
+  - `src/PolicyEngineServiceProvider.php` — removed extra Matcher/BoundaryStore args from CachedEvaluator construction
+  - `tests/Feature/CachedEvaluatorTest.php` — updated constructor calls and cache assertions to match new per-permission caching behavior
+  - `.chief/prds/policy-engine-1/prd.json` — marked US-031 as passes: true
+- **Learnings for future iterations:**
+  - CachedEvaluator must NOT cache `effectivePermissions` and do its own matching — `effectivePermissions` loses deny rules that interact with wildcards (e.g., `posts.*` + `!posts.delete.any`). Instead, cache the boolean result of `inner->can()` per permission string.
+  - Per-permission caching creates more cache entries but is 100% correct — deny-wins logic, wildcard matching, and boundary enforcement all happen in the inner evaluator
+  - The CachedEvaluator's `cacheKey()` now includes the full permission string (with scope), so each subject+permission combo has its own cache entry
+  - Cache invalidation via store flush still works correctly with per-permission caching
+  - Pipeline tests should rely on service provider bindings (not manual `app()->instance()`) to test the real full stack
 ---

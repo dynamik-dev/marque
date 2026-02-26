@@ -21,26 +21,19 @@ class CachedEvaluator implements Evaluator
             return $this->inner->can($subjectType, $subjectId, $permission);
         }
 
-        [$requiredPermission, $scope] = $this->parseScope($permission);
-
-        $cacheKey = $this->cacheKey($subjectType, $subjectId, $scope);
+        $cacheKey = self::cacheKey($subjectType, $subjectId, $permission);
         $store = $this->cacheStore();
 
-        /** @var array<int, string>|null $effectivePermissions */
-        $effectivePermissions = $store->get($cacheKey);
+        $result = $store->get($cacheKey);
 
-        if ($effectivePermissions === null) {
-            $effectivePermissions = $this->inner->effectivePermissions($subjectType, $subjectId, $scope);
-            $store->put($cacheKey, $effectivePermissions, $this->ttl());
+        if ($result !== null) {
+            return (bool) $result;
         }
 
-        foreach ($effectivePermissions as $perm) {
-            if ($perm === $requiredPermission) {
-                return true;
-            }
-        }
+        $result = $this->inner->can($subjectType, $subjectId, $permission);
+        $store->put($cacheKey, $result, $this->ttl());
 
-        return false;
+        return $result;
     }
 
     public function explain(string $subjectType, string|int $subjectId, string $permission): EvaluationTrace
@@ -57,36 +50,17 @@ class CachedEvaluator implements Evaluator
     }
 
     /**
-     * Build the cache key for a subject, optionally scoped.
+     * Build the cache key for a subject's permission check.
      */
-    public static function cacheKey(string $subjectType, string|int $subjectId, ?string $scope = null): string
+    public static function cacheKey(string $subjectType, string|int $subjectId, ?string $permission = null): string
     {
         $key = "policy-engine:{$subjectType}:{$subjectId}";
 
-        if ($scope !== null) {
-            $key .= ":{$scope}";
+        if ($permission !== null) {
+            $key .= ":{$permission}";
         }
 
         return $key;
-    }
-
-    /**
-     * Parse an optional scope suffix from a permission string.
-     *
-     * @return array{0: string, 1: ?string}
-     */
-    private function parseScope(string $permission): array
-    {
-        $colonPos = strpos($permission, ':');
-
-        if ($colonPos === false) {
-            return [$permission, null];
-        }
-
-        return [
-            substr($permission, 0, $colonPos),
-            substr($permission, $colonPos + 1),
-        ];
     }
 
     private function cacheStore(): \Illuminate\Contracts\Cache\Repository

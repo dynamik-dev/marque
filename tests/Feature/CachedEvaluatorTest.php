@@ -51,12 +51,11 @@ it('resolves permissions on cache miss and caches the result', function (): void
 
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 
-    // Verify the result was cached.
-    $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1);
+    // Verify the result was cached per permission.
+    $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
     $cached = $this->cacheManager->store('array')->get($cacheKey);
 
-    expect($cached)->toBeArray()
-        ->toContain('posts.create', 'posts.read');
+    expect($cached)->toBeTrue();
 });
 
 // --- Cache hit: serves from cache without inner evaluation ---
@@ -73,10 +72,9 @@ it('serves from cache on subsequent calls', function (): void {
     $this->assignmentStore->revoke('App\\Models\\User', 1, 'editor');
 
     // Without invalidation, the cached result persists.
-    // We need to prevent the listener from auto-flushing.
     // Manually re-set the cached value.
-    $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1);
-    $this->cacheManager->store('array')->put($cacheKey, ['posts.create'], 3600);
+    $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
+    $this->cacheManager->store('array')->put($cacheKey, true, 3600);
 
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 });
@@ -87,9 +85,9 @@ it('invalidates cache when an assignment is created', function (): void {
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
 
-    // Pre-populate cache with empty permissions (no assignments yet).
-    $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1);
-    $this->cacheManager->store('array')->put($cacheKey, [], 3600);
+    // Pre-populate cache with a deny result (no assignments yet).
+    $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
+    $this->cacheManager->store('array')->put($cacheKey, false, 3600);
 
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeFalse();
 
@@ -175,7 +173,7 @@ it('bypasses cache when cache is disabled', function (): void {
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 
     // Verify nothing was cached.
-    $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1);
+    $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
     $cached = $this->cacheManager->store('array')->get($cacheKey);
 
     expect($cached)->toBeNull();
@@ -219,10 +217,10 @@ it('uses separate cache keys for different scopes', function (): void {
         ->and($this->evaluator->can('App\\Models\\User', 1, 'posts.delete:team::5'))->toBeFalse()
         ->and($this->evaluator->can('App\\Models\\User', 1, 'posts.delete:org::acme'))->toBeTrue();
 
-    // Verify separate cache keys exist.
-    $teamKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'team::5');
-    $orgKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'org::acme');
+    // Verify separate cache keys exist for different permission+scope combos.
+    $teamCreateKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create:team::5');
+    $orgDeleteKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.delete:org::acme');
 
-    expect($this->cacheManager->store('array')->get($teamKey))->toBeArray()
-        ->and($this->cacheManager->store('array')->get($orgKey))->toBeArray();
+    expect($this->cacheManager->store('array')->get($teamCreateKey))->toBeTrue()
+        ->and($this->cacheManager->store('array')->get($orgDeleteKey))->toBeTrue();
 });
