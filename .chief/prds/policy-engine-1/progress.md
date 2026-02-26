@@ -17,6 +17,7 @@
 - Use `config()->set('policy-engine.cache.store', 'array')` in cache-related tests for isolation
 - Tests must manually bind contracts to implementations in `beforeEach()` until US-029 (service provider bindings) is complete
 - For test models, define inline classes (e.g., `TestUser`) with traits directly in the test file + create in-memory migration tables
+- `expectsOutputToContain` in Artisan tests uses Mockery `withArgs` on `doWrite` — multiple substrings on the same `$this->line()` call only match the first; don't assert multiple substrings from one line
 
 ---
 
@@ -373,4 +374,17 @@
   - Subject format for assignments is `type::id` — split on first `::` using `strpos` + `substr`
   - Commands registered via `$this->commands([...])` inside the `runningInConsole()` block in the service provider
   - Tests bind contracts to Eloquent implementations via `app()->instance()` in `beforeEach()` since US-029 (full service provider bindings) isn't done yet
+---
+
+## 2026-02-26 - US-024
+- What was implemented: ExplainCommand — Artisan command to explain why a permission check passes or fails, with human-readable trace output
+- Files changed:
+  - `src/Commands/ExplainCommand.php` — signature `primitives:explain {subject} {permission} {--scope=}`, parses subject type::id, builds scoped permission string, delegates to Evaluator::explain(), renders EvaluationTrace as formatted output
+  - `src/PolicyEngineServiceProvider.php` — registered ExplainCommand in the `$this->commands()` array
+  - `tests/Feature/ArtisanCommandsTest.php` — added 6 Pest tests covering: allow case, deny case, explain disabled, invalid subject format, scoped check, cache hit status; also added Evaluator/BoundaryStore/Matcher bindings to beforeEach
+- **Learnings for future iterations:**
+  - DefaultEvaluator::explain() returns result as lowercase 'allow'/'deny' — use `strtoupper()` for display
+  - Evaluator::explain() throws RuntimeException when `config('policy-engine.explain')` is false — catch it in the command for a user-friendly error message
+  - `expectsOutputToContain` in Laravel Artisan tests uses Mockery `withArgs` on `doWrite` — when multiple substrings appear on the same line, only the first matching expectation fires; avoid checking multiple substrings that appear in the same `$this->line()` call
+  - ExplainCommand tests require Evaluator, BoundaryStore, and Matcher bindings in addition to the existing PermissionStore, RoleStore, and AssignmentStore
 ---

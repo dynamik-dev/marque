@@ -3,9 +3,15 @@
 declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\PolicyEngine\Contracts\Matcher;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
+use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
+use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
+use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
 use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,6 +22,14 @@ beforeEach(function (): void {
     app()->instance(PermissionStore::class, new EloquentPermissionStore);
     app()->instance(RoleStore::class, new EloquentRoleStore);
     app()->instance(AssignmentStore::class, new EloquentAssignmentStore);
+    app()->instance(BoundaryStore::class, new EloquentBoundaryStore);
+    app()->instance(Matcher::class, new WildcardMatcher);
+    app()->instance(Evaluator::class, new DefaultEvaluator(
+        app(AssignmentStore::class),
+        app(RoleStore::class),
+        app(BoundaryStore::class),
+        app(Matcher::class),
+    ));
 });
 
 // --- primitives:permissions ---
@@ -124,4 +138,89 @@ it('shows error for invalid subject format', function (): void {
     $this->artisan('primitives:assignments', ['subject' => 'invalid-format'])
         ->expectsOutputToContain('Invalid subject format')
         ->assertExitCode(1);
+});
+
+// --- primitives:explain ---
+
+it('explains an allowed permission check', function (): void {
+    config()->set('policy-engine.explain', true);
+
+    $roleStore = app(RoleStore::class);
+    $roleStore->save('editor', 'Editor', ['posts.create', 'posts.update']);
+
+    $assignmentStore = app(AssignmentStore::class);
+    $assignmentStore->assign('user', '42', 'editor');
+
+    $this->artisan('primitives:explain', ['subject' => 'user::42', 'permission' => 'posts.create'])
+        ->expectsOutputToContain('user:42')
+        ->expectsOutputToContain('ALLOW')
+        ->expectsOutputToContain('editor')
+        ->assertSuccessful();
+});
+
+it('explains a denied permission check', function (): void {
+    config()->set('policy-engine.explain', true);
+
+    $roleStore = app(RoleStore::class);
+    $roleStore->save('viewer', 'Viewer', ['posts.read']);
+
+    $assignmentStore = app(AssignmentStore::class);
+    $assignmentStore->assign('user', '42', 'viewer');
+
+    $this->artisan('primitives:explain', ['subject' => 'user::42', 'permission' => 'posts.delete'])
+        ->expectsOutputToContain('user:42')
+        ->expectsOutputToContain('posts.delete')
+        ->expectsOutputToContain('DENY')
+        ->expectsOutputToContain('viewer')
+        ->assertSuccessful();
+});
+
+it('shows error when explain mode is disabled', function (): void {
+    config()->set('policy-engine.explain', false);
+
+    $this->artisan('primitives:explain', ['subject' => 'user::42', 'permission' => 'posts.create'])
+        ->expectsOutputToContain('Explain mode is disabled')
+        ->assertExitCode(1);
+});
+
+it('shows error for invalid subject format in explain', function (): void {
+    config()->set('policy-engine.explain', true);
+
+    $this->artisan('primitives:explain', ['subject' => 'bad-format', 'permission' => 'posts.create'])
+        ->expectsOutputToContain('Invalid subject format')
+        ->assertExitCode(1);
+});
+
+it('explains a scoped permission check', function (): void {
+    config()->set('policy-engine.explain', true);
+
+    $roleStore = app(RoleStore::class);
+    $roleStore->save('editor', 'Editor', ['posts.create']);
+
+    $assignmentStore = app(AssignmentStore::class);
+    $assignmentStore->assign('user', '42', 'editor', 'group::5');
+
+    $this->artisan('primitives:explain', [
+        'subject' => 'user::42',
+        'permission' => 'posts.create',
+        '--scope' => 'group::5',
+    ])
+        ->expectsOutputToContain('posts.create')
+        ->expectsOutputToContain('ALLOW')
+        ->expectsOutputToContain('group::5')
+        ->assertSuccessful();
+});
+
+it('shows cache hit status in explain output', function (): void {
+    config()->set('policy-engine.explain', true);
+
+    $roleStore = app(RoleStore::class);
+    $roleStore->save('viewer', 'Viewer', ['posts.read']);
+
+    $assignmentStore = app(AssignmentStore::class);
+    $assignmentStore->assign('user', '42', 'viewer');
+
+    $this->artisan('primitives:explain', ['subject' => 'user::42', 'permission' => 'posts.read'])
+        ->expectsOutputToContain('Cache hit')
+        ->assertSuccessful();
 });
