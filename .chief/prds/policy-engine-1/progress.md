@@ -304,3 +304,17 @@
   - Use collection `->contains('role_id', $role)` to check assignment membership
   - Route model binding works with Scopeable models — the ScopeResolver handles both string and Model values from route params
 ---
+
+## 2026-02-26 - US-019
+- What was implemented: Blade directives (`@canDo`, `@cannotDo`, `@hasRole`) registered via `Blade::if()` in the service provider
+- Files changed:
+  - `src/PolicyEngineServiceProvider.php` — added `registerBladeDirectives()` private method in `boot()`, registers 3 `Blade::if()` directives
+  - `tests/Feature/BladeDirectivesTest.php` — 17 Pest feature tests covering all directives (allow, deny, scoped, unauthenticated, @else)
+- **Learnings for future iterations:**
+  - `Blade::if()` automatically generates `@else`, `@unless`, and `@end` variants — no need to register separate directives for each
+  - `@canDo` and `@cannotDo` delegate to `HasPermissions` trait methods on the authenticated user
+  - `@hasRole` uses `AssignmentStore` directly (same pattern as `RoleMiddleware`) — `forSubjectInScope()` for scoped, `forSubject()` for unscoped
+  - All directives guard with `auth()->user() === null` returning `false` — unauthenticated users never trigger exceptions
+  - For Blade testing, `Blade::render($template)` compiles and renders inline templates — no need for view files
+  - Tests use `$this->actingAs($user)` for authenticated context and skip it for unauthenticated tests
+---

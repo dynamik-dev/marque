@@ -325,7 +325,7 @@
         "Pest feature tests in tests/Feature/BladeDirectivesTest.php covering: canDo renders content when allowed, canDo hides content when denied, cannotDo inverse behavior, hasRole with and without scope, unauthenticated user sees nothing"
       ],
       "priority": 19,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-020",
