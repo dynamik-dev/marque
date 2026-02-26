@@ -353,8 +353,7 @@
         "Pest feature tests in tests/Feature/DefaultDocumentImporterTest.php covering: full import, merge mode, replace mode, dry run (no DB changes), skip assignments, validation warnings, round-trip with exporter"
       ],
       "priority": 21,
-      "passes": true,
-      "inProgress": false
+      "passes": true
     },
     {
       "id": "US-022",
@@ -367,7 +366,8 @@
         "Pest feature tests in tests/Feature/DefaultDocumentExporterTest.php covering: export all, export scoped, export empty state, round-trip with importer"
       ],
       "priority": 22,
-      "passes": false
+      "passes": true,
+      "inProgress": false
     },
     {
       "id": "US-023",

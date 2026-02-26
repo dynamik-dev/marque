@@ -345,3 +345,16 @@
   - In replace + dry run, all items are counted as "created" since they would be new after the clear
   - `permissionsCreated` returns an array of IDs (not count) — check `exists()` before `register()` to track which are genuinely new
 ---
+
+## 2026-02-26 - US-022
+- What was implemented: DefaultDocumentExporter — exports current authorization state as a PolicyDocument DTO, with optional scope filtering
+- Files changed:
+  - `src/Documents/DefaultDocumentExporter.php` — implements DocumentExporter contract: constructor injection of 4 stores, export() with full and scoped modes, private helpers for permissions/roles/assignments/boundaries serialization
+  - `tests/Feature/DefaultDocumentExporterTest.php` — 13 Pest tests covering export all (permissions, roles, assignments, boundaries, version), export scoped (filtered assignments/roles/boundaries, all permissions), empty state (no data, nonexistent scope), round-trip with importer
+- **Learnings for future iterations:**
+  - DefaultDocumentExporter queries `Assignment::query()` and `Boundary::query()` directly for "all" exports since the stores don't expose `all()` methods for these entities
+  - Scoped export: fetch assignments first, then use `pluck('role_id')->unique()` to filter roles — avoids separate DB query
+  - Role serialization: only include `system` key when `is_system` is true — mirrors the import format
+  - Assignment serialization: omit `scope` key entirely when null — don't include `'scope' => null`
+  - `whereIn()` on a Collection (not query builder) filters in-memory after `roleStore->all()` — acceptable for typical role counts
+---
