@@ -340,7 +340,7 @@
         "Pest feature tests in tests/Feature/JsonDocumentParserTest.php covering: parse valid document, parse partial document (roles only), parse invalid JSON, serialize round-trip, validate valid document, validate invalid document"
       ],
       "priority": 20,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-021",
