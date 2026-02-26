@@ -15,6 +15,8 @@
 - Feature tests for stores use `RefreshDatabase` trait and `Event::fake()` for event assertions
 - SQLite does NOT enforce FK cascades by default — don't rely on cascade deletes in tests; explicitly clean up related records
 - Use `config()->set('policy-engine.cache.store', 'array')` in cache-related tests for isolation
+- Tests must manually bind contracts to implementations in `beforeEach()` until US-029 (service provider bindings) is complete
+- For test models, define inline classes (e.g., `TestUser`) with traits directly in the test file + create in-memory migration tables
 
 ---
 
@@ -243,4 +245,18 @@
   - `CacheManager::store('array')` returns a consistent store instance across calls — safe for cross-class cache sharing in tests
   - The `cacheKey()` method is `public static` so tests can verify cache contents directly
   - For cache invalidation, flushing the entire configured cache store is the simplest correct approach — scoped key enumeration would require taggable stores
+---
+
+## 2026-02-26 - US-015
+- What was implemented: HasPermissions trait — delegation-only trait providing canDo/cannotDo, assign/revoke, assignments/assignmentsFor, roles/rolesFor, effectivePermissions, explain methods
+- Files changed:
+  - `src/Concerns/HasPermissions.php` — trait with 10 public methods + private `buildScopedPermission()` helper, all resolving contracts from the container via `app()`
+  - `tests/Feature/HasPermissionsTraitTest.php` — 25 Pest tests covering all trait methods with 49 assertions
+- **Learnings for future iterations:**
+  - The trait resolves contracts via `app()` per call — no constructor injection, since traits cannot have constructors
+  - `buildScopedPermission()` appends `:scope` to permission strings for scoped evaluation — the evaluator expects this format
+  - Tests must manually bind contracts to implementations in `beforeEach()` since the service provider (US-029) hasn't registered bindings yet
+  - Create a `TestUser` model class with `HasPermissions` trait and an in-memory migration for testing — define the class in the test file itself
+  - `roles()` and `rolesFor()` use pluck→unique→map→filter→values pipeline to resolve Role models from assignments
+  - The `explain()` method throws `RuntimeException` when `config('policy-engine.explain')` is false — tested with config toggle
 ---
