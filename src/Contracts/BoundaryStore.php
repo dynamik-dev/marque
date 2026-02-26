@@ -1,0 +1,27 @@
+<?php
+
+declare(strict_types=1);
+
+namespace DynamikDev\PolicyEngine\Contracts;
+
+use DynamikDev\PolicyEngine\Models\Boundary;
+
+interface BoundaryStore
+{
+    /**
+     * Set the maximum allowed permissions for a scope.
+     *
+     * @param  array<int, string>  $maxPermissions
+     */
+    public function set(string $scope, array $maxPermissions): void;
+
+    /**
+     * Remove the boundary for a scope.
+     */
+    public function remove(string $scope): void;
+
+    /**
+     * Find the boundary for a scope, or return null.
+     */
+    public function find(string $scope): ?Boundary;
+}

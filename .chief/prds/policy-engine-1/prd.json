@@ -46,8 +46,7 @@
         "All models have full PHP 8.4 type hints on properties and return types on methods"
       ],
       "priority": 3,
-      "passes": true,
-      "inProgress": false
+      "passes": true
     },
     {
       "id": "US-004",
@@ -68,7 +67,7 @@
         "All method signatures have full PHP 8.4 type hints and return types"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

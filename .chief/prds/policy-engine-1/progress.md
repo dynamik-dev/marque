@@ -61,3 +61,23 @@
   - Use named arguments on `belongsToMany()` for readability: `related:`, `table:`, `foreignPivotKey:`, `relatedPivotKey:`
   - PHPDoc generics on relationships: `@return BelongsToMany<Permission, $this>`
 ---
+
+## 2026-02-26 - US-004
+- What was implemented: All 10 contract interfaces defining the package's API surface
+- Files changed:
+  - `src/Contracts/PermissionStore.php` — register, remove, all, exists
+  - `src/Contracts/RoleStore.php` — save, remove, find, all, permissionsFor
+  - `src/Contracts/AssignmentStore.php` — assign, revoke, forSubject, forSubjectInScope, subjectsInScope
+  - `src/Contracts/BoundaryStore.php` — set, remove, find
+  - `src/Contracts/Evaluator.php` — can, explain, effectivePermissions
+  - `src/Contracts/Matcher.php` — matches
+  - `src/Contracts/ScopeResolver.php` — resolve
+  - `src/Contracts/DocumentParser.php` — parse, serialize, validate
+  - `src/Contracts/DocumentImporter.php` — import
+  - `src/Contracts/DocumentExporter.php` — export
+  - Deleted `src/Contracts/.gitkeep`
+- **Learnings for future iterations:**
+  - Contract interfaces can reference DTO types that don't exist yet — PHP resolves type hints lazily
+  - Use PHPDoc `@return Collection<int, Model>` generics on Collection return types for IDE support
+  - Keep interfaces minimal — no docblocks beyond method purpose and `@param`/`@return` generics
+---
