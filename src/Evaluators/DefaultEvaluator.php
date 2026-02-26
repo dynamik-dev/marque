@@ -73,16 +73,29 @@ class DefaultEvaluator implements Evaluator
         }
 
         // Check for an allow match.
+        $roleAllowed = false;
         foreach ($allows as $allow) {
             if ($this->matcher->matches($allow, $requiredPermission)) {
-                return true;
+                $roleAllowed = true;
+                break;
             }
         }
 
-        // No match = deny.
-        $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
+        if (! $roleAllowed) {
+            $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
 
-        return false;
+            return false;
+        }
+
+        // Sanctum token scoping: if the authenticated user has a Sanctum token,
+        // the permission must also be covered by the token's abilities.
+        if (! $this->sanctumTokenAllows($subjectType, $subjectId, $requiredPermission)) {
+            $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -280,6 +293,50 @@ class DefaultEvaluator implements Evaluator
     {
         foreach ($denies as $deny) {
             if ($this->matcher->matches($deny, $allow)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check whether the current Sanctum token (if any) allows the required permission.
+     *
+     * Returns true if there is no Sanctum token (session auth) or if the token's
+     * abilities include a matching permission. Returns false only when a Sanctum
+     * token is present but does not grant the required permission.
+     */
+    private function sanctumTokenAllows(string $subjectType, string|int $subjectId, string $requiredPermission): bool
+    {
+        if (! class_exists(\Laravel\Sanctum\PersonalAccessToken::class)) {
+            return true;
+        }
+
+        $user = auth()->user();
+
+        if ($user === null) {
+            return true;
+        }
+
+        // Only apply token scoping if the authenticated user matches the subject being evaluated.
+        if ($user->getMorphClass() !== $subjectType || $user->getKey() != $subjectId) {
+            return true;
+        }
+
+        if (! method_exists($user, 'currentAccessToken')) {
+            return true;
+        }
+
+        $token = $user->currentAccessToken();
+
+        if (! $token instanceof \Laravel\Sanctum\PersonalAccessToken) {
+            return true;
+        }
+
+        // Check if any of the token's abilities match the required permission.
+        foreach ($token->abilities as $ability) {
+            if ($ability === '*' || $this->matcher->matches($ability, $requiredPermission)) {
                 return true;
             }
         }

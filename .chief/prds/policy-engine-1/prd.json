@@ -455,8 +455,7 @@
         "Pest feature tests in tests/Feature/ArtisanCommandsTest.php covering: cache-clear runs without error"
       ],
       "priority": 28,
-      "passes": true,
-      "inProgress": false
+      "passes": true
     },
     {
       "id": "US-029",
@@ -484,7 +483,8 @@
         "Pest feature tests in tests/Feature/SanctumScopingTest.php covering: token with matching ability allows, token without matching ability denies, no token (session auth) allows normally. These tests should be skippable if Sanctum is not installed"
       ],
       "priority": 30,
-      "passes": false
+      "passes": true,
+      "inProgress": false
     },
     {
       "id": "US-031",

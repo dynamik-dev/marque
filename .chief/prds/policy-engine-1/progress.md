@@ -19,6 +19,9 @@
 - For test models, define inline classes (e.g., `TestUser`) with traits directly in the test file + create in-memory migration tables
 - `expectsOutputToContain` in Artisan tests uses Mockery `withArgs` on `doWrite` — multiple substrings on the same `$this->line()` call only match the first; don't assert multiple substrings from one line
 - For multi-line stdout assertions, use `Artisan::call()` + `Artisan::output()` instead of `$this->artisan()` + `expectsOutputToContain()`
+- Use `auth()->user()` (not `request()->user()`) in package code — `request()->user()` doesn't resolve in test contexts without HTTP request cycle
+- Test user models needing `actingAs()` must extend `Illuminate\Foundation\Auth\User`, not plain `Model`
+- `laravel/sanctum` is a dev dependency — guard with `class_exists()` in production code
 
 ---
 
@@ -455,4 +458,20 @@
   - `PrimitivesManager` is a singleton since its 6 dependencies are all stateless stores — one instance suffices
   - Event listeners for cache invalidation are registered via `Event::listen()` in boot, not via `$listen` property (package service providers don't use EventServiceProvider)
   - The test simply checks `app(Contract::class)` returns the expected implementation class — no need for RefreshDatabase since we're only testing container resolution
+---
+
+## 2026-02-26 - US-030
+- What was implemented: Sanctum token scoping — after role-based evaluation allows a permission, the DefaultEvaluator intersects with Sanctum token abilities if a PersonalAccessToken is present
+- Files changed:
+  - `src/Evaluators/DefaultEvaluator.php` — added `sanctumTokenAllows()` private method, refactored `can()` to check Sanctum token after role-based allow, uses `class_exists` guard for optional Sanctum dependency
+  - `tests/Feature/SanctumScopingTest.php` — 7 Pest tests covering: token with matching ability (exact, wildcard `*`, pattern `posts.*`), token without ability (deny, empty abilities), session auth (no token), unauthenticated
+  - `composer.json` — added `laravel/sanctum` as dev dependency for testing
+- **Learnings for future iterations:**
+  - Use `auth()->user()` instead of `request()->user()` in evaluator — `request()->user()` doesn't resolve correctly in test contexts without an HTTP request cycle
+  - `actingAs($user)` sets the user on the auth guard — the same user instance (with its `accessToken` set via `withAccessToken()`) is returned by `auth()->user()`
+  - Sanctum's `PersonalAccessToken` can be instantiated without persistence (no DB table needed) by setting `->abilities` directly — useful for testing token scoping without Sanctum migrations
+  - Test user models that use `actingAs()` must extend `Illuminate\Foundation\Auth\User` (Authenticatable), not plain `Model`
+  - Guard against Sanctum absence with `class_exists(\Laravel\Sanctum\PersonalAccessToken::class)` — returns `true` early when Sanctum is not installed
+  - Use `$user->getKey() != $subjectId` (loose comparison) for subject matching since morph subject IDs may be stored as strings
+  - The `*` ability in Sanctum tokens is a special "all permissions" wildcard — check it separately before iterating through the Matcher
 ---
