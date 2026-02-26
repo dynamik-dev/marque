@@ -15,7 +15,7 @@
 - Feature tests for stores use `RefreshDatabase` trait and `Event::fake()` for event assertions
 - SQLite does NOT enforce FK cascades by default — don't rely on cascade deletes in tests; explicitly clean up related records
 - Use `config()->set('policy-engine.cache.store', 'array')` in cache-related tests for isolation
-- Tests must manually bind contracts to implementations in `beforeEach()` until US-029 (service provider bindings) is complete
+- US-029 is complete — service provider binds all contracts to implementations automatically; manual `app()->instance()` bindings in `beforeEach()` are no longer necessary for new tests
 - For test models, define inline classes (e.g., `TestUser`) with traits directly in the test file + create in-memory migration tables
 - `expectsOutputToContain` in Artisan tests uses Mockery `withArgs` on `doWrite` — multiple substrings on the same `$this->line()` call only match the first; don't assert multiple substrings from one line
 - For multi-line stdout assertions, use `Artisan::call()` + `Artisan::output()` instead of `$this->artisan()` + `expectsOutputToContain()`
@@ -442,4 +442,17 @@
   - For cache-clear, flush the entire configured store since Laravel's cache doesn't support prefix-based flushing across all drivers
   - Test seeders can be defined via `eval()` at runtime using the `Database\Seeders` namespace that `db:seed` expects
   - Catch `\Throwable` (not just `\Exception`) for seeder errors since class-not-found triggers `Error`, not `Exception`
+---
+
+## 2026-02-26 - US-029
+- What was implemented: Wired service provider with all contract-to-implementation bindings, CachedEvaluator wrapping DefaultEvaluator, PrimitivesManager singleton, and event listeners for cache invalidation
+- Files changed:
+  - `src/PolicyEngineServiceProvider.php` — added 10 contract bindings in `register()`, CachedEvaluator closure binding, PrimitivesManager singleton, 5 event listener registrations in `registerEventListeners()` private method
+  - `tests/Feature/ServiceProviderTest.php` — 13 Pest tests verifying all contracts resolve to correct implementations, singleton behavior, and config merging
+- **Learnings for future iterations:**
+  - Service provider bindings now exist — tests no longer need manual `app()->instance()` bindings in `beforeEach()`
+  - `CachedEvaluator` binding uses a closure to construct `DefaultEvaluator` with 4 dependencies, then wraps it — `$app->make()` inside the closure resolves from already-bound contracts
+  - `PrimitivesManager` is a singleton since its 6 dependencies are all stateless stores — one instance suffices
+  - Event listeners for cache invalidation are registered via `Event::listen()` in boot, not via `$listen` property (package service providers don't use EventServiceProvider)
+  - The test simply checks `app(Contract::class)` returns the expected implementation class — no need for RefreshDatabase since we're only testing container resolution
 ---

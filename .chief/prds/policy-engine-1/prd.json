@@ -469,7 +469,7 @@
         "Pest feature test: the service provider can be booted in a test Laravel app without errors, and all contracts resolve from the container"
       ],
       "priority": 29,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-030",
