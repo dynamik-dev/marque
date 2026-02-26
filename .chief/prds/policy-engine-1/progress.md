@@ -331,3 +331,17 @@
   - `parse()` throws `InvalidArgumentException` for invalid JSON; `validate()` returns `ValidationResult` with errors — different error handling strategies for different use cases
   - `serialize()` always includes all five fields (version, permissions, roles, assignments, boundaries) in the output
 ---
+
+## 2026-02-26 - US-021
+- What was implemented: DefaultDocumentImporter — imports PolicyDocument DTOs into the stores with support for merge/replace modes, dry run, skip assignments, and validation warnings
+- Files changed:
+  - `src/Documents/DefaultDocumentImporter.php` — implements DocumentImporter contract: constructor injection of 4 stores, import() orchestrating permissions→roles→boundaries→assignments, replace mode (clearAllData deletes in FK-safe order), dry run (compute results without writing), validation warnings for unregistered permissions
+  - `tests/Feature/DefaultDocumentImporterTest.php` — 16 Pest tests covering full import, system roles, role permissions, boundaries, assignment subject parsing, DocumentImported event dispatch, merge mode, replace mode, dry run (no DB changes), dry run + merge, skip assignments, validation warnings, validate=false, pre-existing permissions, empty document
+- **Learnings for future iterations:**
+  - For replace mode, delete tables in FK-safe order: Assignments → RolePermissions → Boundaries → Roles → Permissions
+  - Subject field format in assignments is `type::id` — split on first `::` using `strpos` + `substr` (not `explode` which splits all occurrences)
+  - Validation checks permissions in roles against both the document's permission list AND the PermissionStore — `array_flip` for O(1) lookup on document permissions
+  - Dry run still runs validation but skips all store writes and event dispatch
+  - In replace + dry run, all items are counted as "created" since they would be new after the clear
+  - `permissionsCreated` returns an array of IDs (not count) — check `exists()` before `register()` to track which are genuinely new
+---
