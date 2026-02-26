@@ -37,6 +37,8 @@ class PolicyEngineServiceProvider extends ServiceProvider
                 Commands\ImportCommand::class,
                 Commands\ExportCommand::class,
                 Commands\ValidateCommand::class,
+                Commands\SyncCommand::class,
+                Commands\CacheClearCommand::class,
             ]);
 
             $this->publishes([

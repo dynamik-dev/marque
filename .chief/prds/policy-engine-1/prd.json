@@ -442,8 +442,7 @@
         "Pest feature test in tests/Feature/ArtisanCommandsTest.php covering: validate valid file, validate invalid file"
       ],
       "priority": 27,
-      "passes": true,
-      "inProgress": false
+      "passes": true
     },
     {
       "id": "US-028",
@@ -456,7 +455,8 @@
         "Pest feature tests in tests/Feature/ArtisanCommandsTest.php covering: cache-clear runs without error"
       ],
       "priority": 28,
-      "passes": false
+      "passes": true,
+      "inProgress": false
     },
     {
       "id": "US-029",

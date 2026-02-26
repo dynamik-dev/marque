@@ -429,3 +429,17 @@
   - Use `self::FAILURE` (exit code 1) for both file-not-found and invalid document cases
   - File-not-found check should come before calling the parser — consistent with ImportCommand pattern
 ---
+
+## 2026-02-26 - US-028
+- What was implemented: SyncCommand and CacheClearCommand — two utility Artisan commands for re-running permission seeders and clearing cache
+- Files changed:
+  - `src/Commands/SyncCommand.php` — signature: `primitives:sync`, calls `db:seed --class=PermissionSeeder` with Throwable catch for graceful error handling
+  - `src/Commands/CacheClearCommand.php` — signature: `primitives:cache-clear`, flushes the configured cache store using CacheManager injection
+  - `src/PolicyEngineServiceProvider.php` — registered both commands in the `$this->commands()` array
+  - `tests/Feature/ArtisanCommandsTest.php` — added 3 Pest tests: cache clear success, sync with missing seeder (graceful failure), sync with valid seeder (via eval'd class)
+- **Learnings for future iterations:**
+  - Use `$this->call()` (Command's built-in) instead of `Artisan::call()` to avoid issues with Orchestra Testbench's final Kernel class
+  - For cache-clear, flush the entire configured store since Laravel's cache doesn't support prefix-based flushing across all drivers
+  - Test seeders can be defined via `eval()` at runtime using the `Database\Seeders` namespace that `db:seed` expects
+  - Catch `\Throwable` (not just `\Exception`) for seeder errors since class-not-found triggers `Error`, not `Exception`
+---

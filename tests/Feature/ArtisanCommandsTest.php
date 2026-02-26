@@ -418,3 +418,32 @@ it('exports scoped authorization state', function (): void {
         ->expectsOutputToContain('editor')
         ->assertSuccessful();
 });
+
+// --- primitives:cache-clear ---
+
+it('clears the policy engine cache', function (): void {
+    config()->set('policy-engine.cache.store', 'array');
+
+    $this->artisan('primitives:cache-clear')
+        ->expectsOutputToContain('cache cleared')
+        ->assertSuccessful();
+});
+
+// --- primitives:sync ---
+
+it('runs the sync command and handles missing seeder gracefully', function (): void {
+    $this->artisan('primitives:sync')
+        ->expectsOutputToContain('Failed to sync')
+        ->assertExitCode(1);
+});
+
+it('runs the sync command successfully with a valid seeder', function (): void {
+    // Define the PermissionSeeder in the namespace db:seed expects
+    if (! class_exists('Database\Seeders\PermissionSeeder', false)) {
+        eval('namespace Database\Seeders; class PermissionSeeder extends \Illuminate\Database\Seeder { public function run(): void {} }');
+    }
+
+    $this->artisan('primitives:sync')
+        ->expectsOutputToContain('sync completed')
+        ->assertSuccessful();
+});
