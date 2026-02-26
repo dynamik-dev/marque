@@ -15,8 +15,7 @@
         "vendor/bin/pest runs with zero tests and no errors"
       ],
       "priority": 1,
-      "passes": false,
-      "inProgress": true
+      "passes": true
     },
     {
       "id": "US-002",
@@ -32,7 +31,8 @@
         "All migrations use anonymous classes (return new class extends Migration)"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true,
+      "inProgress": false
     },
     {
       "id": "US-003",
