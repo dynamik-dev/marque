@@ -137,8 +137,7 @@
         "Pest feature tests in tests/Feature/EloquentPermissionStoreTest.php covering register (single, array, idempotent), remove (with cascade), all (with and without prefix), exists"
       ],
       "priority": 8,
-      "passes": true,
-      "inProgress": false
+      "passes": true
     },
     {
       "id": "US-009",
@@ -155,7 +154,7 @@
         "Pest feature tests in tests/Feature/EloquentRoleStoreTest.php covering save (create, update, sync permissions), remove (normal, system-protected), find, all, permissionsFor"
       ],
       "priority": 9,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-010",
