@@ -4,12 +4,19 @@ declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
+use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
+use DynamikDev\PolicyEngine\Contracts\DocumentParser;
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
 use DynamikDev\PolicyEngine\Contracts\Matcher;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
+use DynamikDev\PolicyEngine\Documents\DefaultDocumentExporter;
+use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
+use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
+use DynamikDev\PolicyEngine\PrimitivesManager;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
@@ -29,6 +36,27 @@ beforeEach(function (): void {
         app(RoleStore::class),
         app(BoundaryStore::class),
         app(Matcher::class),
+    ));
+    app()->instance(DocumentParser::class, new JsonDocumentParser);
+    app()->instance(DocumentImporter::class, new DefaultDocumentImporter(
+        app(PermissionStore::class),
+        app(RoleStore::class),
+        app(AssignmentStore::class),
+        app(BoundaryStore::class),
+    ));
+    app()->instance(DocumentExporter::class, new DefaultDocumentExporter(
+        app(PermissionStore::class),
+        app(RoleStore::class),
+        app(AssignmentStore::class),
+        app(BoundaryStore::class),
+    ));
+    app()->instance(PrimitivesManager::class, new PrimitivesManager(
+        app(PermissionStore::class),
+        app(RoleStore::class),
+        app(BoundaryStore::class),
+        app(DocumentParser::class),
+        app(DocumentImporter::class),
+        app(DocumentExporter::class),
     ));
 });
 
@@ -223,4 +251,67 @@ it('shows cache hit status in explain output', function (): void {
     $this->artisan('primitives:explain', ['subject' => 'user::42', 'permission' => 'posts.read'])
         ->expectsOutputToContain('Cache hit')
         ->assertSuccessful();
+});
+
+// --- primitives:import ---
+
+it('imports a policy document from a file', function (): void {
+    $document = [
+        'version' => '1.0',
+        'permissions' => ['posts.create', 'posts.delete'],
+        'roles' => [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create', 'posts.delete']],
+        ],
+        'assignments' => [
+            ['subject' => 'user::42', 'role' => 'editor'],
+        ],
+        'boundaries' => [],
+    ];
+
+    $path = tempnam(sys_get_temp_dir(), 'policy_');
+    file_put_contents($path, json_encode($document));
+
+    $this->artisan('primitives:import', ['path' => $path])
+        ->expectsOutputToContain('Permissions created: 2')
+        ->expectsOutputToContain('Roles created: 1')
+        ->expectsOutputToContain('Assignments created: 1')
+        ->assertSuccessful();
+
+    expect(app(PermissionStore::class)->exists('posts.create'))->toBeTrue();
+    expect(app(PermissionStore::class)->exists('posts.delete'))->toBeTrue();
+    expect(app(RoleStore::class)->find('editor'))->not->toBeNull();
+
+    unlink($path);
+});
+
+it('shows dry run output without applying changes', function (): void {
+    $document = [
+        'version' => '1.0',
+        'permissions' => ['posts.create', 'posts.delete'],
+        'roles' => [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create']],
+        ],
+        'assignments' => [],
+        'boundaries' => [],
+    ];
+
+    $path = tempnam(sys_get_temp_dir(), 'policy_');
+    file_put_contents($path, json_encode($document));
+
+    $this->artisan('primitives:import', ['path' => $path, '--dry-run' => true])
+        ->expectsOutputToContain('Dry run')
+        ->expectsOutputToContain('Permissions created: 2')
+        ->expectsOutputToContain('Roles created: 1')
+        ->assertSuccessful();
+
+    expect(app(PermissionStore::class)->exists('posts.create'))->toBeFalse();
+    expect(app(RoleStore::class)->find('editor'))->toBeNull();
+
+    unlink($path);
+});
+
+it('shows error when import file not found', function (): void {
+    $this->artisan('primitives:import', ['path' => '/tmp/nonexistent-policy-file.json'])
+        ->expectsOutputToContain('File not found')
+        ->assertExitCode(1);
 });

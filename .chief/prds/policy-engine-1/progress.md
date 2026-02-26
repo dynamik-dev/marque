@@ -388,3 +388,17 @@
   - `expectsOutputToContain` in Laravel Artisan tests uses Mockery `withArgs` on `doWrite` — when multiple substrings appear on the same line, only the first matching expectation fires; avoid checking multiple substrings that appear in the same `$this->line()` call
   - ExplainCommand tests require Evaluator, BoundaryStore, and Matcher bindings in addition to the existing PermissionStore, RoleStore, and AssignmentStore
 ---
+
+## 2026-02-26 - US-025
+- What was implemented: ImportCommand — Artisan command to import policy documents from JSON files with dry-run, skip-assignments, replace (with confirmation), and force options
+- Files changed:
+  - `src/Commands/ImportCommand.php` — signature: `primitives:import {path} {--dry-run} {--skip-assignments} {--replace} {--force}`, delegates to PrimitivesManager::import() with ImportOptions, renders summary output
+  - `src/PolicyEngineServiceProvider.php` — registered ImportCommand in the `$this->commands()` array
+  - `tests/Feature/ArtisanCommandsTest.php` — added 3 Pest tests covering: import success (verifies DB state), dry run output (verifies no DB changes), file not found error; also added DocumentParser, DocumentImporter, DocumentExporter, and PrimitivesManager bindings to beforeEach
+- **Learnings for future iterations:**
+  - ImportCommand injects PrimitivesManager (not the facade) via method injection in `handle()`
+  - PrimitivesManager::import() already handles file reading — pass the file path directly, not file contents
+  - Tests that use PrimitivesManager need 6 contract bindings: PermissionStore, RoleStore, BoundaryStore, DocumentParser, DocumentImporter, DocumentExporter + PrimitivesManager itself
+  - `$this->confirm()` returns false by default in non-interactive test context — use `--force` flag to skip confirmation in tests
+  - Catch `\InvalidArgumentException` from JsonDocumentParser for malformed JSON and display a user-friendly error
+---
