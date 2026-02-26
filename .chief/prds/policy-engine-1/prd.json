@@ -297,7 +297,7 @@
         "Pest feature tests in tests/Feature/PrimitivesFacadeTest.php covering: permissions registration, role creation with grant chaining, boundary setting, import from string, export"
       ],
       "priority": 17,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-018",

@@ -272,3 +272,19 @@
   - Morphs store `subject_id` as a string in SQLite — use `(int)` cast when comparing against `getKey()` in test assertions
   - Test models (TestGroup, TestScopeableUser) defined inline in the test file with in-memory migration tables created/dropped in beforeEach/afterEach
 ---
+
+## 2026-02-26 - US-017
+- What was implemented: Primitives facade — PrimitivesManager, RoleBuilder fluent builder, and Primitives facade class providing a static API for permissions, roles, boundaries, import/export
+- Files changed:
+  - `src/PrimitivesManager.php` — central manager accepting 6 contracts via DI: permissions(), role(), boundary(), import(), export(), exportToFile()
+  - `src/Support/RoleBuilder.php` — fluent builder with grant(), ungrant(), remove() methods for role permission management
+  - `src/Facades/Primitives.php` — Laravel Facade extending Illuminate\Support\Facades\Facade, proxying to PrimitivesManager
+  - `tests/Feature/PrimitivesFacadeTest.php` — 12 Pest tests covering all facade methods with anonymous class mocks for document contracts
+- **Learnings for future iterations:**
+  - PrimitivesManager uses constructor-promoted DI for all 6 contracts — fully testable and swappable
+  - RoleBuilder fetches current role via `find()` to get name/system status, then re-saves with updated permissions — grants are additive, ungrants use `array_diff`
+  - DocumentParser, DocumentImporter, DocumentExporter implementations don't exist yet (US-020/021/022) — use anonymous class mocks in tests
+  - The facade accessor returns `PrimitivesManager::class` — the service provider (US-029) will bind it as a singleton
+  - `file_exists()` check in `import()` distinguishes file paths from raw JSON content strings
+  - PHPDoc `@method` annotations on the facade class enable IDE autocompletion for static calls
+---
