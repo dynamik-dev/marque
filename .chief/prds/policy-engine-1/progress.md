@@ -7,6 +7,8 @@
 - Use anonymous migration classes (`return new class extends Migration`)
 - Run `vendor/bin/pint --dirty` after modifying PHP files
 - Use `vendor/bin/pest` for testing
+- Use `casts()` method (not `$casts` property) for Eloquent model casts (PHP 8.4+ style)
+- Use PHPDoc generics on relationship return types: `@return BelongsToMany<Permission, $this>`
 
 ---
 
@@ -42,4 +44,20 @@
   - Use `publishesMigrations()` (Laravel 11+) inside `runningInConsole()` block for user publishing
   - Migration filenames without date prefix (e.g., `create_permissions_table.php`) — `publishesMigrations()` auto-prepends timestamps when published
   - The `publishesMigrations()` method exists on `ServiceProvider` in Laravel 11+
+---
+
+## 2026-02-26 - US-003
+- What was implemented: Eloquent models for all 5 database tables (Permission, Role, RolePermission, Assignment, Boundary)
+- Files changed:
+  - `src/Models/Permission.php` — string PK, non-incrementing, fillable: id, description
+  - `src/Models/Role.php` — string PK, non-incrementing, is_system boolean cast, belongsToMany permissions via role_permissions pivot
+  - `src/Models/RolePermission.php` — non-incrementing, no timestamps, belongsTo Role and Permission
+  - `src/Models/Assignment.php` — auto-increment PK, morphTo subject, belongsTo Role
+  - `src/Models/Boundary.php` — auto-increment PK, max_permissions cast to array
+  - Deleted `src/Models/.gitkeep`
+- **Learnings for future iterations:**
+  - Use `casts()` method (not `$casts` property) for PHP 8.4+ style
+  - RolePermission pivot table has no timestamps — set `$timestamps = false` on the model
+  - Use named arguments on `belongsToMany()` for readability: `related:`, `table:`, `foreignPivotKey:`, `relatedPivotKey:`
+  - PHPDoc generics on relationships: `@return BelongsToMany<Permission, $this>`
 ---

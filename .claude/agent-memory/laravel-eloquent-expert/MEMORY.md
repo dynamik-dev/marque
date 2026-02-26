@@ -21,7 +21,19 @@
 - `tests/Pest.php` binds `TestCase` for Feature tests
 - **Pint** added as dev dependency for formatting
 
+## Database Schema (5 tables)
+- `permissions` - string PK (`id`), nullable `description`, timestamps
+- `roles` - string PK (`id`), `name`, `is_system` bool, timestamps
+- `role_permissions` - composite PK (`role_id`, `permission_id`), FK to roles cascade delete
+- `assignments` - auto-increment PK, polymorphic `subject`, `role_id` FK, nullable `scope`, unique constraint on all four, scope index
+- `boundaries` - auto-increment PK, unique `scope`, JSON `max_permissions`, timestamps
+- Migrations in `database/migrations/` using anonymous classes, no date prefix
+- Service provider loads migrations via `loadMigrationsFrom()` and publishes via `publishesMigrations()` with tag `policy-engine-migrations`
+
 ## Key Files
-- `/src/PolicyEngineServiceProvider.php` - Merges config, publishes under `policy-engine-config` tag
+- `/src/PolicyEngineServiceProvider.php` - Merges config, loads migrations, publishes config (`policy-engine-config`) and migrations (`policy-engine-migrations`)
 - `/config/policy-engine.php` - cache, protect_system_roles, log_denials, explain, document_format
 - `/phpunit.xml` - Feature test suite only, source coverage on `src/`
+
+## Pint Style Notes
+- Uses `concat_space` fixer (no spaces around `.` concatenation operator)
