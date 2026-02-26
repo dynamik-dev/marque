@@ -35,6 +35,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
                 Commands\ListAssignmentsCommand::class,
                 Commands\ExplainCommand::class,
                 Commands\ImportCommand::class,
+                Commands\ExportCommand::class,
             ]);
 
             $this->publishes([

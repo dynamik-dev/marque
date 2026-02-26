@@ -18,6 +18,7 @@
 - Tests must manually bind contracts to implementations in `beforeEach()` until US-029 (service provider bindings) is complete
 - For test models, define inline classes (e.g., `TestUser`) with traits directly in the test file + create in-memory migration tables
 - `expectsOutputToContain` in Artisan tests uses Mockery `withArgs` on `doWrite` — multiple substrings on the same `$this->line()` call only match the first; don't assert multiple substrings from one line
+- For multi-line stdout assertions, use `Artisan::call()` + `Artisan::output()` instead of `$this->artisan()` + `expectsOutputToContain()`
 
 ---
 
@@ -401,4 +402,17 @@
   - Tests that use PrimitivesManager need 6 contract bindings: PermissionStore, RoleStore, BoundaryStore, DocumentParser, DocumentImporter, DocumentExporter + PrimitivesManager itself
   - `$this->confirm()` returns false by default in non-interactive test context — use `--force` flag to skip confirmation in tests
   - Catch `\InvalidArgumentException` from JsonDocumentParser for malformed JSON and display a user-friendly error
+---
+
+## 2026-02-26 - US-026
+- What was implemented: ExportCommand — Artisan command to export authorization state as JSON to stdout or file, with optional scope filtering
+- Files changed:
+  - `src/Commands/ExportCommand.php` — signature: `primitives:export {--scope=} {--path=} {--stdout}`, delegates to PrimitivesManager::export(), writes to file or outputs to stdout
+  - `src/PolicyEngineServiceProvider.php` — registered ExportCommand in the `$this->commands()` array
+  - `tests/Feature/ArtisanCommandsTest.php` — added 3 Pest tests covering: export to stdout (with Artisan::call + Artisan::output), export to file (verifies JSON structure), export scoped; added `Illuminate\Support\Facades\Artisan` import
+- **Learnings for future iterations:**
+  - For multi-line stdout output testing, use `Artisan::call()` + `Artisan::output()` instead of `$this->artisan()` + `expectsOutputToContain()` — the latter uses Mockery `withArgs` on `doWrite` which conflicts with multiple assertions on the same `$this->line()` call
+  - `$this->line($json)` outputs the full JSON string as a single write — `expectsOutputToContain` can only match the first assertion against it
+  - ExportCommand defaults to stdout when neither `--path` nor `--stdout` is provided — `--stdout` flag exists for explicit intent but behavior is the same as no flags
+  - PrimitivesManager::export() returns the serialized JSON string directly — no need to call parser separately
 ---

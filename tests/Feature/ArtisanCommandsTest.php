@@ -22,6 +22,7 @@ use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
 use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 
 uses(RefreshDatabase::class);
 
@@ -314,4 +315,62 @@ it('shows error when import file not found', function (): void {
     $this->artisan('primitives:import', ['path' => '/tmp/nonexistent-policy-file.json'])
         ->expectsOutputToContain('File not found')
         ->assertExitCode(1);
+});
+
+// --- primitives:export ---
+
+it('exports authorization state to stdout', function (): void {
+    $permissionStore = app(PermissionStore::class);
+    $permissionStore->register(['posts.create', 'posts.delete']);
+
+    $roleStore = app(RoleStore::class);
+    $roleStore->save('editor', 'Editor', ['posts.create', 'posts.delete']);
+
+    $exitCode = Artisan::call('primitives:export');
+    $output = Artisan::output();
+
+    expect($exitCode)->toBe(0);
+    expect($output)->toContain('"version"');
+    expect($output)->toContain('posts.create');
+    expect($output)->toContain('editor');
+});
+
+it('exports authorization state to a file', function (): void {
+    $permissionStore = app(PermissionStore::class);
+    $permissionStore->register(['posts.create']);
+
+    $roleStore = app(RoleStore::class);
+    $roleStore->save('editor', 'Editor', ['posts.create']);
+
+    $path = tempnam(sys_get_temp_dir(), 'policy_export_');
+
+    $this->artisan('primitives:export', ['--path' => $path])
+        ->expectsOutputToContain("Exported to {$path}")
+        ->assertSuccessful();
+
+    $contents = file_get_contents($path);
+    $decoded = json_decode($contents, true);
+
+    expect($decoded)->toHaveKey('version', '1.0');
+    expect($decoded['permissions'])->toContain('posts.create');
+    expect($decoded['roles'][0]['id'])->toBe('editor');
+
+    unlink($path);
+});
+
+it('exports scoped authorization state', function (): void {
+    $permissionStore = app(PermissionStore::class);
+    $permissionStore->register(['posts.create', 'posts.delete']);
+
+    $roleStore = app(RoleStore::class);
+    $roleStore->save('editor', 'Editor', ['posts.create']);
+    $roleStore->save('admin', 'Admin', ['posts.delete']);
+
+    $assignmentStore = app(AssignmentStore::class);
+    $assignmentStore->assign('user', '42', 'editor', 'group::5');
+    $assignmentStore->assign('user', '99', 'admin');
+
+    $this->artisan('primitives:export', ['--scope' => 'group::5'])
+        ->expectsOutputToContain('editor')
+        ->assertSuccessful();
 });

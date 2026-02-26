@@ -1,0 +1,34 @@
+<?php
+
+declare(strict_types=1);
+
+namespace DynamikDev\PolicyEngine\Commands;
+
+use DynamikDev\PolicyEngine\PrimitivesManager;
+use Illuminate\Console\Command;
+
+class ExportCommand extends Command
+{
+    protected $signature = 'primitives:export {--scope=} {--path=} {--stdout}';
+
+    protected $description = 'Export the current authorization state to JSON';
+
+    public function handle(PrimitivesManager $manager): int
+    {
+        $scope = $this->option('scope') ? (string) $this->option('scope') : null;
+        $path = $this->option('path') ? (string) $this->option('path') : null;
+
+        $json = $manager->export($scope);
+
+        if ($path) {
+            file_put_contents($path, $json);
+            $this->info("Exported to {$path}");
+
+            return self::SUCCESS;
+        }
+
+        $this->line($json);
+
+        return self::SUCCESS;
+    }
+}
