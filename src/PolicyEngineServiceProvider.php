@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine;
 
+use DynamikDev\PolicyEngine\Middleware\CanDoMiddleware;
+use DynamikDev\PolicyEngine\Middleware\RoleMiddleware;
+use Illuminate\Routing\Router;
 use Illuminate\Support\ServiceProvider;
 
 class PolicyEngineServiceProvider extends ServiceProvider
@@ -13,8 +16,11 @@ class PolicyEngineServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/policy-engine.php', 'policy-engine');
     }
 
-    public function boot(): void
+    public function boot(Router $router): void
     {
+        $router->aliasMiddleware('can_do', CanDoMiddleware::class);
+        $router->aliasMiddleware('role', RoleMiddleware::class);
+
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         if ($this->app->runningInConsole()) {
