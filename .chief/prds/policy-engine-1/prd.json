@@ -427,8 +427,7 @@
         "Pest feature test in tests/Feature/ArtisanCommandsTest.php covering: export to stdout, export to file, export scoped"
       ],
       "priority": 26,
-      "passes": true,
-      "inProgress": false
+      "passes": true
     },
     {
       "id": "US-027",
@@ -443,7 +442,8 @@
         "Pest feature test in tests/Feature/ArtisanCommandsTest.php covering: validate valid file, validate invalid file"
       ],
       "priority": 27,
-      "passes": false
+      "passes": true,
+      "inProgress": false
     },
     {
       "id": "US-028",

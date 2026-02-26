@@ -416,3 +416,16 @@
   - ExportCommand defaults to stdout when neither `--path` nor `--stdout` is provided — `--stdout` flag exists for explicit intent but behavior is the same as no flags
   - PrimitivesManager::export() returns the serialized JSON string directly — no need to call parser separately
 ---
+
+## 2026-02-26 - US-027
+- What was implemented: ValidateCommand — Artisan command to validate a policy document without importing it
+- Files changed:
+  - `src/Commands/ValidateCommand.php` — signature: `primitives:validate {path}`, reads file, delegates to DocumentParser::validate(), outputs success or error list, exit code 0/1
+  - `src/PolicyEngineServiceProvider.php` — registered ValidateCommand in the `$this->commands()` array
+  - `tests/Feature/ArtisanCommandsTest.php` — added 3 Pest tests covering: valid document, invalid document, file not found
+- **Learnings for future iterations:**
+  - ValidateCommand is the simplest command — injects DocumentParser, reads file, calls validate(), renders result
+  - DocumentParser::validate() returns ValidationResult DTO with `valid` bool and `errors` array — no exceptions to catch
+  - Use `self::FAILURE` (exit code 1) for both file-not-found and invalid document cases
+  - File-not-found check should come before calling the parser — consistent with ImportCommand pattern
+---

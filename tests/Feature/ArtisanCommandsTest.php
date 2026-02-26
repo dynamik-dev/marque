@@ -358,6 +358,50 @@ it('exports authorization state to a file', function (): void {
     unlink($path);
 });
 
+// --- primitives:validate ---
+
+it('validates a valid policy document', function (): void {
+    $document = [
+        'version' => '1.0',
+        'permissions' => ['posts.create', 'posts.delete'],
+        'roles' => [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create', 'posts.delete']],
+        ],
+        'assignments' => [],
+        'boundaries' => [],
+    ];
+
+    $path = tempnam(sys_get_temp_dir(), 'policy_');
+    file_put_contents($path, json_encode($document));
+
+    $this->artisan('primitives:validate', ['path' => $path])
+        ->expectsOutput('Policy document is valid.')
+        ->assertSuccessful();
+
+    unlink($path);
+});
+
+it('validates an invalid policy document', function (): void {
+    $document = [
+        'permissions' => 'not-an-array',
+    ];
+
+    $path = tempnam(sys_get_temp_dir(), 'policy_');
+    file_put_contents($path, json_encode($document));
+
+    $this->artisan('primitives:validate', ['path' => $path])
+        ->expectsOutputToContain('invalid')
+        ->assertExitCode(1);
+
+    unlink($path);
+});
+
+it('shows error when validate file not found', function (): void {
+    $this->artisan('primitives:validate', ['path' => '/tmp/nonexistent-policy-file.json'])
+        ->expectsOutputToContain('File not found')
+        ->assertExitCode(1);
+});
+
 it('exports scoped authorization state', function (): void {
     $permissionStore = app(PermissionStore::class);
     $permissionStore->register(['posts.create', 'posts.delete']);
