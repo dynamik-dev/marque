@@ -24,7 +24,7 @@ class RoleBuilder
         $current = $this->roleStore->permissionsFor($this->roleId);
         $merged = array_values(array_unique([...$current, ...$permissions]));
 
-        $this->roleStore->save($this->roleId, $role->name, $merged, (bool) $role->is_system);
+        $this->roleStore->save($this->roleId, $role->name, $merged, $role->is_system);
 
         return $this;
     }
@@ -40,7 +40,7 @@ class RoleBuilder
         $current = $this->roleStore->permissionsFor($this->roleId);
         $remaining = array_values(array_diff($current, $permissions));
 
-        $this->roleStore->save($this->roleId, $role->name, $remaining, (bool) $role->is_system);
+        $this->roleStore->save($this->roleId, $role->name, $remaining, $role->is_system);
 
         return $this;
     }

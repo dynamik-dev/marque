@@ -21,6 +21,8 @@ use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Events\AssignmentCreated;
 use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
+use DynamikDev\PolicyEngine\Events\BoundaryRemoved;
+use DynamikDev\PolicyEngine\Events\BoundarySet;
 use DynamikDev\PolicyEngine\Events\PermissionDeleted;
 use DynamikDev\PolicyEngine\Events\RoleDeleted;
 use DynamikDev\PolicyEngine\Events\RoleUpdated;
@@ -150,7 +152,9 @@ class PolicyEngineServiceProvider extends ServiceProvider
             return $assignmentStore->forSubject(
                 $user->getMorphClass(),
                 $user->getKey(),
-            )->contains('role_id', $role);
+            )
+                ->filter(static fn ($assignment): bool => $assignment->scope === null)
+                ->contains('role_id', $role);
         });
     }
 
@@ -164,5 +168,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
         Event::listen(RoleUpdated::class, InvalidatePermissionCache::class);
         Event::listen(RoleDeleted::class, InvalidatePermissionCache::class);
         Event::listen(PermissionDeleted::class, InvalidatePermissionCache::class);
+        Event::listen(BoundarySet::class, InvalidatePermissionCache::class);
+        Event::listen(BoundaryRemoved::class, InvalidatePermissionCache::class);
     }
 }

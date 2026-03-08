@@ -358,6 +358,24 @@ it('exports authorization state to a file', function (): void {
     unlink($path);
 });
 
+it('rejects export path outside configured document directory', function (): void {
+    $storagePath = storage_path();
+
+    if (! is_dir($storagePath)) {
+        mkdir($storagePath, 0755, true);
+    }
+
+    config()->set('policy-engine.document_path', $storagePath);
+
+    $path = sys_get_temp_dir().'/policy-export-'.uniqid('', true).'.json';
+
+    $this->artisan('primitives:export', ['--path' => $path])
+        ->expectsOutputToContain('Export failed:')
+        ->assertExitCode(1);
+
+    expect(file_exists($path))->toBeFalse();
+});
+
 // --- primitives:validate ---
 
 it('validates a valid policy document', function (): void {

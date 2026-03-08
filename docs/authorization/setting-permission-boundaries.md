@@ -1,0 +1,97 @@
+# Setting Permission Boundaries
+
+Boundaries define the maximum permissions available within a scope. They act as a ceiling — even if a user's role grants a permission, the boundary can block it if that permission isn't in the scope's allowed set.
+
+## Setting a boundary on a scope
+
+```php
+use DynamikDev\PolicyEngine\Facades\Primitives;
+
+Primitives::boundary('org::acme', [
+    'posts.*',
+    'comments.*',
+]);
+```
+
+This scope now has a ceiling. Only permissions matching `posts.*` or `comments.*` can be exercised within `org::acme`. Any other permission is denied regardless of role assignments.
+
+## How boundary enforcement works
+
+The evaluator checks boundaries before processing allow/deny rules. The order is:
+
+1. Find the user's assignments (global + scoped)
+2. Check the scope's boundary (if one exists)
+3. If the required permission is **not** covered by any boundary pattern, deny immediately
+4. If the boundary passes, proceed to normal deny/allow evaluation
+
+```php
+Primitives::boundary('org::acme', ['posts.*', 'comments.*']);
+
+Primitives::role('admin', 'Admin')->grant(['*.*']);
+$user->assign('admin', scope: 'org::acme');
+
+$user->canDo('posts.create', scope: 'org::acme');    // true — within boundary
+$user->canDo('members.remove', scope: 'org::acme');  // false — outside boundary
+```
+
+The admin role grants `*.*`, but the boundary restricts the scope to posts and comments only.
+
+## Boundaries only apply to scoped checks
+
+A boundary set on `org::acme` only affects permission checks made within that scope. Global checks (no scope) are not affected by any boundary.
+
+```php
+$user->canDo('members.remove');                       // true — no scope, no boundary
+$user->canDo('members.remove', scope: 'org::acme');  // false — blocked by boundary
+```
+
+## Updating a boundary
+
+```php
+Primitives::boundary('org::acme', [
+    'posts.*',
+    'comments.*',
+    'members.invite',
+]);
+```
+
+Calling `boundary()` again replaces the entire permission set. There is no merge — you always provide the full list.
+
+## Removing a boundary
+
+```php
+use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+
+app(BoundaryStore::class)->remove('org::acme');
+```
+
+With the boundary removed, the scope has no ceiling and all permissions are available based on role assignments alone.
+
+## Querying an existing boundary
+
+```php
+$boundary = app(BoundaryStore::class)->find('org::acme');
+
+$boundary->scope;            // "org::acme"
+$boundary->max_permissions;  // ["posts.*", "comments.*"]
+```
+
+Returns `null` if no boundary exists for the scope.
+
+## Boundaries support wildcards
+
+Boundary patterns use the same wildcard matching as permissions:
+
+| Pattern | Covers |
+| --- | --- |
+| `posts.*` | `posts.create`, `posts.delete.any`, etc. |
+| `*.read` | `posts.read`, `comments.read`, etc. |
+| `*.*` | Everything (effectively no boundary) |
+
+## Use cases for boundaries
+
+- **Plan-based feature gating** — a free plan scope gets `['posts.read', 'comments.read']`, a pro plan gets `['posts.*', 'comments.*', 'analytics.*']`
+- **Tenant isolation** — each tenant's scope boundary limits what permissions are possible, regardless of what roles exist
+- **Regulatory compliance** — certain scopes are structurally prevented from accessing specific resources
+
+> Boundaries are checked per-scope. If a user has roles in multiple scopes, each scope's boundary applies independently. A permission allowed in one scope can be blocked by a different scope's boundary.

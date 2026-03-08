@@ -34,7 +34,8 @@ class RoleMiddleware
 
         $assignments = $resolvedScope !== null
             ? $this->assignmentStore->forSubjectInScope($user->getMorphClass(), $user->getKey(), $resolvedScope)
-            : $this->assignmentStore->forSubject($user->getMorphClass(), $user->getKey());
+            : $this->assignmentStore->forSubject($user->getMorphClass(), $user->getKey())
+                ->filter(static fn ($assignment): bool => $assignment->scope === null);
 
         if (! $assignments->contains('role_id', $role)) {
             abort(403);

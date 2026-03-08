@@ -16,31 +16,18 @@ use Illuminate\Support\Collection;
  */
 trait Scopeable
 {
-    /**
-     * Return the canonical scope string for this model instance.
-     *
-     * Format: `{type}::{id}` (e.g., "group::5").
-     */
     public function toScope(): string
     {
         return $this->scopeType.'::'.$this->getKey();
     }
 
-    /**
-     * Get all assignments within this scope.
-     *
-     * @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>
-     */
+    /** @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> */
     public function members(): Collection
     {
         return app(AssignmentStore::class)->subjectsInScope($this->toScope());
     }
 
-    /**
-     * Get all assignments within this scope filtered by a specific role.
-     *
-     * @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>
-     */
+    /** @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> */
     public function membersWithRole(string $roleId): Collection
     {
         return app(AssignmentStore::class)->subjectsInScope($this->toScope(), $roleId);

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
+use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Events\AuthorizationDenied;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
@@ -193,7 +194,7 @@ it('returns an EvaluationTrace when explain mode is enabled', function (): void 
         ->toBeInstanceOf(EvaluationTrace::class)
         ->subject->toBe('App\\Models\\User:1')
         ->required->toBe('posts.create')
-        ->result->toBe('allow')
+        ->result->toBe(EvaluationResult::Allow)
         ->cacheHit->toBeFalse()
         ->assignments->toHaveCount(1)
         ->assignments->each->toHaveKeys(['role', 'scope', 'permissions_checked']);
@@ -209,7 +210,7 @@ it('returns deny trace when permission is not granted', function (): void {
     $trace = $this->evaluator->explain('App\\Models\\User', 1, 'posts.delete');
 
     expect($trace)
-        ->result->toBe('deny')
+        ->result->toBe(EvaluationResult::Deny)
         ->boundary->toBeNull();
 });
 
@@ -224,7 +225,7 @@ it('includes boundary note in explain trace when boundary blocks', function (): 
     $trace = $this->evaluator->explain('App\\Models\\User', 1, 'billing.manage:org::acme');
 
     expect($trace)
-        ->result->toBe('deny')
+        ->result->toBe(EvaluationResult::Deny)
         ->boundary->toContain('Denied by boundary');
 });
 

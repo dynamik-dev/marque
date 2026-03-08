@@ -82,7 +82,7 @@ class ListAssignmentsCommand extends Command
 
         $this->table(
             ['Subject Type', 'Subject ID', 'Role', 'Scope'],
-            $assignments->map(fn ($assignment) => [
+            $assignments->map(static fn ($assignment) => [
                 $assignment->subject_type,
                 $assignment->subject_id,
                 $assignment->role_id,

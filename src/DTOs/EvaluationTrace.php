@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine\DTOs;
 
+use DynamikDev\PolicyEngine\Enums\EvaluationResult;
+
 readonly class EvaluationTrace
 {
     /**
@@ -12,7 +14,7 @@ readonly class EvaluationTrace
     public function __construct(
         public string $subject,
         public string $required,
-        public string $result,
+        public EvaluationResult $result,
         public array $assignments,
         public ?string $boundary,
         public bool $cacheHit,

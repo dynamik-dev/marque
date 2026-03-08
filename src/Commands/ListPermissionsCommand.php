@@ -25,7 +25,7 @@ class ListPermissionsCommand extends Command
 
         $this->table(
             ['ID', 'Description'],
-            $permissions->map(fn ($permission) => [
+            $permissions->map(static fn ($permission) => [
                 $permission->id,
                 $permission->description ?? '',
             ]),

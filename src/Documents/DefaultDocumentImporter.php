@@ -48,6 +48,8 @@ class DefaultDocumentImporter implements DocumentImporter
         $this->importBoundaries($document, $options, $isReplace);
         $assignmentsCreated = $this->importAssignments($document, $options, $isReplace);
 
+        $warnings = [...$warnings, ...$rolesResult['warnings']];
+
         $result = new ImportResult(
             permissionsCreated: $permissionsCreated,
             rolesCreated: $rolesResult['created'],
@@ -123,15 +125,23 @@ class DefaultDocumentImporter implements DocumentImporter
     /**
      * Import roles from the document.
      *
-     * @return array{created: array<int, string>, updated: array<int, string>}
+     * @return array{created: array<int, string>, updated: array<int, string>, warnings: array<int, string>}
      */
     private function importRoles(PolicyDocument $document, ImportOptions $options, bool $isReplace): array
     {
         $created = [];
         $updated = [];
+        $warnings = [];
 
         foreach ($document->roles as $role) {
-            $isNew = $isReplace || $this->roleStore->find($role['id']) === null;
+            $existing = $this->roleStore->find($role['id']);
+            $isNew = $isReplace || $existing === null;
+
+            if ($existing !== null && $existing->is_system && config('policy-engine.protect_system_roles')) {
+                $warnings[] = "Skipped protected system role '{$role['id']}' during import";
+
+                continue;
+            }
 
             if ($isNew) {
                 $created[] = $role['id'];
@@ -149,7 +159,7 @@ class DefaultDocumentImporter implements DocumentImporter
             }
         }
 
-        return ['created' => $created, 'updated' => $updated];
+        return ['created' => $created, 'updated' => $updated, 'warnings' => $warnings];
     }
 
     /**

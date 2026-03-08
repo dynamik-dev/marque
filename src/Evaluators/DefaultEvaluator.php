@@ -10,6 +10,7 @@ use DynamikDev\PolicyEngine\Contracts\Evaluator;
 use DynamikDev\PolicyEngine\Contracts\Matcher;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
+use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use DynamikDev\PolicyEngine\Events\AuthorizationDenied;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
@@ -23,9 +24,6 @@ class DefaultEvaluator implements Evaluator
         private readonly Matcher $matcher,
     ) {}
 
-    /**
-     * Determine whether a subject holds a given permission.
-     */
     public function can(string $subjectType, string|int $subjectId, string $permission): bool
     {
         [$requiredPermission, $scope] = $this->parseScope($permission);
@@ -42,11 +40,11 @@ class DefaultEvaluator implements Evaluator
         $denies = [];
 
         foreach ($allAssignments as $assignment) {
-            foreach ($this->roles->permissionsFor($assignment->role_id) as $perm) {
-                if (str_starts_with($perm, '!')) {
-                    $denies[] = $perm;
+            foreach ($this->roles->permissionsFor($assignment->role_id) as $permission) {
+                if (str_starts_with($permission, '!')) {
+                    $denies[] = $permission;
                 } else {
-                    $allows[] = $perm;
+                    $allows[] = $permission;
                 }
             }
         }
@@ -57,6 +55,12 @@ class DefaultEvaluator implements Evaluator
             $boundary = $this->boundaries->find($scope);
 
             if ($boundary !== null && ! $this->matchesAny($boundary->max_permissions, $requiredPermission)) {
+                $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
+
+                return false;
+            }
+
+            if ($boundary === null && config('policy-engine.deny_unbounded_scopes')) {
                 $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
 
                 return false;
@@ -72,7 +76,6 @@ class DefaultEvaluator implements Evaluator
             }
         }
 
-        // Check for an allow match.
         $roleAllowed = false;
         foreach ($allows as $allow) {
             if ($this->matcher->matches($allow, $requiredPermission)) {
@@ -126,19 +129,18 @@ class DefaultEvaluator implements Evaluator
                 'permissions_checked' => $permissions,
             ];
 
-            foreach ($permissions as $perm) {
-                if (str_starts_with($perm, '!')) {
-                    $denies[] = $perm;
+            foreach ($permissions as $permission) {
+                if (str_starts_with($permission, '!')) {
+                    $denies[] = $permission;
                 } else {
-                    $allows[] = $perm;
+                    $allows[] = $permission;
                 }
             }
         }
 
         $boundaryNote = null;
-        $result = 'deny';
+        $result = EvaluationResult::Deny;
 
-        // Boundary check.
         if ($scope !== null) {
             $boundary = $this->boundaries->find($scope);
 
@@ -158,15 +160,27 @@ class DefaultEvaluator implements Evaluator
 
                 $boundaryNote = "Passed boundary on scope [{$scope}]";
             }
+
+            if ($boundary === null && config('policy-engine.deny_unbounded_scopes')) {
+                $boundaryNote = "Denied by missing boundary on scope [{$scope}] (deny_unbounded_scopes enabled)";
+
+                return new EvaluationTrace(
+                    subject: $subjectType.':'.$subjectId,
+                    required: $requiredPermission,
+                    result: $result,
+                    assignments: $traceAssignments,
+                    boundary: $boundaryNote,
+                    cacheHit: false,
+                );
+            }
         }
 
-        // Deny wins.
         foreach ($denies as $deny) {
             if ($this->matcher->matches(substr($deny, 1), $requiredPermission)) {
                 return new EvaluationTrace(
                     subject: $subjectType.':'.$subjectId,
                     required: $requiredPermission,
-                    result: 'deny',
+                    result: EvaluationResult::Deny,
                     assignments: $traceAssignments,
                     boundary: $boundaryNote,
                     cacheHit: false,
@@ -177,7 +191,7 @@ class DefaultEvaluator implements Evaluator
         // Allow check.
         foreach ($allows as $allow) {
             if ($this->matcher->matches($allow, $requiredPermission)) {
-                $result = 'allow';
+                $result = EvaluationResult::Allow;
                 break;
             }
         }
@@ -205,11 +219,11 @@ class DefaultEvaluator implements Evaluator
         $denies = [];
 
         foreach ($allAssignments as $assignment) {
-            foreach ($this->roles->permissionsFor($assignment->role_id) as $perm) {
-                if (str_starts_with($perm, '!')) {
-                    $denies[] = substr($perm, 1);
+            foreach ($this->roles->permissionsFor($assignment->role_id) as $permission) {
+                if (str_starts_with($permission, '!')) {
+                    $denies[] = substr($permission, 1);
                 } else {
-                    $allows[] = $perm;
+                    $allows[] = $permission;
                 }
             }
         }
@@ -257,11 +271,11 @@ class DefaultEvaluator implements Evaluator
     {
         if ($scope === null) {
             return $this->assignments->forSubject($subjectType, $subjectId)
-                ->filter(fn ($assignment): bool => $assignment->scope === null);
+                ->filter(static fn ($assignment): bool => $assignment->scope === null);
         }
 
         $global = $this->assignments->forSubject($subjectType, $subjectId)
-            ->filter(fn ($assignment): bool => $assignment->scope === null);
+            ->filter(static fn ($assignment): bool => $assignment->scope === null);
 
         $scoped = $this->assignments->forSubjectInScope($subjectType, $subjectId, $scope);
 
@@ -320,7 +334,7 @@ class DefaultEvaluator implements Evaluator
         }
 
         // Only apply token scoping if the authenticated user matches the subject being evaluated.
-        if ($user->getMorphClass() !== $subjectType || $user->getKey() != $subjectId) {
+        if ($user->getMorphClass() !== $subjectType || (string) $user->getKey() !== (string) $subjectId) {
             return true;
         }
 
@@ -344,9 +358,6 @@ class DefaultEvaluator implements Evaluator
         return false;
     }
 
-    /**
-     * Dispatch an AuthorizationDenied event if log_denials is enabled.
-     */
     private function dispatchDenialIfEnabled(string $subjectType, string|int $subjectId, string $permission, ?string $scope): void
     {
         if (config('policy-engine.log_denials')) {

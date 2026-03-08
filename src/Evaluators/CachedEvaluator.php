@@ -49,9 +49,6 @@ class CachedEvaluator implements Evaluator
         return $this->inner->effectivePermissions($subjectType, $subjectId, $scope);
     }
 
-    /**
-     * Build the cache key for a subject's permission check.
-     */
     public static function cacheKey(string $subjectType, string|int $subjectId, ?string $permission = null): string
     {
         $key = "policy-engine:{$subjectType}:{$subjectId}";

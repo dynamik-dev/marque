@@ -11,5 +11,7 @@ return [
     'protect_system_roles' => true,
     'log_denials' => true,
     'explain' => env('POLICY_ENGINE_EXPLAIN', false),
+    'deny_unbounded_scopes' => false,
+    'document_path' => null,
     'document_format' => 'json',
 ];

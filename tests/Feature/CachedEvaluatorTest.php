@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Events\AssignmentCreated;
@@ -190,7 +191,7 @@ it('delegates explain() to inner evaluator', function (): void {
 
     $trace = $this->evaluator->explain('App\\Models\\User', 1, 'posts.create');
 
-    expect($trace->result)->toBe('allow')
+    expect($trace->result)->toBe(EvaluationResult::Allow)
         ->and($trace->cacheHit)->toBeFalse();
 });
 

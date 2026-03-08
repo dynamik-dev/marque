@@ -206,6 +206,17 @@ it('role middleware denies request with 403 when user lacks the role', function 
         ->assertForbidden();
 });
 
+it('role middleware requires a global assignment when no scope is provided', function (): void {
+    Route::middleware('role:admin')->get('/global-test', fn () => response()->json(['ok' => true]));
+
+    $this->roleStore->save('admin', 'Admin', ['posts.create']);
+    $this->user->assign('admin', 'team::'.$this->team->getKey());
+
+    $this->actingAs($this->user)
+        ->getJson('/global-test')
+        ->assertForbidden();
+});
+
 // --- RoleMiddleware: unauthenticated ---
 
 it('role middleware returns 401 for unauthenticated user', function (): void {

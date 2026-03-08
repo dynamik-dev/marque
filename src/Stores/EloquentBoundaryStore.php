@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace DynamikDev\PolicyEngine\Stores;
 
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Events\BoundaryRemoved;
+use DynamikDev\PolicyEngine\Events\BoundarySet;
 use DynamikDev\PolicyEngine\Models\Boundary;
+use Illuminate\Support\Facades\Event;
 
 class EloquentBoundaryStore implements BoundaryStore
 {
@@ -18,10 +21,12 @@ class EloquentBoundaryStore implements BoundaryStore
      */
     public function set(string $scope, array $maxPermissions): void
     {
-        Boundary::query()->updateOrCreate(
+        $boundary = Boundary::query()->updateOrCreate(
             ['scope' => $scope],
             ['max_permissions' => $maxPermissions],
         );
+
+        Event::dispatch(new BoundarySet($boundary));
     }
 
     /**
@@ -31,12 +36,13 @@ class EloquentBoundaryStore implements BoundaryStore
      */
     public function remove(string $scope): void
     {
-        Boundary::query()->where('scope', $scope)->delete();
+        $deleted = Boundary::query()->where('scope', $scope)->delete();
+
+        if ($deleted > 0) {
+            Event::dispatch(new BoundaryRemoved($scope));
+        }
     }
 
-    /**
-     * Find the boundary for a scope, or return null.
-     */
     public function find(string $scope): ?Boundary
     {
         return Boundary::query()->where('scope', $scope)->first();

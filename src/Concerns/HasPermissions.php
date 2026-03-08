@@ -20,9 +20,6 @@ use Illuminate\Support\Collection;
  */
 trait HasPermissions
 {
-    /**
-     * Determine whether this subject holds a given permission.
-     */
     public function canDo(string $permission, mixed $scope = null): bool
     {
         return app(Evaluator::class)->can(
@@ -32,16 +29,18 @@ trait HasPermissions
         );
     }
 
-    /**
-     * Determine whether this subject does NOT hold a given permission.
-     */
     public function cannotDo(string $permission, mixed $scope = null): bool
     {
         return ! $this->canDo($permission, $scope);
     }
 
     /**
-     * Assign a role to this subject, optionally within a scope.
+     * Assign a role to this subject.
+     *
+     * WARNING: This is a privileged operation. Never expose this method to
+     * end-user input (controllers, Livewire actions, API endpoints) without
+     * an authorization guard. A user calling $this->assign('admin') on their
+     * own model can escalate privileges.
      */
     public function assign(string $roleId, mixed $scope = null): void
     {
@@ -54,7 +53,10 @@ trait HasPermissions
     }
 
     /**
-     * Revoke a role from this subject, optionally within a scope.
+     * Revoke a role from this subject.
+     *
+     * WARNING: This is a privileged operation. Never expose this method to
+     * end-user input without an authorization guard.
      */
     public function revoke(string $roleId, mixed $scope = null): void
     {
@@ -66,11 +68,7 @@ trait HasPermissions
         );
     }
 
-    /**
-     * Get all assignments for this subject across all scopes.
-     *
-     * @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>
-     */
+    /** @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> */
     public function assignments(): Collection
     {
         return app(AssignmentStore::class)->forSubject(
@@ -79,11 +77,7 @@ trait HasPermissions
         );
     }
 
-    /**
-     * Get all assignments for this subject within a specific scope.
-     *
-     * @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>
-     */
+    /** @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> */
     public function assignmentsFor(mixed $scope): Collection
     {
         return app(AssignmentStore::class)->forSubjectInScope(
@@ -93,11 +87,7 @@ trait HasPermissions
         );
     }
 
-    /**
-     * Collect all effective permissions for this subject, optionally within a scope.
-     *
-     * @return array<int, string>
-     */
+    /** @return array<int, string> */
     public function effectivePermissions(mixed $scope = null): array
     {
         return app(Evaluator::class)->effectivePermissions(
@@ -107,11 +97,7 @@ trait HasPermissions
         );
     }
 
-    /**
-     * Get all unique roles assigned to this subject across all scopes.
-     *
-     * @return Collection<int, Role>
-     */
+    /** @return Collection<int, Role> */
     public function roles(): Collection
     {
         $roleStore = app(RoleStore::class);
@@ -119,16 +105,12 @@ trait HasPermissions
         return $this->assignments()
             ->pluck('role_id')
             ->unique()
-            ->map(fn (string $roleId): ?Role => $roleStore->find($roleId))
+            ->map(static fn (string $roleId): ?Role => $roleStore->find($roleId))
             ->filter()
             ->values();
     }
 
-    /**
-     * Get all unique roles assigned to this subject within a specific scope.
-     *
-     * @return Collection<int, Role>
-     */
+    /** @return Collection<int, Role> */
     public function rolesFor(mixed $scope): Collection
     {
         $roleStore = app(RoleStore::class);
@@ -136,14 +118,11 @@ trait HasPermissions
         return $this->assignmentsFor($scope)
             ->pluck('role_id')
             ->unique()
-            ->map(fn (string $roleId): ?Role => $roleStore->find($roleId))
+            ->map(static fn (string $roleId): ?Role => $roleStore->find($roleId))
             ->filter()
             ->values();
     }
 
-    /**
-     * Evaluate a permission and return a detailed trace of the decision.
-     */
     public function explain(string $permission, mixed $scope = null): EvaluationTrace
     {
         return app(Evaluator::class)->explain(

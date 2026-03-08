@@ -18,16 +18,20 @@ class ExportCommand extends Command
         $scope = $this->option('scope') ? (string) $this->option('scope') : null;
         $path = $this->option('path') ? (string) $this->option('path') : null;
 
-        $json = $manager->export($scope);
+        try {
+            if ($path) {
+                $manager->exportToFile($path, $scope);
+                $this->info("Exported to {$path}");
 
-        if ($path) {
-            file_put_contents($path, $json);
-            $this->info("Exported to {$path}");
+                return self::SUCCESS;
+            }
 
-            return self::SUCCESS;
+            $this->line($manager->export($scope));
+        } catch (\InvalidArgumentException $e) {
+            $this->error("Export failed: {$e->getMessage()}");
+
+            return self::FAILURE;
         }
-
-        $this->line($json);
 
         return self::SUCCESS;
     }

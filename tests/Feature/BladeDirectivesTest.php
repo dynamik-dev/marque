@@ -271,6 +271,21 @@ it('hides content inside @hasRole when user has role globally but scope is reque
     expect($html)->toBe('');
 });
 
+it('hides content inside @hasRole when user has role only in a scope and no scope is requested', function (): void {
+    $this->roleStore->save('admin', 'Admin', ['posts.create']);
+    $this->user->assign('admin', 'team::5');
+
+    $this->actingAs($this->user);
+
+    $html = renderBlade(<<<'BLADE'
+        @hasRole("admin")
+            HIDDEN
+        @endhasRole
+        BLADE);
+
+    expect($html)->toBe('');
+});
+
 // --- Unauthenticated user ---
 
 it('hides @canDo content for unauthenticated user', function (): void {

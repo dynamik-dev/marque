@@ -12,6 +12,8 @@ A Laravel-native scoped permissions package. Composable, contract-driven authori
 
 **All development tasks go to the `laravel-agent`.** This includes writing code, creating migrations, building tests, refactoring, and reviewing. Invoke it via the Task tool for any implementation work.
 
+**All documentation tasks go to the `docs-agent`.** This includes writing, updating, and restructuring docs. It writes Laravel-style scenario-based documentation where sections are phrased as tasks. Invoke it via the Task tool for any docs work.
+
 ## Key Concepts
 
 - **Permissions** — dot-notated strings (`posts.create`, `posts.delete.own`). Deny rules prefixed with `!`.
@@ -60,3 +62,32 @@ Assignments → Roles → Permissions → Boundary check → Deny wins → Allow
 - Inline single-use variables; extract complex logic to helper methods
 - Full PHP 8.4+ type hints and return types on every method
 - Run `vendor/bin/pint --dirty` after modifying PHP files
+
+<!-- BACKLOG.MD MCP GUIDELINES START -->
+
+<CRITICAL_INSTRUCTION>
+
+## BACKLOG WORKFLOW INSTRUCTIONS
+
+This project uses Backlog.md MCP for all task and project management activities.
+
+**CRITICAL GUIDANCE**
+
+- If your client supports MCP resources, read `backlog://workflow/overview` to understand when and how to use Backlog for this project.
+- If your client only supports tools or the above request fails, call `backlog.get_workflow_overview()` tool to load the tool-oriented overview (it lists the matching guide tools).
+
+- **First time working here?** Read the overview resource IMMEDIATELY to learn the workflow
+- **Already familiar?** You should have the overview cached ("## Backlog.md Overview (MCP)")
+- **When to read it**: BEFORE creating tasks, or when you're unsure whether to track work
+
+These guides cover:
+- Decision framework for when to create tasks
+- Search-first workflow to avoid duplicates
+- Links to detailed guides for task creation, execution, and completion
+- MCP tools reference
+
+You MUST read the overview resource to understand the complete workflow. The information is NOT summarized here.
+
+</CRITICAL_INSTRUCTION>
+
+<!-- BACKLOG.MD MCP GUIDELINES END -->

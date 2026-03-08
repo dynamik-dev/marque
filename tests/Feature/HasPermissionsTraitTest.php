@@ -10,6 +10,7 @@ use DynamikDev\PolicyEngine\Contracts\Matcher;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
+use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
@@ -270,7 +271,7 @@ it('returns an EvaluationTrace via explain', function (): void {
         ->toBeInstanceOf(EvaluationTrace::class)
         ->subject->toBe(TestUser::class.':'.$this->user->getKey())
         ->required->toBe('posts.create')
-        ->result->toBe('allow');
+        ->result->toBe(EvaluationResult::Allow);
 });
 
 it('returns deny trace when permission is not granted', function (): void {
@@ -280,7 +281,7 @@ it('returns deny trace when permission is not granted', function (): void {
 
     expect($trace)
         ->toBeInstanceOf(EvaluationTrace::class)
-        ->result->toBe('deny');
+        ->result->toBe(EvaluationResult::Deny);
 });
 
 it('returns scoped explain trace', function (): void {
@@ -293,7 +294,7 @@ it('returns scoped explain trace', function (): void {
     $trace = $this->user->explain('posts.create', 'team::5');
 
     expect($trace)
-        ->result->toBe('allow')
+        ->result->toBe(EvaluationResult::Allow)
         ->assignments->toHaveCount(1);
 });
 

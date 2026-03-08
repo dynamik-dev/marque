@@ -24,13 +24,13 @@ class EloquentPermissionStore implements PermissionStore
      */
     public function register(string|array $permissions): void
     {
-        foreach ((array) $permissions as $perm) {
+        foreach ((array) $permissions as $permission) {
             $wasRecentlyCreated = Permission::query()
-                ->firstOrCreate(['id' => $perm])
+                ->firstOrCreate(['id' => $permission])
                 ->wasRecentlyCreated;
 
             if ($wasRecentlyCreated) {
-                Event::dispatch(new PermissionCreated($perm));
+                Event::dispatch(new PermissionCreated($permission));
             }
         }
     }
@@ -60,14 +60,13 @@ class EloquentPermissionStore implements PermissionStore
             return Permission::query()->get();
         }
 
+        $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $prefix);
+
         return Permission::query()
-            ->where('id', 'like', $prefix.'.%')
+            ->whereRaw("\"id\" like ? escape '\\'", [$escaped.'.%'])
             ->get();
     }
 
-    /**
-     * Check whether a permission exists.
-     */
     public function exists(string $id): bool
     {
         return Permission::query()->where('id', $id)->exists();

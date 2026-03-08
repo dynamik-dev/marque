@@ -1,0 +1,106 @@
+# Configuration Reference
+
+Publish the config file with:
+
+```bash
+php artisan vendor:publish --tag=policy-engine-config
+```
+
+This creates `config/policy-engine.php`.
+
+---
+
+### `cache.enabled`
+
+Enable or disable evaluation caching.
+
+- **Type:** `bool`
+- **Default:** `true`
+
+When disabled, every `canDo()` call queries the database directly. Disable in testing or when using a custom `Evaluator` that handles its own caching.
+
+---
+
+### `cache.store`
+
+The Laravel cache store to use for permission caching.
+
+- **Type:** `string`
+- **Default:** `env('POLICY_ENGINE_CACHE_STORE', 'default')`
+
+Maps to a store defined in `config/cache.php`. The value `'default'` uses your application's default cache driver.
+
+---
+
+### `cache.ttl`
+
+How long cached evaluation results are stored, in seconds.
+
+- **Type:** `int`
+- **Default:** `3600` (1 hour)
+
+Cached results are also invalidated by events (assignment changes, role updates, permission deletions), so this TTL is a safety net, not the primary invalidation mechanism.
+
+---
+
+### `protect_system_roles`
+
+Prevent runtime deletion of roles marked as system.
+
+- **Type:** `bool`
+- **Default:** `true`
+
+When enabled, calling `remove()` on a role where `is_system` is `true` throws a `RuntimeException`. Disable this if you need to programmatically manage system roles outside of seeders.
+
+---
+
+### `log_denials`
+
+Dispatch an `AuthorizationDenied` event when a `canDo()` check fails.
+
+- **Type:** `bool`
+- **Default:** `true`
+
+Useful for audit logging and monitoring. Disable if denial events create too much noise in high-traffic applications.
+
+---
+
+### `explain`
+
+Enable the `explain()` evaluation trace.
+
+- **Type:** `bool`
+- **Default:** `env('POLICY_ENGINE_EXPLAIN', false)`
+
+When disabled, calling `explain()` throws a `RuntimeException`. Enable in development and staging for debugging. Disable in production — the trace adds overhead and may expose internal authorization structure.
+
+---
+
+### `document_format`
+
+The format used for policy document parsing.
+
+- **Type:** `string`
+- **Default:** `'json'`
+
+Currently only `'json'` is supported out of the box. Swap the `DocumentParser` binding to support other formats like YAML or TOML.
+
+---
+
+## Full default config
+
+```php
+// config/policy-engine.php
+
+return [
+    'cache' => [
+        'enabled' => true,
+        'store' => env('POLICY_ENGINE_CACHE_STORE', 'default'),
+        'ttl' => 60 * 60,
+    ],
+    'protect_system_roles' => true,
+    'log_denials' => true,
+    'explain' => env('POLICY_ENGINE_EXPLAIN', false),
+    'document_format' => 'json',
+];
+```

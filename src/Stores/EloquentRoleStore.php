@@ -22,6 +22,20 @@ class EloquentRoleStore implements RoleStore
      */
     public function save(string $id, string $name, array $permissions, bool $system = false): Role
     {
+        $existing = Role::query()->find($id);
+
+        if ($existing !== null && $existing->is_system && config('policy-engine.protect_system_roles')) {
+            if (! $system) {
+                throw new \RuntimeException("Cannot remove system flag from protected role [{$id}].");
+            }
+
+            $currentPermissions = $this->permissionsFor($id);
+
+            if ($permissions !== $currentPermissions) {
+                throw new \RuntimeException("Cannot modify permissions on protected system role [{$id}].");
+            }
+        }
+
         $role = Role::query()->updateOrCreate(
             ['id' => $id],
             ['name' => $name, 'is_system' => $system],

@@ -11,3 +11,5 @@ composer.lock
 .DS_Store
 .chief/
 .claude/
+CLAUDE.md
+/filament

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Concerns\HasPermissions;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -37,6 +38,7 @@ beforeEach(function (): void {
 
     $this->permissionStore = app(PermissionStore::class);
     $this->roleStore = app(RoleStore::class);
+    $this->boundaryStore = app(BoundaryStore::class);
 
     $this->user = CacheTestUser::query()->create(['name' => 'Alice']);
 });
@@ -119,4 +121,32 @@ it('invalidates cache when a permission is deleted so canDo reflects the removal
 
     // Other permissions remain unaffected.
     expect($this->user->canDo('posts.create'))->toBeTrue();
+});
+
+it('invalidates cache when a boundary is updated so canDo reflects tighter limits', function (): void {
+    $this->permissionStore->register(['billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['billing.manage']);
+    $this->user->assign('admin', 'org::acme');
+
+    $this->boundaryStore->set('org::acme', ['billing.manage']);
+
+    expect($this->user->canDo('billing.manage', 'org::acme'))->toBeTrue();
+
+    $this->boundaryStore->set('org::acme', ['posts.*']);
+
+    expect($this->user->canDo('billing.manage', 'org::acme'))->toBeFalse();
+});
+
+it('invalidates cache when a boundary is removed so canDo reflects the removal', function (): void {
+    $this->permissionStore->register(['billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['billing.manage']);
+    $this->user->assign('admin', 'org::acme');
+
+    $this->boundaryStore->set('org::acme', ['posts.*']);
+
+    expect($this->user->canDo('billing.manage', 'org::acme'))->toBeFalse();
+
+    $this->boundaryStore->remove('org::acme');
+
+    expect($this->user->canDo('billing.manage', 'org::acme'))->toBeTrue();
 });

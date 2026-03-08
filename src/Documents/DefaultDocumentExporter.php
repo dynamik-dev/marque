@@ -105,7 +105,7 @@ class DefaultDocumentExporter implements DocumentExporter
      */
     private function serializeAssignments(\Illuminate\Support\Collection $assignments): array
     {
-        return $assignments->map(function (Assignment $assignment): array {
+        return $assignments->map(static function (Assignment $assignment): array {
             $data = [
                 'subject' => $assignment->subject_type.'::'.$assignment->subject_id,
                 'role' => $assignment->role_id,
@@ -129,7 +129,7 @@ class DefaultDocumentExporter implements DocumentExporter
     private function exportBoundaries(?string $scope): array
     {
         if ($scope === null) {
-            return Boundary::query()->get()->map(fn (Boundary $boundary): array => [
+            return Boundary::query()->get()->map(static fn (Boundary $boundary): array => [
                 'scope' => $boundary->scope,
                 'max_permissions' => $boundary->max_permissions,
             ])->values()->all();

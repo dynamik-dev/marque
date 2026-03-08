@@ -20,6 +20,11 @@ return new class extends Migration
                 ->references('id')
                 ->on('roles')
                 ->cascadeOnDelete();
+
+            $table->foreign('permission_id')
+                ->references('id')
+                ->on('permissions')
+                ->cascadeOnDelete();
         });
     }
 

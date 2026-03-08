@@ -6,6 +6,7 @@ namespace DynamikDev\PolicyEngine\Commands;
 
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
+use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use Illuminate\Console\Command;
 use RuntimeException;
 
@@ -76,8 +77,8 @@ class ExplainCommand extends Command
         $this->line("  <info>Subject:</info>    {$trace->subject}");
         $this->line("  <info>Permission:</info> {$trace->required}");
 
-        $resultLabel = strtoupper($trace->result);
-        $resultStyle = $trace->result === 'allow' ? 'info' : 'error';
+        $resultLabel = strtoupper($trace->result->value);
+        $resultStyle = $trace->result === EvaluationResult::Allow ? 'info' : 'error';
         $this->line("  <info>Result:</info>     <{$resultStyle}>{$resultLabel}</{$resultStyle}>");
 
         $this->newLine();
