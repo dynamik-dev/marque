@@ -1,6 +1,84 @@
 # Policy Engine for Laravel
 
-Scoped, composable permissions for Laravel. Contract-driven authorization that integrates with Gates, Policies, middleware, and Blade.
+Scoped, composable permissions for Laravel. Hooks into the Gate so `$user->can()`, `@can`, `$this->authorize()`, and middleware all work out of the box.
+
+```php
+// assign a role — globally or within a scope
+$user->assign('editor');
+$user->assign('moderator', $team);
+
+// check permissions — standard Laravel, nothing custom
+$user->can('posts.create');
+$user->can('posts.create', $team);
+
+// works everywhere Laravel authorization works
+Route::middleware('can:posts.create')->post('/posts', [PostController::class, 'store']);
+```
+
+```blade
+@can('posts.create', $team)
+    <button>New Post</button>
+@endcan
+```
+
+```php
+// roles are just named permission sets — deny rules, wildcards, scoping built in
+Primitives::role('editor')
+    ->allow('posts.create', 'posts.update.own', 'comments.*')
+    ->deny('posts.delete')
+    ->save();
+```
+
+Permissions are as granular as you need. Use dot-notation to model resource, action, and ownership — like IAM policies.
+
+```php
+// fine-grained: resource.action.ownership
+'posts.create'
+'posts.update.own'
+'posts.update.any'
+'posts.delete.pinned'
+
+// wildcards at any level
+'posts.*'           // all post actions
+'*.read'            // read anything
+'*.*'               // superadmin
+```
+
+Boundaries cap what's possible in a scope — even if a role grants it, the boundary has final say.
+
+```php
+// free plan can only read, pro plan gets everything
+Primitives::boundary('plan::free', ['posts.read', 'comments.read']);
+Primitives::boundary('plan::pro', ['posts.*', 'comments.*', 'analytics.*']);
+
+$user->assign('admin', $freeOrg);
+$user->can('analytics.view', $freeOrg);  // false — boundary blocks it
+$user->can('analytics.view', $proOrg);   // true
+```
+
+Version-control your entire authorization config as portable JSON documents.
+
+```json
+{
+    "version": "1.0",
+    "permissions": ["posts.read", "posts.create", "posts.update.own", "posts.delete.any"],
+    "roles": [
+        {
+            "id": "editor",
+            "name": "Editor",
+            "permissions": ["posts.read", "posts.create", "posts.update.own", "!posts.delete.any"]
+        }
+    ],
+    "boundaries": [
+        { "scope": "org::acme", "max_permissions": ["posts.*", "comments.*"] }
+    ]
+}
+```
+
+```bash
+php artisan primitives:import policies/production.json
+php artisan primitives:export --path=policies/backup.json
+```
 
 ## Documentation
 
