@@ -16,8 +16,6 @@ use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
 
-mutates(DefaultEvaluator::class);
-
 beforeEach(function (): void {
     $this->permissionStore = new EloquentPermissionStore;
     $this->roleStore = new EloquentRoleStore;

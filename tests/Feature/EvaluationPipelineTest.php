@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
-mutates(HasPermissions::class);
-
 class PipelineTestUser extends \Illuminate\Database\Eloquent\Model
 {
     use HasPermissions;

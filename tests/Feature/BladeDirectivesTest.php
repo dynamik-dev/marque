@@ -24,8 +24,6 @@ use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
-mutates(\DynamikDev\PolicyEngine\PolicyEngineServiceProvider::class);
-
 /**
  * A minimal authenticatable model for testing Blade directives.
  */

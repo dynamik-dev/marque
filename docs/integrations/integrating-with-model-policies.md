@@ -6,7 +6,7 @@ Policy Engine handles permission data — which roles have which permissions in 
 
 | Scenario | Use a policy? |
 | --- | --- |
-| Pure permission check (`posts.create`) | No — use `canDo()` directly |
+| Pure permission check (`posts.create`) | No — use `$user->can()` directly |
 | Ownership check (`.own` vs `.any`) | Yes |
 | Time-based rules (locked after 24h) | Yes |
 | State-based (pinned, archived, draft) | Yes |
@@ -56,6 +56,8 @@ class PostPolicy
 
 The policy never hardcodes role names. It asks `canDo()` about permissions and applies business logic (ownership, pinned state) on top.
 
+> Policy methods receive a raw `User` object, so they call `canDo()` directly on the trait. This is the correct usage inside policies — `canDo()` is deprecated for external callers, not for internal policy logic.
+
 ## Using the policy in a controller
 
 ```php
@@ -79,6 +81,18 @@ class PostController extends Controller
 
 Standard Laravel authorization — `$this->authorize()`, `Gate::allows()`, `@can` in Blade. The policy handles the `canDo()` call internally.
 
+## How the Gate hook interacts with policies
+
+The Gate hook only intercepts dot-notated abilities (like `posts.create`). Non-dot abilities (like `update`, `delete`, `create`) pass through to your model policies as usual.
+
+```php
+$user->can('posts.create');       // Gate hook → Policy Engine
+$user->can('update', $post);     // Standard Gate → PostPolicy::update()
+$this->authorize('delete', $post); // Standard Gate → PostPolicy::delete()
+```
+
+When a policy method internally calls `canDo()`, it goes directly to the `HasPermissions` trait — it does not re-enter the Gate.
+
 ## Registering the policy
 
 ```php
@@ -94,9 +108,9 @@ Or use automatic policy discovery if your policy follows Laravel's naming conven
 
 ```blade
 {{-- Pure permission check — no resource involved --}}
-@canDo('posts.create', $group)
+@can('posts.create', $group)
     <button>New Post</button>
-@endcanDo
+@endcan
 
 {{-- Resource-level check — hits PostPolicy::delete() --}}
 @can('delete', $post)
@@ -104,6 +118,6 @@ Or use automatic policy discovery if your policy follows Laravel's naming conven
 @endcan
 ```
 
-`@canDo` checks the permission directly. `@can` routes through the policy. Both work in the same template.
+`@can` handles both cases. Dot-notated abilities route through the Gate hook to Policy Engine. Non-dot abilities route through model policies. Both work in the same template.
 
 > Policies should never contain role names (`if ($user->hasRole('admin'))`). Use permission checks with `canDo()` instead. Roles are a way to group permissions — policies should only care about what a user can do, not what role they hold.

@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
 
-mutates(EloquentAssignmentStore::class);
-
 beforeEach(function (): void {
     $this->store = new EloquentAssignmentStore;
 

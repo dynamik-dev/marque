@@ -1,13 +1,13 @@
 # Checking Permissions in Blade Templates
 
-The package registers three Blade directives — `@canDo`, `@cannotDo`, and `@hasRole` — for conditionally rendering UI based on the authenticated user's permissions.
+Use `@can` to conditionally render UI based on the authenticated user's permissions. The package's Gate hook intercepts dot-notated abilities, so `@can('posts.create')` routes through the Policy Engine evaluation pipeline automatically.
 
 ## Showing content when a permission is held
 
 ```blade
-@canDo('posts.create')
+@can('posts.create')
     <button>New Post</button>
-@endcanDo
+@endcan
 ```
 
 The button renders only if the authenticated user holds the `posts.create` permission.
@@ -15,9 +15,9 @@ The button renders only if the authenticated user holds the `posts.create` permi
 ## Checking a scoped permission
 
 ```blade
-@canDo('posts.create', $group)
+@can('posts.create', $group)
     <button>New Post in {{ $group->name }}</button>
-@endcanDo
+@endcan
 ```
 
 Pass a `Scopeable` model or a raw scope string as the second argument. The directive checks permissions within that scope.
@@ -25,39 +25,37 @@ Pass a `Scopeable` model or a raw scope string as the second argument. The direc
 ### Using a raw scope string
 
 ```blade
-@canDo('posts.create', 'group::5')
+@can('posts.create', 'group::5')
     <button>New Post</button>
-@endcanDo
+@endcan
 ```
 
 ## Showing fallback content
 
 ```blade
-@canDo('posts.delete')
+@can('posts.delete')
     <button>Delete Post</button>
 @else
     <span>You cannot delete this post.</span>
-@endcanDo
+@endcan
 ```
 
-All three directives support `@else`.
-
-## Hiding content when a permission is held
+## Hiding content when a permission is denied
 
 ```blade
-@cannotDo('posts.delete')
+@cannot('posts.delete')
     <p>Contact an admin to delete posts.</p>
-@endcannotDo
+@endcannot
 ```
 
-`@cannotDo` is the inverse of `@canDo`.
+`@cannot` is the inverse of `@can`.
 
-### Scoped cannotDo
+### Scoped cannot
 
 ```blade
-@cannotDo('members.remove', $group)
+@cannot('members.remove', $group)
     <p>You don't have permission to remove members from this group.</p>
-@endcannotDo
+@endcannot
 ```
 
 ## Checking role membership
@@ -88,24 +86,42 @@ The first argument is the role ID, the second is an optional scope.
 @endhasRole
 ```
 
-## How these relate to standard Blade directives
+## Using @canDo alongside @can
 
-These directives check permissions through the Policy Engine evaluation pipeline. Laravel's built-in `@can` and `@cannot` still work and hit your model policies as usual.
+The package also registers `@canDo`, `@cannotDo`, and `@hasRole` directives. These are not deprecated and still work, but `@can` is now the recommended approach for permission checks since it uses the standard Laravel directive.
 
 ```blade
-{{-- Policy Engine — checks canDo() --}}
+{{-- Recommended — uses standard @can with Gate hook --}}
+@can('posts.create', $group)
+    <button>New Post</button>
+@endcan
+
+{{-- Also works — uses the package's custom directive --}}
 @canDo('posts.create', $group)
     <button>New Post</button>
 @endcanDo
+```
 
-{{-- Standard Laravel — hits PostPolicy --}}
+Both produce the same result. `@can` has the advantage of being familiar to any Laravel developer and working identically with dot-notated permissions and model policies.
+
+## How @can handles both permissions and policies
+
+`@can` now routes through the Gate hook for any dot-notated ability. Non-dot abilities (like `update` or `delete`) pass through to your model policies as usual.
+
+```blade
+{{-- Dot-notated — handled by Policy Engine via Gate hook --}}
+@can('posts.create', $group)
+    <button>New Post</button>
+@endcan
+
+{{-- Non-dot — hits PostPolicy::delete() --}}
 @can('delete', $post)
-    <button>Delete Post</button>
+    <button>Delete</button>
 @endcan
 ```
 
-Use `@canDo` for pure permission checks. Use `@can` when authorization depends on the state of a specific resource (ownership, flags). See [integrating with model policies](integrating-with-model-policies.md) for when to use which.
+You can mix both styles in the same template. The Gate hook only intercepts abilities that contain a dot; everything else is handled by Laravel's standard Gate and Policy resolution.
 
 ## Behavior for unauthenticated users
 
-All three directives return `false` when no user is authenticated. Content inside the directive is hidden, and `@else` content is shown.
+All directives return `false` when no user is authenticated. Content inside the directive is hidden, and `@else` content is shown.

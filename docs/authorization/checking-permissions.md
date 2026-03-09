@@ -1,11 +1,11 @@
 # Checking Permissions
 
-Use `canDo()` to check whether a subject holds a specific permission. This is the primary authorization method — it resolves assignments, roles, permissions, boundaries, and deny rules in a single call.
+Use `$user->can()` to check whether a subject holds a specific permission. The package hooks into Laravel's Gate via `Gate::before()`, so dot-notated permissions like `posts.create` route through the Policy Engine evaluation pipeline automatically.
 
 ## Checking a permission on a user
 
 ```php
-$user->canDo('posts.create');
+$user->can('posts.create');
 ```
 
 Returns `true` if any of the user's assigned roles grant `posts.create` (or a wildcard that covers it). Returns `false` otherwise.
@@ -13,7 +13,7 @@ Returns `true` if any of the user's assigned roles grant `posts.create` (or a wi
 ## Checking a scoped permission
 
 ```php
-$user->canDo('posts.create', scope: $group);
+$user->can('posts.create', $group);
 ```
 
 Pass any `Scopeable` model as the second argument. The check evaluates both scoped assignments (roles the user holds in that group) and global assignments (roles with no scope).
@@ -21,7 +21,7 @@ Pass any `Scopeable` model as the second argument. The check evaluates both scop
 ### Using a raw scope string
 
 ```php
-$user->canDo('posts.create', scope: 'group::5');
+$user->can('posts.create', 'group::5');
 ```
 
 Strings pass through as-is. Use this when you have the scope identifier but not the model.
@@ -29,26 +29,46 @@ Strings pass through as-is. Use this when you have the scope identifier but not 
 ## Checking the inverse
 
 ```php
-$user->cannotDo('posts.delete');
+$user->cannot('posts.delete');
 ```
 
-`cannotDo()` is the negation of `canDo()`. It reads better in guard clauses and conditionals.
+`cannot()` is the negation of `can()`. It reads better in guard clauses and conditionals.
 
-## Using canDo in a controller
+## Checking permissions in a controller
 
 ```php
+use Illuminate\Support\Facades\Gate;
+
 class PostController extends Controller
 {
     public function store(Group $group)
     {
-        abort_unless(auth()->user()->canDo('posts.create', scope: $group), 403);
+        $this->authorize('posts.create', $group);
 
         // create post...
+    }
+
+    public function destroy(Post $post)
+    {
+        abort_unless(Gate::allows('posts.delete', $post->group), 403);
+
+        // delete post...
     }
 }
 ```
 
-For pure permission checks with no business logic, `canDo()` directly in the controller is the simplest approach. When authorization depends on the state of a specific resource (ownership, flags, timestamps), use a [model policy](../integrations/integrating-with-model-policies.md) instead.
+`$this->authorize()` and `Gate::allows()` both route through the Gate hook for dot-notated permissions. For pure permission checks with no business logic, this is the simplest approach. When authorization depends on the state of a specific resource (ownership, flags, timestamps), use a [model policy](../integrations/integrating-with-model-policies.md) instead.
+
+## Using the deprecated canDo and cannotDo methods
+
+```php
+$user->canDo('posts.create', scope: $group);
+$user->cannotDo('posts.delete');
+```
+
+`canDo()` and `cannotDo()` on the `HasPermissions` trait still work but are deprecated. Prefer `$user->can()` and `$user->cannot()`, which go through the Gate and behave identically for dot-notated permissions.
+
+> The Gate hook delegates to `canDo()` internally. The two approaches produce the same result. The difference is that `can()` is standard Laravel and works with `@can`, `$this->authorize()`, and `Gate::allows()` without any package-specific method calls.
 
 ## Listing a user's effective permissions
 

@@ -14,8 +14,6 @@ use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
 
-mutates(EloquentRoleStore::class);
-
 beforeEach(function (): void {
     $this->store = new EloquentRoleStore;
 });

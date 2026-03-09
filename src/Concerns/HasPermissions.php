@@ -20,6 +20,9 @@ use Illuminate\Support\Collection;
  */
 trait HasPermissions
 {
+    /**
+     * @deprecated Use $user->can('permission') via Laravel's Gate instead.
+     */
     public function canDo(string $permission, mixed $scope = null): bool
     {
         return app(Evaluator::class)->can(
@@ -29,6 +32,9 @@ trait HasPermissions
         );
     }
 
+    /**
+     * @deprecated Use $user->cannot('permission') via Laravel's Gate instead.
+     */
     public function cannotDo(string $permission, mixed $scope = null): bool
     {
         return ! $this->canDo($permission, $scope);

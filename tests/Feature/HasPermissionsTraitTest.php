@@ -25,8 +25,6 @@ use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
-mutates(HasPermissions::class);
-
 /**
  * A minimal Eloquent model for testing the HasPermissions trait.
  */

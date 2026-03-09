@@ -1,6 +1,17 @@
 # Restricting Routes with Middleware
 
-The package ships two middleware aliases — `can_do` for permission checks and `role` for role membership checks. Both work with route model binding and scopes.
+The package ships two middleware aliases — `can_do` for permission checks and `role` for role membership checks. Both work with route model binding and scopes. Laravel's built-in `can` middleware also works for dot-notated permissions via the Gate hook.
+
+## Using Laravel's built-in can middleware
+
+```php
+Route::middleware('can:posts.create')
+    ->post('/posts', [PostController::class, 'store']);
+```
+
+The Gate hook intercepts `posts.create` (a dot-notated ability) and routes it through Policy Engine. This is the simplest option when you don't need scope-from-route-parameter resolution.
+
+> Laravel's `can` middleware does not support the scope-from-route-parameter syntax that `can_do` provides. Use `can_do` when you need to resolve a scope from a route parameter.
 
 ## Requiring a permission on a route
 

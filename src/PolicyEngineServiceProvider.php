@@ -39,6 +39,7 @@ use Illuminate\Cache\CacheManager;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class PolicyEngineServiceProvider extends ServiceProvider
@@ -77,6 +78,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
         $router->aliasMiddleware('can_do', CanDoMiddleware::class);
         $router->aliasMiddleware('role', RoleMiddleware::class);
 
+        $this->registerGateHook();
         $this->registerBladeDirectives();
         $this->registerEventListeners();
 
@@ -163,6 +165,30 @@ class PolicyEngineServiceProvider extends ServiceProvider
             return $assignmentStore->forSubject($user->getMorphClass(), $subjectId)
                 ->filter(static fn ($assignment): bool => $assignment->scope === null)
                 ->contains('role_id', $role);
+        });
+    }
+
+    private function registerGateHook(): void
+    {
+        Gate::before(function ($user, string $ability, array $arguments): ?bool {
+            if (! str_contains($ability, '.')) {
+                return null;
+            }
+
+            /** @var array<int, string> $passthrough */
+            $passthrough = config('policy-engine.gate_passthrough', []);
+
+            if (in_array($ability, $passthrough, true)) {
+                return null;
+            }
+
+            if (! method_exists($user, 'canDo')) {
+                return null;
+            }
+
+            $scope = $arguments[0] ?? null;
+
+            return $user->canDo($ability, $scope); // @phpstan-ignore method.nonObject
         });
     }
 

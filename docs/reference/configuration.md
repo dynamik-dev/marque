@@ -17,7 +17,7 @@ Enable or disable evaluation caching.
 - **Type:** `bool`
 - **Default:** `true`
 
-When disabled, every `canDo()` call queries the database directly. Disable in testing or when using a custom `Evaluator` that handles its own caching.
+When disabled, every permission check queries the database directly. Disable in testing or when using a custom `Evaluator` that handles its own caching.
 
 ---
 
@@ -56,7 +56,7 @@ When enabled, calling `remove()` on a role where `is_system` is `true` throws a 
 
 ### `log_denials`
 
-Dispatch an `AuthorizationDenied` event when a `canDo()` check fails.
+Dispatch an `AuthorizationDenied` event when a permission check fails.
 
 - **Type:** `bool`
 - **Default:** `true`
@@ -83,7 +83,7 @@ Deny scoped permission checks when the evaluated scope does not have a boundary 
 - **Type:** `bool`
 - **Default:** `false`
 
-When enabled, scoped `canDo()` checks fail closed if no boundary exists for that scope. Global (unscoped) checks are unaffected.
+When enabled, scoped permission checks fail closed if no boundary exists for that scope. Global (unscoped) checks are unaffected.
 
 ---
 
@@ -109,6 +109,26 @@ Currently only `'json'` is supported out of the box. Swap the `DocumentParser` b
 
 ---
 
+### `gate_passthrough`
+
+Dot-notated abilities that the Gate hook should skip.
+
+- **Type:** `array`
+- **Default:** `[]`
+
+The Gate hook intercepts all dot-notated abilities (anything containing a `.`) and routes them through Policy Engine. Abilities listed here are excluded from that interception, allowing other Gate definitions or model policies to handle them instead.
+
+```php
+'gate_passthrough' => [
+    'admin.panel',
+    'stripe.webhook',
+],
+```
+
+Use this when you have dot-notated abilities that are not managed by Policy Engine.
+
+---
+
 ## Full default config
 
 ```php
@@ -126,5 +146,6 @@ return [
     'deny_unbounded_scopes' => false,
     'document_path' => null,
     'document_format' => 'json',
+    'gate_passthrough' => [],
 ];
 ```

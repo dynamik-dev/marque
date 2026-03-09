@@ -5,8 +5,6 @@ declare(strict_types=1);
 use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 
-mutates(JsonDocumentParser::class);
-
 beforeEach(function (): void {
     $this->parser = new JsonDocumentParser;
 });

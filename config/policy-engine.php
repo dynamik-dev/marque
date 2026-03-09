@@ -14,4 +14,5 @@ return [
     'deny_unbounded_scopes' => false,
     'document_path' => null,
     'document_format' => 'json',
+    'gate_passthrough' => [],
 ];

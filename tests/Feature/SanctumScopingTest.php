@@ -18,8 +18,6 @@ use Laravel\Sanctum\PersonalAccessToken;
 
 uses(RefreshDatabase::class);
 
-mutates(HasPermissions::class);
-
 class SanctumTestUser extends Authenticatable
 {
     use HasApiTokens;
