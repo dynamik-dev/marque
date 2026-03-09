@@ -140,6 +140,8 @@ php artisan primitives:export {--scope=} {--path=} {--stdout}
 | `--path` | Write to a file instead of stdout |
 | `--stdout` | Print to stdout (default when no `--path`) |
 
+If `policy-engine.document_path` is set, `--path` must resolve inside that directory. Otherwise the command fails with an error and exit code `1`.
+
 ```bash
 # Export to file
 php artisan primitives:export --path=policies/backup.json

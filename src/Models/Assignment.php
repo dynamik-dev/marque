@@ -8,6 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
+/**
+ * @property string $subject_type
+ * @property int|string $subject_id
+ * @property string $role_id
+ * @property string|null $scope
+ */
 class Assignment extends Model
 {
     /** @var string */

@@ -62,6 +62,7 @@ class CachedEvaluator implements Evaluator
 
     private function cacheStore(): \Illuminate\Contracts\Cache\Repository
     {
+        /** @var string $storeName */
         $storeName = config('policy-engine.cache.store', 'default');
 
         return $this->cache->store($storeName === 'default' ? null : $storeName);
@@ -69,6 +70,9 @@ class CachedEvaluator implements Evaluator
 
     private function ttl(): int
     {
-        return (int) config('policy-engine.cache.ttl', 3600);
+        /** @var int $ttl */
+        $ttl = config('policy-engine.cache.ttl', 3600);
+
+        return $ttl;
     }
 }

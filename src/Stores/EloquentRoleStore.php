@@ -77,19 +77,12 @@ class EloquentRoleStore implements RoleStore
         Event::dispatch(new RoleDeleted($role));
     }
 
-    /**
-     * Find a role by its identifier, or return null.
-     */
     public function find(string $id): ?Role
     {
         return Role::query()->find($id);
     }
 
-    /**
-     * Retrieve all roles.
-     *
-     * @return Collection<int, Role>
-     */
+    /** @return Collection<int, Role> */
     public function all(): Collection
     {
         return Role::query()->get();
@@ -102,9 +95,43 @@ class EloquentRoleStore implements RoleStore
      */
     public function permissionsFor(string $roleId): array
     {
-        return RolePermission::query()
+        /** @var array<int, string> $permissions */
+        $permissions = RolePermission::query()
             ->where('role_id', $roleId)
             ->pluck('permission_id')
             ->all();
+
+        return $permissions;
+    }
+
+    /**
+     * Get permission identifiers for multiple roles in one query.
+     *
+     * @param  array<int, string>  $roleIds
+     * @return array<string, array<int, string>>
+     */
+    public function permissionsForRoles(array $roleIds): array
+    {
+        $uniqueRoleIds = array_values(array_unique($roleIds));
+
+        if ($uniqueRoleIds === []) {
+            return [];
+        }
+
+        /** @var array<string, array<int, string>> $grouped */
+        $grouped = RolePermission::query()
+            ->whereIn('role_id', $uniqueRoleIds)
+            ->get(['role_id', 'permission_id'])
+            ->groupBy('role_id')
+            ->map(static fn (Collection $rows): array => $rows->pluck('permission_id')->all())
+            ->all();
+
+        $result = [];
+
+        foreach ($uniqueRoleIds as $roleId) {
+            $result[$roleId] = $grouped[$roleId] ?? [];
+        }
+
+        return $result;
     }
 }

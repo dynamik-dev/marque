@@ -105,32 +105,29 @@ class PolicyEngineServiceProvider extends ServiceProvider
         }
     }
 
-    /**
-     * Register Blade conditional directives for permission and role checks.
-     */
     private function registerBladeDirectives(): void
     {
-        Blade::if('canDo', function (string $permission, mixed $scope = null): bool {
+        Blade::if('canDo', static function (string $permission, mixed $scope = null): bool {
             $user = auth()->user();
 
             if ($user === null) {
                 return false;
             }
 
-            return $user->canDo($permission, $scope);
+            return method_exists($user, 'canDo') && $user->canDo($permission, $scope);
         });
 
-        Blade::if('cannotDo', function (string $permission, mixed $scope = null): bool {
+        Blade::if('cannotDo', static function (string $permission, mixed $scope = null): bool {
             $user = auth()->user();
 
             if ($user === null) {
                 return false;
             }
 
-            return $user->cannotDo($permission, $scope);
+            return method_exists($user, 'cannotDo') && $user->cannotDo($permission, $scope);
         });
 
-        Blade::if('hasRole', function (string $role, mixed $scope = null): bool {
+        Blade::if('hasRole', static function (string $role, mixed $scope = null): bool {
             $user = auth()->user();
 
             if ($user === null) {
@@ -139,28 +136,36 @@ class PolicyEngineServiceProvider extends ServiceProvider
 
             $assignmentStore = app(AssignmentStore::class);
 
+            /** @var int|string $subjectId */
+            $subjectId = $user->getKey();
+
             if ($scope !== null) {
                 $resolvedScope = app(ScopeResolver::class)->resolve($scope);
 
+                if (! is_string($resolvedScope)) {
+                    return false;
+                }
+
                 return $assignmentStore->forSubjectInScope(
                     $user->getMorphClass(),
-                    $user->getKey(),
+                    $subjectId,
                     $resolvedScope,
                 )->contains('role_id', $role);
             }
 
-            return $assignmentStore->forSubject(
-                $user->getMorphClass(),
-                $user->getKey(),
-            )
+            if (method_exists($assignmentStore, 'forSubjectGlobal')) {
+                /** @var \Illuminate\Support\Collection<int, mixed> $globalAssignments */
+                $globalAssignments = call_user_func([$assignmentStore, 'forSubjectGlobal'], $user->getMorphClass(), $subjectId);
+
+                return $globalAssignments->contains('role_id', $role);
+            }
+
+            return $assignmentStore->forSubject($user->getMorphClass(), $subjectId)
                 ->filter(static fn ($assignment): bool => $assignment->scope === null)
                 ->contains('role_id', $role);
         });
     }
 
-    /**
-     * Register event listeners for cache invalidation.
-     */
     private function registerEventListeners(): void
     {
         Event::listen(AssignmentCreated::class, InvalidatePermissionCache::class);

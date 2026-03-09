@@ -31,11 +31,12 @@ class InvalidatePermissionCache
         // For assignment events, we know the exact subject and can forget their specific key.
         // However, scoped keys are unpredictable, so we flush the whole store.
         // For role/permission changes, any number of subjects may be affected — flush all.
-        $store->flush();
+        $store->clear();
     }
 
     private function cacheStore(): Repository
     {
+        /** @var string $storeName */
         $storeName = config('policy-engine.cache.store', 'default');
 
         return $this->cache->store($storeName === 'default' ? null : $storeName);

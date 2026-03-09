@@ -284,3 +284,132 @@ it('deduplicates permissions from multiple roles', function (): void {
     expect($permissions)->toHaveCount(2)
         ->toContain('posts.create', 'posts.read');
 });
+
+it('short-circuits before role permission lookups when boundary denies', function (): void {
+    $this->permissionStore->register(['billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['billing.manage']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'admin', 'org::acme');
+    $this->boundaryStore->set('org::acme', ['posts.*']);
+
+    $spyRoleStore = new class($this->roleStore) implements \DynamikDev\PolicyEngine\Contracts\RoleStore
+    {
+        public int $singleCalls = 0;
+
+        public int $batchCalls = 0;
+
+        public function __construct(
+            private readonly EloquentRoleStore $inner,
+        ) {}
+
+        public function save(string $id, string $name, array $permissions, bool $system = false): \DynamikDev\PolicyEngine\Models\Role
+        {
+            return $this->inner->save($id, $name, $permissions, $system);
+        }
+
+        public function remove(string $id): void
+        {
+            $this->inner->remove($id);
+        }
+
+        public function find(string $id): ?\DynamikDev\PolicyEngine\Models\Role
+        {
+            return $this->inner->find($id);
+        }
+
+        public function all(): \Illuminate\Support\Collection
+        {
+            return $this->inner->all();
+        }
+
+        public function permissionsFor(string $roleId): array
+        {
+            $this->singleCalls++;
+
+            return $this->inner->permissionsFor($roleId);
+        }
+
+        /** @param  array<int, string>  $roleIds */
+        public function permissionsForRoles(array $roleIds): array
+        {
+            $this->batchCalls++;
+
+            return $this->inner->permissionsForRoles($roleIds);
+        }
+    };
+
+    $evaluator = new DefaultEvaluator(
+        assignments: $this->assignmentStore,
+        roles: $spyRoleStore,
+        boundaries: $this->boundaryStore,
+        matcher: new WildcardMatcher,
+    );
+
+    expect($evaluator->can('App\\Models\\User', 1, 'billing.manage:org::acme'))->toBeFalse();
+    expect($spyRoleStore->singleCalls)->toBe(0)
+        ->and($spyRoleStore->batchCalls)->toBe(0);
+});
+
+it('uses batched role permission loading when the role store supports it', function (): void {
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->roleStore->save('reviewer', 'Reviewer', ['posts.create']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'reviewer');
+
+    $spyRoleStore = new class($this->roleStore) implements \DynamikDev\PolicyEngine\Contracts\RoleStore
+    {
+        public int $singleCalls = 0;
+
+        public int $batchCalls = 0;
+
+        public function __construct(
+            private readonly EloquentRoleStore $inner,
+        ) {}
+
+        public function save(string $id, string $name, array $permissions, bool $system = false): \DynamikDev\PolicyEngine\Models\Role
+        {
+            return $this->inner->save($id, $name, $permissions, $system);
+        }
+
+        public function remove(string $id): void
+        {
+            $this->inner->remove($id);
+        }
+
+        public function find(string $id): ?\DynamikDev\PolicyEngine\Models\Role
+        {
+            return $this->inner->find($id);
+        }
+
+        public function all(): \Illuminate\Support\Collection
+        {
+            return $this->inner->all();
+        }
+
+        public function permissionsFor(string $roleId): array
+        {
+            $this->singleCalls++;
+
+            return $this->inner->permissionsFor($roleId);
+        }
+
+        /** @param  array<int, string>  $roleIds */
+        public function permissionsForRoles(array $roleIds): array
+        {
+            $this->batchCalls++;
+
+            return $this->inner->permissionsForRoles($roleIds);
+        }
+    };
+
+    $evaluator = new DefaultEvaluator(
+        assignments: $this->assignmentStore,
+        roles: $spyRoleStore,
+        boundaries: $this->boundaryStore,
+        matcher: new WildcardMatcher,
+    );
+
+    expect($evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
+    expect($spyRoleStore->batchCalls)->toBe(1)
+        ->and($spyRoleStore->singleCalls)->toBe(0);
+});

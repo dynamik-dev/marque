@@ -15,9 +15,10 @@ class CacheClearCommand extends Command
 
     public function handle(CacheManager $cache): int
     {
+        /** @var string $storeName */
         $storeName = config('policy-engine.cache.store', 'default');
 
-        $cache->store($storeName === 'default' ? null : $storeName)->flush();
+        $cache->store($storeName === 'default' ? null : $storeName)->clear();
 
         $this->info('Policy engine cache cleared.');
 

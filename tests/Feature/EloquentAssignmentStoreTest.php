@@ -111,6 +111,31 @@ it('returns all assignments for a subject', function (): void {
     expect($this->store->forSubject('App\\Models\\User', 1))->toHaveCount(3);
 });
 
+it('returns only global assignments for a subject via forSubjectGlobal', function (): void {
+    Role::query()->create(['id' => 'admin', 'name' => 'Admin']);
+
+    $this->store->assign('App\\Models\\User', 1, 'editor');
+    $this->store->assign('App\\Models\\User', 1, 'admin', 'team::5');
+
+    $assignments = $this->store->forSubjectGlobal('App\\Models\\User', 1);
+
+    expect($assignments)->toHaveCount(1)
+        ->and($assignments->first()->scope)->toBeNull();
+});
+
+it('returns global and scoped assignments via forSubjectGlobalAndScope', function (): void {
+    Role::query()->create(['id' => 'admin', 'name' => 'Admin']);
+
+    $this->store->assign('App\\Models\\User', 1, 'editor');
+    $this->store->assign('App\\Models\\User', 1, 'admin', 'team::5');
+    $this->store->assign('App\\Models\\User', 1, 'admin', 'team::9');
+
+    $assignments = $this->store->forSubjectGlobalAndScope('App\\Models\\User', 1, 'team::5');
+
+    expect($assignments)->toHaveCount(2);
+    expect($assignments->pluck('scope')->all())->toContain(null, 'team::5');
+});
+
 // --- forSubjectInScope ---
 
 it('filters assignments by scope', function (): void {

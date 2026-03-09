@@ -17,7 +17,15 @@ class ImportCommand extends Command
 
     public function handle(PrimitivesManager $manager): int
     {
-        $path = (string) $this->argument('path');
+        $pathArg = $this->argument('path');
+
+        if (! is_string($pathArg)) {
+            $this->error('Path argument must be a string.');
+
+            return self::FAILURE;
+        }
+
+        $path = $pathArg;
 
         if (! file_exists($path)) {
             $this->error("File not found: {$path}");

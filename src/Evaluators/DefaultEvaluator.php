@@ -36,34 +36,23 @@ class DefaultEvaluator implements Evaluator
             return false;
         }
 
+        if (! $this->passesBoundaryCheck($scope, $requiredPermission)) {
+            $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
+
+            return false;
+        }
+
         $allows = [];
         $denies = [];
+        $permissionsByRole = $this->permissionsByRole($allAssignments);
 
-        foreach ($allAssignments as $assignment) {
-            foreach ($this->roles->permissionsFor($assignment->role_id) as $permission) {
+        foreach ($permissionsByRole as $permissions) {
+            foreach ($permissions as $permission) {
                 if (str_starts_with($permission, '!')) {
                     $denies[] = $permission;
                 } else {
                     $allows[] = $permission;
                 }
-            }
-        }
-
-        // Boundary check: if a scope is present and a boundary exists,
-        // verify the required permission is covered by at least one max_permissions entry.
-        if ($scope !== null) {
-            $boundary = $this->boundaries->find($scope);
-
-            if ($boundary !== null && ! $this->matchesAny($boundary->max_permissions, $requiredPermission)) {
-                $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
-
-                return false;
-            }
-
-            if ($boundary === null && config('policy-engine.deny_unbounded_scopes')) {
-                $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
-
-                return false;
             }
         }
 
@@ -119,16 +108,19 @@ class DefaultEvaluator implements Evaluator
         $traceAssignments = [];
         $allows = [];
         $denies = [];
+        $permissionsByRole = $this->permissionsByRole($allAssignments);
 
         foreach ($allAssignments as $assignment) {
-            $permissions = $this->roles->permissionsFor($assignment->role_id);
+            $permissions = $permissionsByRole[$assignment->role_id] ?? [];
 
             $traceAssignments[] = [
                 'role' => $assignment->role_id,
                 'scope' => $assignment->scope,
                 'permissions_checked' => $permissions,
             ];
+        }
 
+        foreach ($permissionsByRole as $permissions) {
             foreach ($permissions as $permission) {
                 if (str_starts_with($permission, '!')) {
                     $denies[] = $permission;
@@ -217,9 +209,10 @@ class DefaultEvaluator implements Evaluator
 
         $allows = [];
         $denies = [];
+        $permissionsByRole = $this->permissionsByRole($allAssignments);
 
-        foreach ($allAssignments as $assignment) {
-            foreach ($this->roles->permissionsFor($assignment->role_id) as $permission) {
+        foreach ($permissionsByRole as $permissions) {
+            foreach ($permissions as $permission) {
                 if (str_starts_with($permission, '!')) {
                     $denies[] = substr($permission, 1);
                 } else {
@@ -270,16 +263,80 @@ class DefaultEvaluator implements Evaluator
     private function gatherAssignments(string $subjectType, string|int $subjectId, ?string $scope): Collection
     {
         if ($scope === null) {
+            if (method_exists($this->assignments, 'forSubjectGlobal')) {
+                /** @var Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> $global */
+                $global = call_user_func([$this->assignments, 'forSubjectGlobal'], $subjectType, $subjectId);
+
+                return $global;
+            }
+
             return $this->assignments->forSubject($subjectType, $subjectId)
-                ->filter(static fn ($assignment): bool => $assignment->scope === null);
+                ->filter(static fn ($assignment): bool => $assignment->scope === null)
+                ->values();
         }
 
-        $global = $this->assignments->forSubject($subjectType, $subjectId)
-            ->filter(static fn ($assignment): bool => $assignment->scope === null);
+        if (method_exists($this->assignments, 'forSubjectGlobalAndScope')) {
+            /** @var Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> $effective */
+            $effective = call_user_func([$this->assignments, 'forSubjectGlobalAndScope'], $subjectType, $subjectId, $scope);
 
-        $scoped = $this->assignments->forSubjectInScope($subjectType, $subjectId, $scope);
+            return $effective;
+        }
 
-        return $global->merge($scoped);
+        return $this->assignments->forSubject($subjectType, $subjectId)
+            ->filter(static fn ($assignment): bool => $assignment->scope === null || $assignment->scope === $scope)
+            ->values();
+    }
+
+    private function passesBoundaryCheck(?string $scope, string $requiredPermission): bool
+    {
+        if ($scope === null) {
+            return true;
+        }
+
+        $boundary = $this->boundaries->find($scope);
+
+        if ($boundary !== null) {
+            return $this->matchesAny($boundary->max_permissions, $requiredPermission);
+        }
+
+        return ! config('policy-engine.deny_unbounded_scopes');
+    }
+
+    /**
+     * Resolve permissions per role with optional batched loading.
+     *
+     * @param  Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>  $assignments
+     * @return array<string, array<int, string>>
+     */
+    private function permissionsByRole(Collection $assignments): array
+    {
+        /** @var array<int, string> $roleIds */
+        $roleIds = $assignments->pluck('role_id')->unique()->values()->all();
+
+        if ($roleIds === []) {
+            return [];
+        }
+
+        if (method_exists($this->roles, 'permissionsForRoles')) {
+            /** @var array<string, array<int, string>> $batched */
+            $batched = call_user_func([$this->roles, 'permissionsForRoles'], $roleIds);
+
+            $result = [];
+
+            foreach ($roleIds as $roleId) {
+                $result[$roleId] = $batched[$roleId] ?? [];
+            }
+
+            return $result;
+        }
+
+        $result = [];
+
+        foreach ($roleIds as $roleId) {
+            $result[$roleId] = $this->roles->permissionsFor($roleId);
+        }
+
+        return $result;
     }
 
     /**
@@ -334,7 +391,10 @@ class DefaultEvaluator implements Evaluator
         }
 
         // Only apply token scoping if the authenticated user matches the subject being evaluated.
-        if ($user->getMorphClass() !== $subjectType || (string) $user->getKey() !== (string) $subjectId) {
+        /** @var int|string $userKey */
+        $userKey = $user->getKey();
+
+        if ($user->getMorphClass() !== $subjectType || (string) $userKey !== (string) $subjectId) {
             return true;
         }
 
@@ -348,8 +408,10 @@ class DefaultEvaluator implements Evaluator
             return true;
         }
 
-        // Check if any of the token's abilities match the required permission.
-        foreach ($token->abilities as $ability) {
+        /** @var array<int, string> $abilities */
+        $abilities = $token->abilities; // @phpstan-ignore property.notFound (Sanctum model lacks @property PHPDoc)
+
+        foreach ($abilities as $ability) {
             if ($ability === '*' || $this->matcher->matches($ability, $requiredPermission)) {
                 return true;
             }

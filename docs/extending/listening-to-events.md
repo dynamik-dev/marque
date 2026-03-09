@@ -13,6 +13,8 @@ The default store implementations dispatch Laravel events on every mutation. Use
 | `RoleDeleted` | A role is deleted | `Role $role` |
 | `AssignmentCreated` | A role is assigned to a subject | `Assignment $assignment` |
 | `AssignmentRevoked` | An assignment is removed | `Assignment $assignment` |
+| `BoundarySet` | A boundary is created or updated | `Boundary $boundary` |
+| `BoundaryRemoved` | A boundary is removed | `string $scope` |
 | `AuthorizationDenied` | A `canDo()` check fails | `string $subject`, `string $permission`, `?string $scope` |
 | `DocumentImported` | A policy document is imported (not dry run) | `ImportResult $result` |
 
@@ -88,6 +90,8 @@ The package registers an `InvalidatePermissionCache` listener that responds to:
 - `RoleUpdated`
 - `RoleDeleted`
 - `PermissionDeleted`
+- `BoundarySet`
+- `BoundaryRemoved`
 
 When any of these fire, the permission cache is flushed. This happens automatically — you don't need to configure it.
 

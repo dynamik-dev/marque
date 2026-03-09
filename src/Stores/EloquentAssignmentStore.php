@@ -13,9 +13,6 @@ use Illuminate\Support\Facades\Event;
 
 class EloquentAssignmentStore implements AssignmentStore
 {
-    /**
-     * Assign a role to a subject, optionally within a scope.
-     */
     public function assign(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
     {
         $assignment = Assignment::query()->firstOrCreate([
@@ -30,9 +27,6 @@ class EloquentAssignmentStore implements AssignmentStore
         }
     }
 
-    /**
-     * Revoke a role from a subject, optionally within a scope.
-     */
     public function revoke(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
     {
         $assignment = Assignment::query()
@@ -62,6 +56,37 @@ class EloquentAssignmentStore implements AssignmentStore
     }
 
     /**
+     * Get global (unscoped) assignments for a subject.
+     *
+     * @return Collection<int, Assignment>
+     */
+    public function forSubjectGlobal(string $subjectType, string|int $subjectId): Collection
+    {
+        return Assignment::query()
+            ->where('subject_type', $subjectType)
+            ->where('subject_id', $subjectId)
+            ->whereNull('scope')
+            ->get();
+    }
+
+    /**
+     * Get assignments for a subject that are either global or in the given scope.
+     *
+     * @return Collection<int, Assignment>
+     */
+    public function forSubjectGlobalAndScope(string $subjectType, string|int $subjectId, string $scope): Collection
+    {
+        return Assignment::query()
+            ->where('subject_type', $subjectType)
+            ->where('subject_id', $subjectId)
+            ->where(static function ($query) use ($scope): void {
+                $query->whereNull('scope')
+                    ->orWhere('scope', $scope);
+            })
+            ->get();
+    }
+
+    /**
      * Get all assignments for a subject within a specific scope.
      *
      * @return Collection<int, Assignment>
@@ -84,7 +109,7 @@ class EloquentAssignmentStore implements AssignmentStore
     {
         return Assignment::query()
             ->where('scope', $scope)
-            ->when($roleId, fn ($query, string $roleId) => $query->where('role_id', $roleId))
+            ->when($roleId, static fn ($query, string $roleId) => $query->where('role_id', $roleId))
             ->get();
     }
 }

@@ -18,8 +18,11 @@ class JsonDocumentParser implements DocumentParser
             throw new \InvalidArgumentException('Invalid JSON: '.json_last_error_msg());
         }
 
+        /** @var string $version */
+        $version = $data['version'] ?? '1.0';
+
         return new PolicyDocument(
-            version: $data['version'] ?? '1.0',
+            version: $version,
             permissions: $data['permissions'] ?? [],
             roles: $data['roles'] ?? [],
             assignments: $data['assignments'] ?? [],

@@ -21,6 +21,11 @@ class RoleBuilder
     public function grant(array $permissions): self
     {
         $role = $this->roleStore->find($this->roleId);
+
+        if ($role === null) {
+            throw new \RuntimeException("Role [{$this->roleId}] not found.");
+        }
+
         $current = $this->roleStore->permissionsFor($this->roleId);
         $merged = array_values(array_unique([...$current, ...$permissions]));
 
@@ -37,6 +42,11 @@ class RoleBuilder
     public function ungrant(array $permissions): self
     {
         $role = $this->roleStore->find($this->roleId);
+
+        if ($role === null) {
+            throw new \RuntimeException("Role [{$this->roleId}] not found.");
+        }
+
         $current = $this->roleStore->permissionsFor($this->roleId);
         $remaining = array_values(array_diff($current, $permissions));
 

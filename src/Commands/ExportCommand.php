@@ -15,8 +15,10 @@ class ExportCommand extends Command
 
     public function handle(PrimitivesManager $manager): int
     {
-        $scope = $this->option('scope') ? (string) $this->option('scope') : null;
-        $path = $this->option('path') ? (string) $this->option('path') : null;
+        $scopeOption = $this->option('scope');
+        $scope = is_string($scopeOption) ? $scopeOption : null;
+        $pathOption = $this->option('path');
+        $path = is_string($pathOption) ? $pathOption : null;
 
         try {
             if ($path) {

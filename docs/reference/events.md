@@ -87,6 +87,30 @@ Not fired when revoking an assignment that doesn't exist (no-op). Triggers cache
 
 ---
 
+### `BoundarySet`
+
+Fired when a boundary is created or updated via `BoundaryStore::set()`.
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `$boundary` | `Boundary` | The created/updated boundary model |
+
+Triggers cache invalidation.
+
+---
+
+### `BoundaryRemoved`
+
+Fired when a boundary is removed via `BoundaryStore::remove()`.
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `$scope` | `string` | The scope whose boundary was removed |
+
+Not fired when removing a boundary that doesn't exist (no-op). Triggers cache invalidation.
+
+---
+
 ### `AuthorizationDenied`
 
 Fired when a `canDo()` check returns `false`, if `log_denials` is enabled in the config.
@@ -109,7 +133,7 @@ Fired after a policy document is successfully imported (not during dry runs).
 | --- | --- | --- |
 | `$result` | `ImportResult` | The import result with counts and warnings |
 
-Does not trigger cache invalidation directly. The individual store operations (permission creation, role saves, assignment creation) fire their own events, which handle invalidation.
+Does not trigger cache invalidation directly. The individual store operations (permission creation, role saves, assignment creation, boundary updates) fire their own events, which handle invalidation.
 
 ---
 
@@ -124,6 +148,8 @@ Does not trigger cache invalidation directly. The individual store operations (p
 | `RoleDeleted` | Yes |
 | `AssignmentCreated` | Yes |
 | `AssignmentRevoked` | Yes |
+| `BoundarySet` | Yes |
+| `BoundaryRemoved` | Yes |
 | `AuthorizationDenied` | No |
 | `DocumentImported` | No |
 

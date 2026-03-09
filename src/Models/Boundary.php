@@ -6,6 +6,10 @@ namespace DynamikDev\PolicyEngine\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * @property string $scope
+ * @property array<int, string> $max_permissions
+ */
 class Boundary extends Model
 {
     /** @var string */

@@ -32,10 +32,22 @@ class RoleMiddleware
             ? $this->scopeResolver->resolve($request->route($scopeParam))
             : null;
 
-        $assignments = $resolvedScope !== null
-            ? $this->assignmentStore->forSubjectInScope($user->getMorphClass(), $user->getKey(), $resolvedScope)
-            : $this->assignmentStore->forSubject($user->getMorphClass(), $user->getKey())
+        /** @var int|string $subjectId */
+        $subjectId = $user->getKey();
+
+        if ($resolvedScope !== null) {
+            $assignments = $this->assignmentStore->forSubjectInScope(
+                $user->getMorphClass(),
+                $subjectId,
+                $resolvedScope,
+            );
+        } elseif (method_exists($this->assignmentStore, 'forSubjectGlobal')) {
+            /** @var \Illuminate\Support\Collection<int, mixed> $assignments */
+            $assignments = call_user_func([$this->assignmentStore, 'forSubjectGlobal'], $user->getMorphClass(), $subjectId);
+        } else {
+            $assignments = $this->assignmentStore->forSubject($user->getMorphClass(), $subjectId)
                 ->filter(static fn ($assignment): bool => $assignment->scope === null);
+        }
 
         if (! $assignments->contains('role_id', $role)) {
             abort(403);

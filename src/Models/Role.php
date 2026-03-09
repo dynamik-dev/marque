@@ -7,6 +7,11 @@ namespace DynamikDev\PolicyEngine\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
+/**
+ * @property string $id
+ * @property string $name
+ * @property bool $is_system
+ */
 class Role extends Model
 {
     /** @var string */

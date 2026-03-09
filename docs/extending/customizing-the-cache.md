@@ -56,6 +56,8 @@ The package registers an `InvalidatePermissionCache` listener that flushes the e
 - `RoleUpdated` — a role's permissions changed
 - `RoleDeleted` — a role was deleted
 - `PermissionDeleted` — a permission was removed
+- `BoundarySet` — a scope boundary was created or changed
+- `BoundaryRemoved` — a scope boundary was removed
 
 The flush is store-wide, not targeted per-subject. This is simple and correct — any authorization change could affect any subject's cached results.
 

@@ -3,8 +3,8 @@
 declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Concerns\HasPermissions;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;

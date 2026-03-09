@@ -170,3 +170,19 @@ it('returns empty array when role has no permissions', function (): void {
 
     expect($this->store->permissionsFor('editor'))->toBe([]);
 });
+
+it('returns permission ids for multiple roles in one mapping', function (): void {
+    Permission::query()->create(['id' => 'posts.create']);
+    Permission::query()->create(['id' => 'posts.update']);
+    Permission::query()->create(['id' => 'comments.read']);
+
+    $this->store->save('editor', 'Editor', ['posts.create', 'posts.update']);
+    $this->store->save('viewer', 'Viewer', ['comments.read']);
+
+    $permissionsByRole = $this->store->permissionsForRoles(['editor', 'viewer', 'missing']);
+
+    expect($permissionsByRole)->toHaveKeys(['editor', 'viewer', 'missing']);
+    expect($permissionsByRole['editor'])->toContain('posts.create', 'posts.update');
+    expect($permissionsByRole['viewer'])->toContain('comments.read');
+    expect($permissionsByRole['missing'])->toBe([]);
+});

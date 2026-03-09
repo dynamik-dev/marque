@@ -60,9 +60,17 @@ class PrimitivesManager
      */
     public function import(string $pathOrContent, ?ImportOptions $options = null): ImportResult
     {
-        $content = file_exists($pathOrContent)
-            ? file_get_contents($this->validatePath($pathOrContent))
-            : $pathOrContent;
+        if (file_exists($pathOrContent)) {
+            $fileContent = file_get_contents($this->validatePath($pathOrContent));
+
+            if ($fileContent === false) {
+                throw new \InvalidArgumentException("Could not read file [{$pathOrContent}].");
+            }
+
+            $content = $fileContent;
+        } else {
+            $content = $pathOrContent;
+        }
 
         return $this->importer->import(
             $this->parser->parse($content),
@@ -103,18 +111,20 @@ class PrimitivesManager
             return $path;
         }
 
-        $allowedBaseReal = realpath($allowedBase);
+        /** @var string $allowedBaseStr */
+        $allowedBaseStr = $allowedBase;
+        $allowedBaseReal = realpath($allowedBaseStr);
         $targetDirectoryReal = realpath(dirname($path));
 
         if ($allowedBaseReal === false || $targetDirectoryReal === false) {
-            throw new \InvalidArgumentException("Path must be within the allowed directory [{$allowedBase}].");
+            throw new \InvalidArgumentException("Path must be within the allowed directory [{$allowedBaseStr}].");
         }
 
         $allowedPrefix = rtrim($allowedBaseReal, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
         $targetPrefix = rtrim($targetDirectoryReal, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
 
         if (! str_starts_with($targetPrefix, $allowedPrefix)) {
-            throw new \InvalidArgumentException("Path must be within the allowed directory [{$allowedBase}].");
+            throw new \InvalidArgumentException("Path must be within the allowed directory [{$allowedBaseStr}].");
         }
 
         return $targetDirectoryReal.DIRECTORY_SEPARATOR.basename($path);

@@ -15,15 +15,27 @@ class ValidateCommand extends Command
 
     public function handle(DocumentParser $parser): int
     {
-        $path = (string) $this->argument('path');
+        $pathArg = $this->argument('path');
 
-        if (! file_exists($path)) {
-            $this->error("File not found: {$path}");
+        if (! is_string($pathArg)) {
+            $this->error('Path argument must be a string.');
 
             return self::FAILURE;
         }
 
-        $content = file_get_contents($path);
+        if (! file_exists($pathArg)) {
+            $this->error("File not found: {$pathArg}");
+
+            return self::FAILURE;
+        }
+
+        $content = file_get_contents($pathArg);
+
+        if ($content === false) {
+            $this->error("Could not read file: {$pathArg}");
+
+            return self::FAILURE;
+        }
 
         $result = $parser->validate($content);
 

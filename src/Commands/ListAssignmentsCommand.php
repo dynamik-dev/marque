@@ -19,12 +19,12 @@ class ListAssignmentsCommand extends Command
         $subject = $this->argument('subject');
         $scope = $this->option('scope');
 
-        if ($subject !== null) {
-            return $this->listForSubject($store, (string) $subject, $scope);
+        if (is_string($subject)) {
+            return $this->listForSubject($store, $subject, is_string($scope) ? $scope : null);
         }
 
-        if ($scope !== null) {
-            return $this->listForScope($store, (string) $scope);
+        if (is_string($scope)) {
+            return $this->listForScope($store, $scope);
         }
 
         $this->showUsage();
@@ -32,18 +32,18 @@ class ListAssignmentsCommand extends Command
         return self::SUCCESS;
     }
 
-    private function listForSubject(AssignmentStore $store, string $subject, mixed $scope): int
+    private function listForSubject(AssignmentStore $store, string $subject, ?string $scope): int
     {
         [$type, $id] = $this->parseSubject($subject);
 
-        if ($type === null) {
+        if ($type === null || $id === null) {
             $this->error("Invalid subject format. Expected 'type::id' (e.g., user::42).");
 
             return self::FAILURE;
         }
 
         $assignments = $scope !== null
-            ? $store->forSubjectInScope($type, $id, (string) $scope)
+            ? $store->forSubjectInScope($type, $id, $scope)
             : $store->forSubject($type, $id);
 
         return $this->renderAssignments($assignments);
@@ -72,6 +72,9 @@ class ListAssignmentsCommand extends Command
         return [$parts[0], $parts[1]];
     }
 
+    /**
+     * @param  Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>  $assignments
+     */
     private function renderAssignments(Collection $assignments): int
     {
         if ($assignments->isEmpty()) {

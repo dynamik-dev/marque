@@ -18,7 +18,7 @@ class DefaultDocumentExporter implements DocumentExporter
     public function __construct(
         private readonly PermissionStore $permissionStore,
         private readonly RoleStore $roleStore,
-        private readonly AssignmentStore $assignmentStore,
+        AssignmentStore $assignmentStore,
         private readonly BoundaryStore $boundaryStore,
     ) {}
 
@@ -43,7 +43,10 @@ class DefaultDocumentExporter implements DocumentExporter
      */
     private function exportPermissions(): array
     {
-        return $this->permissionStore->all()->pluck('id')->all();
+        /** @var array<int, string> $ids */
+        $ids = $this->permissionStore->all()->pluck('id')->all();
+
+        return $ids;
     }
 
     /**
@@ -74,7 +77,7 @@ class DefaultDocumentExporter implements DocumentExporter
             ? $this->roleStore->all()
             : $this->roleStore->all()->whereIn('id', $assignments->pluck('role_id')->unique());
 
-        return $roles->map(fn ($role): array => $this->serializeRole($role))->values()->all();
+        return $roles->map(fn (\DynamikDev\PolicyEngine\Models\Role $role): array => $this->serializeRole($role))->values()->all();
     }
 
     /**

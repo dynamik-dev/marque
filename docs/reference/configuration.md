@@ -39,7 +39,7 @@ How long cached evaluation results are stored, in seconds.
 - **Type:** `int`
 - **Default:** `3600` (1 hour)
 
-Cached results are also invalidated by events (assignment changes, role updates, permission deletions), so this TTL is a safety net, not the primary invalidation mechanism.
+Cached results are also invalidated by events (assignment changes, role updates, permission deletions, boundary changes), so this TTL is a safety net, not the primary invalidation mechanism.
 
 ---
 
@@ -76,6 +76,28 @@ When disabled, calling `explain()` throws a `RuntimeException`. Enable in develo
 
 ---
 
+### `deny_unbounded_scopes`
+
+Deny scoped permission checks when the evaluated scope does not have a boundary record.
+
+- **Type:** `bool`
+- **Default:** `false`
+
+When enabled, scoped `canDo()` checks fail closed if no boundary exists for that scope. Global (unscoped) checks are unaffected.
+
+---
+
+### `document_path`
+
+Restrict import/export file paths to a specific directory.
+
+- **Type:** `?string`
+- **Default:** `null`
+
+When set, paths used by `PrimitivesManager::import()`, `PrimitivesManager::exportToFile()`, and `php artisan primitives:export --path=...` must resolve inside this directory. Paths outside it throw `InvalidArgumentException`.
+
+---
+
 ### `document_format`
 
 The format used for policy document parsing.
@@ -101,6 +123,8 @@ return [
     'protect_system_roles' => true,
     'log_denials' => true,
     'explain' => env('POLICY_ENGINE_EXPLAIN', false),
+    'deny_unbounded_scopes' => false,
+    'document_path' => null,
     'document_format' => 'json',
 ];
 ```

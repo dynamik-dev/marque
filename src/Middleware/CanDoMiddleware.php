@@ -29,7 +29,9 @@ class CanDoMiddleware
             ? $this->scopeResolver->resolve($request->route($scopeParam))
             : null;
 
-        if ($request->user()->cannotDo($permission, $resolvedScope)) {
+        $user = $request->user();
+
+        if (method_exists($user, 'cannotDo') && $user->cannotDo($permission, $resolvedScope)) {
             abort(403);
         }
 

@@ -18,17 +18,27 @@ class ExplainCommand extends Command
 
     public function handle(Evaluator $evaluator): int
     {
-        [$subjectType, $subjectId] = $this->parseSubject((string) $this->argument('subject'));
+        $subjectArg = $this->argument('subject');
+        $permissionArg = $this->argument('permission');
 
-        if ($subjectType === null) {
+        if (! is_string($subjectArg) || ! is_string($permissionArg)) {
+            $this->error('Subject and permission arguments must be strings.');
+
+            return self::FAILURE;
+        }
+
+        [$subjectType, $subjectId] = $this->parseSubject($subjectArg);
+
+        if ($subjectType === null || $subjectId === null) {
             $this->error("Invalid subject format. Expected 'type::id' (e.g., user::42).");
 
             return self::FAILURE;
         }
 
+        $scopeOption = $this->option('scope');
         $permission = $this->buildPermissionString(
-            (string) $this->argument('permission'),
-            $this->option('scope'),
+            $permissionArg,
+            is_string($scopeOption) ? $scopeOption : null,
         );
 
         try {
@@ -62,13 +72,13 @@ class ExplainCommand extends Command
         return [$parts[0], $parts[1]];
     }
 
-    private function buildPermissionString(string $permission, mixed $scope): string
+    private function buildPermissionString(string $permission, ?string $scope): string
     {
         if ($scope === null) {
             return $permission;
         }
 
-        return $permission.':'.(string) $scope;
+        return $permission.':'.$scope;
     }
 
     private function renderTrace(EvaluationTrace $trace): void
