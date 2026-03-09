@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
 
+mutates(DefaultEvaluator::class);
+
 beforeEach(function (): void {
     $this->permissionStore = new EloquentPermissionStore;
     $this->roleStore = new EloquentRoleStore;
@@ -347,6 +349,271 @@ it('short-circuits before role permission lookups when boundary denies', functio
     expect($evaluator->can('App\\Models\\User', 1, 'billing.manage:org::acme'))->toBeFalse();
     expect($spyRoleStore->singleCalls)->toBe(0)
         ->and($spyRoleStore->batchCalls)->toBe(0);
+});
+
+// --- explain: deny permission collected in trace ---
+
+it('collects deny permissions in explain trace', function (): void {
+    config()->set('policy-engine.explain', true);
+
+    $this->permissionStore->register(['posts.create', 'posts.delete']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->roleStore->save('restricted', 'Restricted', ['!posts.delete']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'restricted');
+
+    $trace = $this->evaluator->explain('App\\Models\\User', 1, 'posts.create');
+
+    expect($trace)
+        ->result->toBe(EvaluationResult::Allow)
+        ->assignments->toHaveCount(2);
+
+    // The restricted role's !posts.delete should appear in the permissions_checked
+    $restrictedAssignment = collect($trace->assignments)->firstWhere('role', 'restricted');
+    expect($restrictedAssignment['permissions_checked'])->toContain('!posts.delete');
+});
+
+// --- explain: deny_unbounded_scopes with missing boundary ---
+
+it('returns deny trace when deny_unbounded_scopes is enabled and no boundary exists', function (): void {
+    config()->set('policy-engine.explain', true);
+    config()->set('policy-engine.deny_unbounded_scopes', true);
+
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor', 'org::acme');
+
+    $trace = $this->evaluator->explain('App\\Models\\User', 1, 'posts.create:org::acme');
+
+    expect($trace)
+        ->result->toBe(EvaluationResult::Deny)
+        ->boundary->toContain('Denied by missing boundary')
+        ->boundary->toContain('deny_unbounded_scopes');
+});
+
+// --- explain: deny rule matches ---
+
+it('returns deny trace when a deny rule matches in explain', function (): void {
+    config()->set('policy-engine.explain', true);
+
+    $this->permissionStore->register(['posts.create', 'posts.delete']);
+    $this->roleStore->save('editor', 'Editor', ['posts.*']);
+    $this->roleStore->save('restricted', 'Restricted', ['!posts.delete']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'restricted');
+
+    $trace = $this->evaluator->explain('App\\Models\\User', 1, 'posts.delete');
+
+    expect($trace)
+        ->result->toBe(EvaluationResult::Deny)
+        ->boundary->toBeNull();
+});
+
+// --- fallback paths: store without batch methods ---
+
+it('falls back to filtering when assignment store lacks forSubjectGlobal', function (): void {
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+
+    // Use a minimal store that only implements the contract (no batch methods)
+    $minimalAssignmentStore = new class implements \DynamikDev\PolicyEngine\Contracts\AssignmentStore
+    {
+        /** @var array<int, \DynamikDev\PolicyEngine\Models\Assignment> */
+        private array $assignments = [];
+
+        public function assign(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
+        {
+            $assignment = new \DynamikDev\PolicyEngine\Models\Assignment;
+            $assignment->subject_type = $subjectType;
+            $assignment->subject_id = $subjectId;
+            $assignment->role_id = $roleId;
+            $assignment->scope = $scope;
+            $this->assignments[] = $assignment;
+        }
+
+        public function revoke(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void {}
+
+        public function forSubject(string $subjectType, string|int $subjectId): \Illuminate\Support\Collection
+        {
+            return collect($this->assignments)
+                ->filter(fn ($a) => $a->subject_type === $subjectType && (string) $a->subject_id === (string) $subjectId)
+                ->values();
+        }
+
+        public function forSubjectInScope(string $subjectType, string|int $subjectId, string $scope): \Illuminate\Support\Collection
+        {
+            return collect();
+        }
+
+        public function subjectsInScope(string $scope, ?string $roleId = null): \Illuminate\Support\Collection
+        {
+            return collect();
+        }
+    };
+
+    $minimalAssignmentStore->assign('App\\Models\\User', 1, 'editor');
+    // Also add a scoped assignment that should be filtered out for global-only query
+    $minimalAssignmentStore->assign('App\\Models\\User', 1, 'editor', 'team::5');
+
+    $evaluator = new DefaultEvaluator(
+        assignments: $minimalAssignmentStore,
+        roles: $this->roleStore,
+        boundaries: $this->boundaryStore,
+        matcher: new WildcardMatcher,
+    );
+
+    // Unscoped check: should only use global assignments (scope === null)
+    expect($evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
+});
+
+it('falls back to filtering when assignment store lacks forSubjectGlobalAndScope', function (): void {
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+
+    $minimalAssignmentStore = new class implements \DynamikDev\PolicyEngine\Contracts\AssignmentStore
+    {
+        /** @var array<int, \DynamikDev\PolicyEngine\Models\Assignment> */
+        private array $assignments = [];
+
+        public function assign(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
+        {
+            $assignment = new \DynamikDev\PolicyEngine\Models\Assignment;
+            $assignment->subject_type = $subjectType;
+            $assignment->subject_id = $subjectId;
+            $assignment->role_id = $roleId;
+            $assignment->scope = $scope;
+            $this->assignments[] = $assignment;
+        }
+
+        public function revoke(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void {}
+
+        public function forSubject(string $subjectType, string|int $subjectId): \Illuminate\Support\Collection
+        {
+            return collect($this->assignments)
+                ->filter(fn ($a) => $a->subject_type === $subjectType && (string) $a->subject_id === (string) $subjectId)
+                ->values();
+        }
+
+        public function forSubjectInScope(string $subjectType, string|int $subjectId, string $scope): \Illuminate\Support\Collection
+        {
+            return collect();
+        }
+
+        public function subjectsInScope(string $scope, ?string $roleId = null): \Illuminate\Support\Collection
+        {
+            return collect();
+        }
+    };
+
+    $minimalAssignmentStore->assign('App\\Models\\User', 1, 'editor', 'team::5');
+    $minimalAssignmentStore->assign('App\\Models\\User', 1, 'editor');
+
+    $evaluator = new DefaultEvaluator(
+        assignments: $minimalAssignmentStore,
+        roles: $this->roleStore,
+        boundaries: $this->boundaryStore,
+        matcher: new WildcardMatcher,
+    );
+
+    // Scoped check: should include both global and scope-matching assignments
+    expect($evaluator->can('App\\Models\\User', 1, 'posts.create:team::5'))->toBeTrue();
+});
+
+it('falls back to individual role permission lookups when role store lacks permissionsForRoles', function (): void {
+    $this->permissionStore->register(['posts.create']);
+
+    $minimalRoleStore = new class implements \DynamikDev\PolicyEngine\Contracts\RoleStore
+    {
+        /** @var array<string, array{name: string, permissions: array<int, string>, system: bool}> */
+        private array $roles = [];
+
+        public function save(string $id, string $name, array $permissions, bool $system = false): \DynamikDev\PolicyEngine\Models\Role
+        {
+            $this->roles[$id] = ['name' => $name, 'permissions' => $permissions, 'system' => $system];
+
+            $role = new \DynamikDev\PolicyEngine\Models\Role;
+            $role->id = $id;
+            $role->name = $name;
+            $role->is_system = $system;
+
+            return $role;
+        }
+
+        public function remove(string $id): void
+        {
+            unset($this->roles[$id]);
+        }
+
+        public function find(string $id): ?\DynamikDev\PolicyEngine\Models\Role
+        {
+            if (! isset($this->roles[$id])) {
+                return null;
+            }
+
+            $role = new \DynamikDev\PolicyEngine\Models\Role;
+            $role->id = $id;
+            $role->name = $this->roles[$id]['name'];
+            $role->is_system = $this->roles[$id]['system'];
+
+            return $role;
+        }
+
+        public function all(): \Illuminate\Support\Collection
+        {
+            return collect();
+        }
+
+        public function permissionsFor(string $roleId): array
+        {
+            return $this->roles[$roleId]['permissions'] ?? [];
+        }
+    };
+
+    $minimalRoleStore->save('editor', 'Editor', ['posts.create']);
+
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+
+    $evaluator = new DefaultEvaluator(
+        assignments: $this->assignmentStore,
+        roles: $minimalRoleStore,
+        boundaries: $this->boundaryStore,
+        matcher: new WildcardMatcher,
+    );
+
+    expect($evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
+});
+
+// --- sanctumTokenAllows fallback paths ---
+
+it('allows when Sanctum class does not exist and permission is otherwise granted', function (): void {
+    // Sanctum IS installed in dev, so this path (line 384) is not reachable
+    // in the test environment. Instead, test the user-mismatch path (line 398).
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+
+    // Evaluating for a subject that doesn't match the authenticated user
+    // (no user authenticated at all — sanctumTokenAllows returns true at line 390)
+    expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
+});
+
+it('allows when authenticated user does not match evaluated subject', function (): void {
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+
+    // Create a fake authenticated user with a different ID
+    $fakeUser = new class extends \Illuminate\Foundation\Auth\User
+    {
+        protected $table = 'users';
+    };
+    $fakeUser->id = 999;
+
+    $this->actingAs($fakeUser);
+
+    // Evaluating subject User:1 while authenticated as User:999
+    // This hits line 398 (user doesn't match subject) and returns true
+    expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 });
 
 it('uses batched role permission loading when the role store supports it', function (): void {

@@ -5,6 +5,8 @@ declare(strict_types=1);
 use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
 use Illuminate\Database\Eloquent\Model;
 
+mutates(ModelScopeResolver::class);
+
 beforeEach(function (): void {
     $this->resolver = new ModelScopeResolver;
 });

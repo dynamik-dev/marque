@@ -5,6 +5,8 @@ declare(strict_types=1);
 use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 
+mutates(JsonDocumentParser::class);
+
 beforeEach(function (): void {
     $this->parser = new JsonDocumentParser;
 });
@@ -251,6 +253,87 @@ it('rejects boundaries missing required keys', function (): void {
 
     expect($result)->valid->toBeFalse();
     expect($result->errors)->toContain('boundaries[0] is missing required key: max_permissions');
+});
+
+it('rejects roles that is not an array', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'roles' => 'not-an-array',
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)
+        ->valid->toBeFalse();
+
+    expect($result->errors)->toContain('roles must be an array');
+});
+
+it('rejects a non-array role entry', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'roles' => ['not-an-object', 42],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('roles[0] must be an object');
+    expect($result->errors)->toContain('roles[1] must be an object');
+});
+
+it('rejects assignments that is not an array', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'assignments' => 'not-an-array',
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)
+        ->valid->toBeFalse();
+
+    expect($result->errors)->toContain('assignments must be an array');
+});
+
+it('rejects a non-array assignment entry', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'assignments' => ['not-an-object', true],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('assignments[0] must be an object');
+    expect($result->errors)->toContain('assignments[1] must be an object');
+});
+
+it('rejects boundaries that is not an array', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'boundaries' => 'not-an-array',
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)
+        ->valid->toBeFalse();
+
+    expect($result->errors)->toContain('boundaries must be an array');
+});
+
+it('rejects a non-array boundary entry', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'boundaries' => ['not-an-object', 99],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('boundaries[0] must be an object');
+    expect($result->errors)->toContain('boundaries[1] must be an object');
 });
 
 it('collects multiple validation errors', function (): void {

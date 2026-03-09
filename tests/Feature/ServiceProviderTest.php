@@ -24,6 +24,8 @@ use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
 use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 
+mutates(\DynamikDev\PolicyEngine\PolicyEngineServiceProvider::class);
+
 it('boots without errors', function (): void {
     expect(app()->getProviders(\DynamikDev\PolicyEngine\PolicyEngineServiceProvider::class))
         ->not->toBeEmpty();

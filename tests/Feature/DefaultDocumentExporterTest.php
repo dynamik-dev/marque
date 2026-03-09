@@ -14,6 +14,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+mutates(DefaultDocumentExporter::class);
+
 beforeEach(function (): void {
     $this->permissionStore = new EloquentPermissionStore;
     $this->roleStore = new EloquentRoleStore;

@@ -16,6 +16,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+mutates(DefaultEvaluator::class, EloquentRoleStore::class);
+
 beforeEach(function (): void {
     $this->permissionStore = new EloquentPermissionStore;
     $this->roleStore = new EloquentRoleStore;

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 
+mutates(WildcardMatcher::class);
+
 beforeEach(function (): void {
     $this->matcher = new WildcardMatcher;
 });

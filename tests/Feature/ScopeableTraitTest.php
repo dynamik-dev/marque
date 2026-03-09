@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
+mutates(Scopeable::class);
+
 /**
  * A minimal Eloquent model for testing the Scopeable trait.
  */

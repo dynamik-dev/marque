@@ -26,6 +26,11 @@ use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
+mutates(
+    \DynamikDev\PolicyEngine\Middleware\CanDoMiddleware::class,
+    \DynamikDev\PolicyEngine\Middleware\RoleMiddleware::class,
+);
+
 /**
  * A minimal authenticatable model for testing middleware.
  */

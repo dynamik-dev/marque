@@ -3,3 +3,4 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+    command: vendor/bin/pest --coverage

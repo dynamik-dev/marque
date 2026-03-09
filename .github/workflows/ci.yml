@@ -43,7 +43,8 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
+          coverage: pcov
 
       - run: composer install --no-interaction
 
-      - run: vendor/bin/pest
+      - run: vendor/bin/pest --coverage --min=90

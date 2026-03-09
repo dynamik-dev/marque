@@ -8,6 +8,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+mutates(EloquentBoundaryStore::class);
+
 beforeEach(function (): void {
     $this->store = new EloquentBoundaryStore;
 });

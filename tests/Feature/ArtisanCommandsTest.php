@@ -26,6 +26,18 @@ use Illuminate\Support\Facades\Artisan;
 
 uses(RefreshDatabase::class);
 
+mutates(
+    \DynamikDev\PolicyEngine\Commands\ListPermissionsCommand::class,
+    \DynamikDev\PolicyEngine\Commands\ListRolesCommand::class,
+    \DynamikDev\PolicyEngine\Commands\ListAssignmentsCommand::class,
+    \DynamikDev\PolicyEngine\Commands\ExplainCommand::class,
+    \DynamikDev\PolicyEngine\Commands\ImportCommand::class,
+    \DynamikDev\PolicyEngine\Commands\ExportCommand::class,
+    \DynamikDev\PolicyEngine\Commands\ValidateCommand::class,
+    \DynamikDev\PolicyEngine\Commands\SyncCommand::class,
+    \DynamikDev\PolicyEngine\Commands\CacheClearCommand::class,
+);
+
 beforeEach(function (): void {
     app()->instance(PermissionStore::class, new EloquentPermissionStore);
     app()->instance(RoleStore::class, new EloquentRoleStore);

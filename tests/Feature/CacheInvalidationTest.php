@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
+mutates(\DynamikDev\PolicyEngine\Listeners\InvalidatePermissionCache::class);
+
 /**
  * A minimal Eloquent model for testing cache invalidation via HasPermissions.
  */

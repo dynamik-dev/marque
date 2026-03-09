@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
 
+mutates(EloquentPermissionStore::class);
+
 beforeEach(function (): void {
     $this->store = new EloquentPermissionStore;
 });
