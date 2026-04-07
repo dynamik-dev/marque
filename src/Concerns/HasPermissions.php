@@ -22,7 +22,11 @@ use Illuminate\Support\Collection;
 trait HasPermissions
 {
     /**
-     * @deprecated Use $user->can('permission') via Laravel's Gate instead.
+     * Evaluate whether this subject holds a permission, optionally within a scope.
+     *
+     * This is the engine method that powers Gate integration, middleware,
+     * and Blade directives. For application code, prefer Laravel's
+     * $user->can('permission') which delegates here via the Gate hook.
      */
     public function canDo(string $permission, mixed $scope = null): bool
     {
@@ -34,7 +38,8 @@ trait HasPermissions
     }
 
     /**
-     * @deprecated Use $user->cannot('permission') via Laravel's Gate instead.
+     * Inverse of canDo() — returns true when the subject does NOT hold
+     * the given permission.
      */
     public function cannotDo(string $permission, mixed $scope = null): bool
     {
@@ -105,7 +110,7 @@ trait HasPermissions
     }
 
     /** @return Collection<int, Role> */
-    public function roles(): Collection
+    public function getRoles(): Collection
     {
         $roleStore = app(RoleStore::class);
 
@@ -118,7 +123,7 @@ trait HasPermissions
     }
 
     /** @return Collection<int, Role> */
-    public function rolesFor(mixed $scope): Collection
+    public function getRolesFor(mixed $scope): Collection
     {
         $roleStore = app(RoleStore::class);
 
