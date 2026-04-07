@@ -12,13 +12,15 @@ use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 use DynamikDev\PolicyEngine\Models\Assignment;
 use DynamikDev\PolicyEngine\Models\Boundary;
+use DynamikDev\PolicyEngine\Models\Role;
+use Illuminate\Support\Collection;
 
 class DefaultDocumentExporter implements DocumentExporter
 {
     public function __construct(
         private readonly PermissionStore $permissionStore,
         private readonly RoleStore $roleStore,
-        AssignmentStore $assignmentStore,
+        private readonly AssignmentStore $assignmentStore,
         private readonly BoundaryStore $boundaryStore,
     ) {}
 
@@ -52,15 +54,15 @@ class DefaultDocumentExporter implements DocumentExporter
     /**
      * Retrieve assignments, filtered by scope when provided.
      *
-     * @return \Illuminate\Support\Collection<int, Assignment>
+     * @return Collection<int, Assignment>
      */
-    private function exportAssignments(?string $scope): \Illuminate\Support\Collection
+    private function exportAssignments(?string $scope): Collection
     {
         if ($scope === null) {
-            return Assignment::query()->get();
+            return $this->assignmentStore->all();
         }
 
-        return Assignment::query()->where('scope', $scope)->get();
+        return $this->assignmentStore->subjectsInScope($scope);
     }
 
     /**
@@ -68,16 +70,16 @@ class DefaultDocumentExporter implements DocumentExporter
      *
      * When a scope is provided, only roles that have assignments in that scope are included.
      *
-     * @param  \Illuminate\Support\Collection<int, Assignment>  $assignments
+     * @param  Collection<int, Assignment>  $assignments
      * @return array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool}>
      */
-    private function exportRoles(?string $scope, \Illuminate\Support\Collection $assignments): array
+    private function exportRoles(?string $scope, Collection $assignments): array
     {
         $roles = $scope === null
             ? $this->roleStore->all()
             : $this->roleStore->all()->whereIn('id', $assignments->pluck('role_id')->unique());
 
-        return $roles->map(fn (\DynamikDev\PolicyEngine\Models\Role $role): array => $this->serializeRole($role))->values()->all();
+        return $roles->map(fn (Role $role): array => $this->serializeRole($role))->values()->all();
     }
 
     /**
@@ -85,7 +87,7 @@ class DefaultDocumentExporter implements DocumentExporter
      *
      * @return array{id: string, name: string, permissions: array<int, string>, system?: bool}
      */
-    private function serializeRole(\DynamikDev\PolicyEngine\Models\Role $role): array
+    private function serializeRole(Role $role): array
     {
         $data = [
             'id' => $role->id,
@@ -103,10 +105,10 @@ class DefaultDocumentExporter implements DocumentExporter
     /**
      * Serialize assignments into document arrays.
      *
-     * @param  \Illuminate\Support\Collection<int, Assignment>  $assignments
+     * @param  Collection<int, Assignment>  $assignments
      * @return array<int, array{subject: string, role: string, scope?: string}>
      */
-    private function serializeAssignments(\Illuminate\Support\Collection $assignments): array
+    private function serializeAssignments(Collection $assignments): array
     {
         return $assignments->map(static function (Assignment $assignment): array {
             $data = [
@@ -132,7 +134,7 @@ class DefaultDocumentExporter implements DocumentExporter
     private function exportBoundaries(?string $scope): array
     {
         if ($scope === null) {
-            return Boundary::query()->get()->map(static fn (Boundary $boundary): array => [
+            return $this->boundaryStore->all()->map(static fn (Boundary $boundary): array => [
                 'scope' => $boundary->scope,
                 'max_permissions' => $boundary->max_permissions,
             ])->values()->all();

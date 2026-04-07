@@ -112,4 +112,14 @@ class EloquentAssignmentStore implements AssignmentStore
             ->when($roleId, static fn ($query, string $roleId) => $query->where('role_id', $roleId))
             ->get();
     }
+
+    /**
+     * Get all assignments.
+     *
+     * @return Collection<int, Assignment>
+     */
+    public function all(): Collection
+    {
+        return Assignment::query()->get();
+    }
 }

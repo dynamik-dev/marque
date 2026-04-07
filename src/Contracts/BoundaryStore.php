@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DynamikDev\PolicyEngine\Contracts;
 
 use DynamikDev\PolicyEngine\Models\Boundary;
+use Illuminate\Support\Collection;
 
 interface BoundaryStore
 {
@@ -24,4 +25,11 @@ interface BoundaryStore
      * Find the boundary for a scope, or return null.
      */
     public function find(string $scope): ?Boundary;
+
+    /**
+     * Get all boundaries.
+     *
+     * @return Collection<int, Boundary>
+     */
+    public function all(): Collection;
 }

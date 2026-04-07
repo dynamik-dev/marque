@@ -8,6 +8,7 @@ use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
 use DynamikDev\PolicyEngine\Events\BoundaryRemoved;
 use DynamikDev\PolicyEngine\Events\BoundarySet;
 use DynamikDev\PolicyEngine\Models\Boundary;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 
 class EloquentBoundaryStore implements BoundaryStore
@@ -46,5 +47,15 @@ class EloquentBoundaryStore implements BoundaryStore
     public function find(string $scope): ?Boundary
     {
         return Boundary::query()->where('scope', $scope)->first();
+    }
+
+    /**
+     * Get all boundaries.
+     *
+     * @return Collection<int, Boundary>
+     */
+    public function all(): Collection
+    {
+        return Boundary::query()->get();
     }
 }
