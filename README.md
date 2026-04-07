@@ -23,10 +23,8 @@ Route::middleware('can:posts.create')->post('/posts', [PostController::class, 's
 
 ```php
 // roles are just named permission sets — deny rules, wildcards, scoping built in
-Primitives::role('editor')
-    ->allow('posts.create', 'posts.update.own', 'comments.*')
-    ->deny('posts.delete')
-    ->save();
+Primitives::role('editor', 'Editor')
+    ->grant(['posts.create', 'posts.update.own', 'comments.*', '!posts.delete']);
 ```
 
 Permissions are as granular as you need. Use dot-notation to model resource, action, and ownership — like IAM policies.
