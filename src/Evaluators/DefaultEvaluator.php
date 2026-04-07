@@ -12,8 +12,10 @@ use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
 use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use DynamikDev\PolicyEngine\Events\AuthorizationDenied;
+use DynamikDev\PolicyEngine\Models\Assignment;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class DefaultEvaluator implements Evaluator
 {
@@ -258,33 +260,15 @@ class DefaultEvaluator implements Evaluator
      * and assignments specific to that scope. Otherwise, returns only
      * global assignments.
      *
-     * @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>
+     * @return Collection<int, Assignment>
      */
     private function gatherAssignments(string $subjectType, string|int $subjectId, ?string $scope): Collection
     {
         if ($scope === null) {
-            if (method_exists($this->assignments, 'forSubjectGlobal')) {
-                /** @var Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> $global */
-                $global = call_user_func([$this->assignments, 'forSubjectGlobal'], $subjectType, $subjectId);
-
-                return $global;
-            }
-
-            return $this->assignments->forSubject($subjectType, $subjectId)
-                ->filter(static fn ($assignment): bool => $assignment->scope === null)
-                ->values();
+            return $this->assignments->forSubjectGlobal($subjectType, $subjectId);
         }
 
-        if (method_exists($this->assignments, 'forSubjectGlobalAndScope')) {
-            /** @var Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> $effective */
-            $effective = call_user_func([$this->assignments, 'forSubjectGlobalAndScope'], $subjectType, $subjectId, $scope);
-
-            return $effective;
-        }
-
-        return $this->assignments->forSubject($subjectType, $subjectId)
-            ->filter(static fn ($assignment): bool => $assignment->scope === null || $assignment->scope === $scope)
-            ->values();
+        return $this->assignments->forSubjectGlobalAndScope($subjectType, $subjectId, $scope);
     }
 
     private function passesBoundaryCheck(?string $scope, string $requiredPermission): bool
@@ -305,7 +289,7 @@ class DefaultEvaluator implements Evaluator
     /**
      * Resolve permissions per role with optional batched loading.
      *
-     * @param  Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>  $assignments
+     * @param  Collection<int, Assignment>  $assignments
      * @return array<string, array<int, string>>
      */
     private function permissionsByRole(Collection $assignments): array
@@ -317,26 +301,7 @@ class DefaultEvaluator implements Evaluator
             return [];
         }
 
-        if (method_exists($this->roles, 'permissionsForRoles')) {
-            /** @var array<string, array<int, string>> $batched */
-            $batched = call_user_func([$this->roles, 'permissionsForRoles'], $roleIds);
-
-            $result = [];
-
-            foreach ($roleIds as $roleId) {
-                $result[$roleId] = $batched[$roleId] ?? [];
-            }
-
-            return $result;
-        }
-
-        $result = [];
-
-        foreach ($roleIds as $roleId) {
-            $result[$roleId] = $this->roles->permissionsFor($roleId);
-        }
-
-        return $result;
+        return $this->roles->permissionsForRoles($roleIds);
     }
 
     /**
@@ -380,7 +345,7 @@ class DefaultEvaluator implements Evaluator
      */
     private function sanctumTokenAllows(string $subjectType, string|int $subjectId, string $requiredPermission): bool
     {
-        if (! class_exists(\Laravel\Sanctum\PersonalAccessToken::class)) {
+        if (! class_exists(PersonalAccessToken::class)) {
             return true;
         }
 
@@ -404,7 +369,7 @@ class DefaultEvaluator implements Evaluator
 
         $token = $user->currentAccessToken();
 
-        if (! $token instanceof \Laravel\Sanctum\PersonalAccessToken) {
+        if (! $token instanceof PersonalAccessToken) {
             return true;
         }
 

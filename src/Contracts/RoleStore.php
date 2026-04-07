@@ -39,4 +39,12 @@ interface RoleStore
      * @return array<int, string>
      */
     public function permissionsFor(string $roleId): array;
+
+    /**
+     * Get permission identifiers for multiple roles in one query.
+     *
+     * @param  array<int, string>  $roleIds
+     * @return array<string, array<int, string>>
+     */
+    public function permissionsForRoles(array $roleIds): array;
 }

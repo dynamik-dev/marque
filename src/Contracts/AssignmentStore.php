@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine\Contracts;
 
+use DynamikDev\PolicyEngine\Models\Assignment;
 use Illuminate\Support\Collection;
 
 interface AssignmentStore
@@ -21,21 +22,42 @@ interface AssignmentStore
     /**
      * Get all assignments for a subject across all scopes.
      *
-     * @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>
+     * @return Collection<int, Assignment>
      */
     public function forSubject(string $subjectType, string|int $subjectId): Collection;
 
     /**
      * Get all assignments for a subject within a specific scope.
      *
-     * @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>
+     * @return Collection<int, Assignment>
      */
     public function forSubjectInScope(string $subjectType, string|int $subjectId, string $scope): Collection;
 
     /**
+     * Get global (unscoped) assignments for a subject.
+     *
+     * @return Collection<int, Assignment>
+     */
+    public function forSubjectGlobal(string $subjectType, string|int $subjectId): Collection;
+
+    /**
+     * Get assignments for a subject that are either global or in the given scope.
+     *
+     * @return Collection<int, Assignment>
+     */
+    public function forSubjectGlobalAndScope(string $subjectType, string|int $subjectId, string $scope): Collection;
+
+    /**
      * Get all subjects assigned within a scope, optionally filtered by role.
      *
-     * @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>
+     * @return Collection<int, Assignment>
      */
     public function subjectsInScope(string $scope, ?string $roleId = null): Collection;
+
+    /**
+     * Get all assignments.
+     *
+     * @return Collection<int, Assignment>
+     */
+    public function all(): Collection;
 }

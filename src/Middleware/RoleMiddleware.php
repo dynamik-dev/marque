@@ -41,12 +41,11 @@ class RoleMiddleware
                 $subjectId,
                 $resolvedScope,
             );
-        } elseif (method_exists($this->assignmentStore, 'forSubjectGlobal')) {
-            /** @var \Illuminate\Support\Collection<int, mixed> $assignments */
-            $assignments = call_user_func([$this->assignmentStore, 'forSubjectGlobal'], $user->getMorphClass(), $subjectId);
         } else {
-            $assignments = $this->assignmentStore->forSubject($user->getMorphClass(), $subjectId)
-                ->filter(static fn ($assignment): bool => $assignment->scope === null);
+            $assignments = $this->assignmentStore->forSubjectGlobal(
+                $user->getMorphClass(),
+                $subjectId,
+            );
         }
 
         if (! $assignments->contains('role_id', $role)) {

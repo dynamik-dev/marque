@@ -2,16 +2,22 @@
 
 declare(strict_types=1);
 
+use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
 use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Events\AuthorizationDenied;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
+use DynamikDev\PolicyEngine\Models\Assignment;
+use DynamikDev\PolicyEngine\Models\Role;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
 use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
+use Illuminate\Foundation\Auth\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
@@ -179,7 +185,7 @@ it('throws RuntimeException when explain mode is disabled', function (): void {
     config()->set('policy-engine.explain', false);
 
     $this->evaluator->explain('App\\Models\\User', 1, 'posts.create');
-})->throws(\RuntimeException::class, 'Explain mode is disabled');
+})->throws(RuntimeException::class, 'Explain mode is disabled');
 
 it('returns an EvaluationTrace when explain mode is enabled', function (): void {
     config()->set('policy-engine.explain', true);
@@ -291,7 +297,7 @@ it('short-circuits before role permission lookups when boundary denies', functio
     $this->assignmentStore->assign('App\\Models\\User', 1, 'admin', 'org::acme');
     $this->boundaryStore->set('org::acme', ['posts.*']);
 
-    $spyRoleStore = new class($this->roleStore) implements \DynamikDev\PolicyEngine\Contracts\RoleStore
+    $spyRoleStore = new class($this->roleStore) implements RoleStore
     {
         public int $singleCalls = 0;
 
@@ -301,7 +307,7 @@ it('short-circuits before role permission lookups when boundary denies', functio
             private readonly EloquentRoleStore $inner,
         ) {}
 
-        public function save(string $id, string $name, array $permissions, bool $system = false): \DynamikDev\PolicyEngine\Models\Role
+        public function save(string $id, string $name, array $permissions, bool $system = false): Role
         {
             return $this->inner->save($id, $name, $permissions, $system);
         }
@@ -311,12 +317,12 @@ it('short-circuits before role permission lookups when boundary denies', functio
             $this->inner->remove($id);
         }
 
-        public function find(string $id): ?\DynamikDev\PolicyEngine\Models\Role
+        public function find(string $id): ?Role
         {
             return $this->inner->find($id);
         }
 
-        public function all(): \Illuminate\Support\Collection
+        public function all(): Collection
         {
             return $this->inner->all();
         }
@@ -409,19 +415,19 @@ it('returns deny trace when a deny rule matches in explain', function (): void {
 
 // --- fallback paths: store without batch methods ---
 
-it('falls back to filtering when assignment store lacks forSubjectGlobal', function (): void {
+it('works with custom assignment store implementing forSubjectGlobal', function (): void {
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
 
-    // Use a minimal store that only implements the contract (no batch methods)
-    $minimalAssignmentStore = new class implements \DynamikDev\PolicyEngine\Contracts\AssignmentStore
+    // Use a minimal store that implements the full contract
+    $minimalAssignmentStore = new class implements AssignmentStore
     {
-        /** @var array<int, \DynamikDev\PolicyEngine\Models\Assignment> */
+        /** @var array<int, Assignment> */
         private array $assignments = [];
 
         public function assign(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
         {
-            $assignment = new \DynamikDev\PolicyEngine\Models\Assignment;
+            $assignment = new Assignment;
             $assignment->subject_type = $subjectType;
             $assignment->subject_id = $subjectId;
             $assignment->role_id = $roleId;
@@ -431,21 +437,40 @@ it('falls back to filtering when assignment store lacks forSubjectGlobal', funct
 
         public function revoke(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void {}
 
-        public function forSubject(string $subjectType, string|int $subjectId): \Illuminate\Support\Collection
+        public function forSubject(string $subjectType, string|int $subjectId): Collection
         {
             return collect($this->assignments)
                 ->filter(fn ($a) => $a->subject_type === $subjectType && (string) $a->subject_id === (string) $subjectId)
                 ->values();
         }
 
-        public function forSubjectInScope(string $subjectType, string|int $subjectId, string $scope): \Illuminate\Support\Collection
+        public function forSubjectInScope(string $subjectType, string|int $subjectId, string $scope): Collection
         {
             return collect();
         }
 
-        public function subjectsInScope(string $scope, ?string $roleId = null): \Illuminate\Support\Collection
+        public function forSubjectGlobal(string $subjectType, string|int $subjectId): Collection
+        {
+            return $this->forSubject($subjectType, $subjectId)
+                ->filter(fn ($a) => $a->scope === null)
+                ->values();
+        }
+
+        public function forSubjectGlobalAndScope(string $subjectType, string|int $subjectId, string $scope): Collection
+        {
+            return $this->forSubject($subjectType, $subjectId)
+                ->filter(fn ($a) => $a->scope === null || $a->scope === $scope)
+                ->values();
+        }
+
+        public function subjectsInScope(string $scope, ?string $roleId = null): Collection
         {
             return collect();
+        }
+
+        public function all(): Collection
+        {
+            return collect($this->assignments);
         }
     };
 
@@ -464,18 +489,18 @@ it('falls back to filtering when assignment store lacks forSubjectGlobal', funct
     expect($evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 });
 
-it('falls back to filtering when assignment store lacks forSubjectGlobalAndScope', function (): void {
+it('works with custom assignment store implementing forSubjectGlobalAndScope', function (): void {
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
 
-    $minimalAssignmentStore = new class implements \DynamikDev\PolicyEngine\Contracts\AssignmentStore
+    $minimalAssignmentStore = new class implements AssignmentStore
     {
-        /** @var array<int, \DynamikDev\PolicyEngine\Models\Assignment> */
+        /** @var array<int, Assignment> */
         private array $assignments = [];
 
         public function assign(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
         {
-            $assignment = new \DynamikDev\PolicyEngine\Models\Assignment;
+            $assignment = new Assignment;
             $assignment->subject_type = $subjectType;
             $assignment->subject_id = $subjectId;
             $assignment->role_id = $roleId;
@@ -485,21 +510,40 @@ it('falls back to filtering when assignment store lacks forSubjectGlobalAndScope
 
         public function revoke(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void {}
 
-        public function forSubject(string $subjectType, string|int $subjectId): \Illuminate\Support\Collection
+        public function forSubject(string $subjectType, string|int $subjectId): Collection
         {
             return collect($this->assignments)
                 ->filter(fn ($a) => $a->subject_type === $subjectType && (string) $a->subject_id === (string) $subjectId)
                 ->values();
         }
 
-        public function forSubjectInScope(string $subjectType, string|int $subjectId, string $scope): \Illuminate\Support\Collection
+        public function forSubjectInScope(string $subjectType, string|int $subjectId, string $scope): Collection
         {
             return collect();
         }
 
-        public function subjectsInScope(string $scope, ?string $roleId = null): \Illuminate\Support\Collection
+        public function forSubjectGlobal(string $subjectType, string|int $subjectId): Collection
+        {
+            return $this->forSubject($subjectType, $subjectId)
+                ->filter(fn ($a) => $a->scope === null)
+                ->values();
+        }
+
+        public function forSubjectGlobalAndScope(string $subjectType, string|int $subjectId, string $scope): Collection
+        {
+            return $this->forSubject($subjectType, $subjectId)
+                ->filter(fn ($a) => $a->scope === null || $a->scope === $scope)
+                ->values();
+        }
+
+        public function subjectsInScope(string $scope, ?string $roleId = null): Collection
         {
             return collect();
+        }
+
+        public function all(): Collection
+        {
+            return collect($this->assignments);
         }
     };
 
@@ -517,19 +561,19 @@ it('falls back to filtering when assignment store lacks forSubjectGlobalAndScope
     expect($evaluator->can('App\\Models\\User', 1, 'posts.create:team::5'))->toBeTrue();
 });
 
-it('falls back to individual role permission lookups when role store lacks permissionsForRoles', function (): void {
+it('works with custom role store implementing permissionsForRoles', function (): void {
     $this->permissionStore->register(['posts.create']);
 
-    $minimalRoleStore = new class implements \DynamikDev\PolicyEngine\Contracts\RoleStore
+    $minimalRoleStore = new class implements RoleStore
     {
         /** @var array<string, array{name: string, permissions: array<int, string>, system: bool}> */
         private array $roles = [];
 
-        public function save(string $id, string $name, array $permissions, bool $system = false): \DynamikDev\PolicyEngine\Models\Role
+        public function save(string $id, string $name, array $permissions, bool $system = false): Role
         {
             $this->roles[$id] = ['name' => $name, 'permissions' => $permissions, 'system' => $system];
 
-            $role = new \DynamikDev\PolicyEngine\Models\Role;
+            $role = new Role;
             $role->id = $id;
             $role->name = $name;
             $role->is_system = $system;
@@ -542,13 +586,13 @@ it('falls back to individual role permission lookups when role store lacks permi
             unset($this->roles[$id]);
         }
 
-        public function find(string $id): ?\DynamikDev\PolicyEngine\Models\Role
+        public function find(string $id): ?Role
         {
             if (! isset($this->roles[$id])) {
                 return null;
             }
 
-            $role = new \DynamikDev\PolicyEngine\Models\Role;
+            $role = new Role;
             $role->id = $id;
             $role->name = $this->roles[$id]['name'];
             $role->is_system = $this->roles[$id]['system'];
@@ -556,7 +600,7 @@ it('falls back to individual role permission lookups when role store lacks permi
             return $role;
         }
 
-        public function all(): \Illuminate\Support\Collection
+        public function all(): Collection
         {
             return collect();
         }
@@ -564,6 +608,17 @@ it('falls back to individual role permission lookups when role store lacks permi
         public function permissionsFor(string $roleId): array
         {
             return $this->roles[$roleId]['permissions'] ?? [];
+        }
+
+        public function permissionsForRoles(array $roleIds): array
+        {
+            $result = [];
+
+            foreach ($roleIds as $roleId) {
+                $result[$roleId] = $this->permissionsFor($roleId);
+            }
+
+            return $result;
         }
     };
 
@@ -601,7 +656,7 @@ it('allows when authenticated user does not match evaluated subject', function (
     $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
 
     // Create a fake authenticated user with a different ID
-    $fakeUser = new class extends \Illuminate\Foundation\Auth\User
+    $fakeUser = new class extends User
     {
         protected $table = 'users';
     };
@@ -621,7 +676,7 @@ it('uses batched role permission loading when the role store supports it', funct
     $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
     $this->assignmentStore->assign('App\\Models\\User', 1, 'reviewer');
 
-    $spyRoleStore = new class($this->roleStore) implements \DynamikDev\PolicyEngine\Contracts\RoleStore
+    $spyRoleStore = new class($this->roleStore) implements RoleStore
     {
         public int $singleCalls = 0;
 
@@ -631,7 +686,7 @@ it('uses batched role permission loading when the role store supports it', funct
             private readonly EloquentRoleStore $inner,
         ) {}
 
-        public function save(string $id, string $name, array $permissions, bool $system = false): \DynamikDev\PolicyEngine\Models\Role
+        public function save(string $id, string $name, array $permissions, bool $system = false): Role
         {
             return $this->inner->save($id, $name, $permissions, $system);
         }
@@ -641,12 +696,12 @@ it('uses batched role permission loading when the role store supports it', funct
             $this->inner->remove($id);
         }
 
-        public function find(string $id): ?\DynamikDev\PolicyEngine\Models\Role
+        public function find(string $id): ?Role
         {
             return $this->inner->find($id);
         }
 
-        public function all(): \Illuminate\Support\Collection
+        public function all(): Collection
         {
             return $this->inner->all();
         }
