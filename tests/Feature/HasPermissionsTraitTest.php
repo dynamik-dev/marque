@@ -178,7 +178,7 @@ it('returns assignments filtered by scope', function (): void {
         ->and($this->user->assignmentsFor('org::acme')->first()->role_id)->toBe('admin');
 });
 
-// --- roles / rolesFor ---
+// --- getRoles / getRolesFor ---
 
 it('returns unique roles for the subject', function (): void {
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
@@ -186,7 +186,7 @@ it('returns unique roles for the subject', function (): void {
     $this->user->assign('editor');
     $this->user->assign('admin');
 
-    $roles = $this->user->roles();
+    $roles = $this->user->getRoles();
 
     expect($roles)->toHaveCount(2)
         ->and($roles->pluck('id')->sort()->values()->all())->toBe(['admin', 'editor']);
@@ -197,8 +197,8 @@ it('deduplicates roles across scopes', function (): void {
     $this->user->assign('editor');
     $this->user->assign('editor', 'team::5');
 
-    expect($this->user->roles())->toHaveCount(1)
-        ->and($this->user->roles()->first()->id)->toBe('editor');
+    expect($this->user->getRoles())->toHaveCount(1)
+        ->and($this->user->getRoles()->first()->id)->toBe('editor');
 });
 
 it('returns roles filtered by scope', function (): void {
@@ -207,15 +207,15 @@ it('returns roles filtered by scope', function (): void {
     $this->user->assign('editor');
     $this->user->assign('admin', 'org::acme');
 
-    $roles = $this->user->rolesFor('org::acme');
+    $roles = $this->user->getRolesFor('org::acme');
 
     expect($roles)->toHaveCount(1)
         ->and($roles->first()->id)->toBe('admin');
 });
 
 it('returns empty collection when subject has no roles', function (): void {
-    expect($this->user->roles())->toHaveCount(0)
-        ->and($this->user->roles())->toBeInstanceOf(Collection::class);
+    expect($this->user->getRoles())->toHaveCount(0)
+        ->and($this->user->getRoles())->toBeInstanceOf(Collection::class);
 });
 
 // --- hasRole ---

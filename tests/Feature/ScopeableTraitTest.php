@@ -9,6 +9,7 @@ use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
@@ -66,6 +67,19 @@ afterEach(function (): void {
     Schema::dropIfExists('test_groups');
 });
 
+// --- toScope validation ---
+
+it('throws LogicException when Scopeable model lacks scopeType property', function (): void {
+    $model = new class extends Model
+    {
+        use Scopeable;
+
+        protected $table = 'users';
+    };
+    $model->id = 1;
+    $model->toScope();
+})->throws(LogicException::class, 'must define a protected string $scopeType property');
+
 // --- toScope ---
 
 it('returns the correct scope string format', function (): void {
@@ -99,7 +113,7 @@ it('returns empty collection when no members exist in the scope', function (): v
     $members = $this->group->members();
 
     expect($members)->toHaveCount(0)
-        ->and($members)->toBeInstanceOf(\Illuminate\Support\Collection::class);
+        ->and($members)->toBeInstanceOf(Collection::class);
 });
 
 it('does not include assignments from other scopes', function (): void {
@@ -143,7 +157,7 @@ it('returns empty collection when no members have the specified role', function 
     $this->assignmentStore->assign($user->getMorphClass(), $user->getKey(), 'editor', $this->group->toScope());
 
     expect($this->group->membersWithRole('viewer'))->toHaveCount(0)
-        ->and($this->group->membersWithRole('viewer'))->toBeInstanceOf(\Illuminate\Support\Collection::class);
+        ->and($this->group->membersWithRole('viewer'))->toBeInstanceOf(Collection::class);
 });
 
 it('does not include assignments from other scopes when filtering by role', function (): void {

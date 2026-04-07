@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace DynamikDev\PolicyEngine\Concerns;
 
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Models\Assignment;
 use Illuminate\Support\Collection;
 
 /**
@@ -18,16 +19,22 @@ trait Scopeable
 {
     public function toScope(): string
     {
+        if (! property_exists($this, 'scopeType') || ! is_string($this->scopeType)) {
+            throw new \LogicException(
+                static::class.' must define a protected string $scopeType property to use the Scopeable trait.',
+            );
+        }
+
         return $this->scopeType.'::'.$this->getKey();
     }
 
-    /** @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> */
+    /** @return Collection<int, Assignment> */
     public function members(): Collection
     {
         return app(AssignmentStore::class)->subjectsInScope($this->toScope());
     }
 
-    /** @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> */
+    /** @return Collection<int, Assignment> */
     public function membersWithRole(string $roleId): Collection
     {
         return app(AssignmentStore::class)->subjectsInScope($this->toScope(), $roleId);
