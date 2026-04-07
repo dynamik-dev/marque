@@ -118,6 +118,32 @@ it('does not match wildcard verb with wrong scope', function (): void {
     expect($this->matcher->matches('posts.*:group::5', 'posts.create:group::9'))->toBeFalse();
 });
 
+// --- Mid-pattern wildcard with repeated segments ---
+
+it('matches mid-pattern wildcard when post-wildcard literal repeats', function (): void {
+    expect($this->matcher->matches('a.*.b.c', 'a.b.b.c'))->toBeTrue();
+});
+
+it('matches mid-pattern wildcard consuming multiple segments', function (): void {
+    expect($this->matcher->matches('a.*.c', 'a.b.d.c'))->toBeTrue();
+});
+
+it('matches mid-pattern wildcard consuming exactly one segment', function (): void {
+    expect($this->matcher->matches('a.*.c', 'a.b.c'))->toBeTrue();
+});
+
+it('does not match mid-pattern wildcard when trailing segments differ', function (): void {
+    expect($this->matcher->matches('a.*.c', 'a.b.d'))->toBeFalse();
+});
+
+it('matches pattern with multiple wildcards', function (): void {
+    expect($this->matcher->matches('a.*.b.*.c', 'a.x.b.y.c'))->toBeTrue();
+});
+
+it('matches resource wildcard with admin suffix', function (): void {
+    expect($this->matcher->matches('resources.*.admin', 'resources.billing.admin'))->toBeTrue();
+});
+
 // --- Edge cases ---
 
 it('does not match when granted has more segments than required', function (): void {

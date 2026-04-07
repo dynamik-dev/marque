@@ -79,11 +79,20 @@ class WildcardMatcher implements Matcher
      */
     private function segmentsMatch(array $granted, array $required): bool
     {
+        return $this->doSegmentsMatch($granted, 0, $required, 0);
+    }
+
+    /**
+     * Recursive helper that matches granted segments against required segments
+     * starting from the given indices, with proper backtracking for wildcards.
+     *
+     * @param  array<int, string>  $granted
+     * @param  array<int, string>  $required
+     */
+    private function doSegmentsMatch(array $granted, int $gi, array $required, int $ri): bool
+    {
         $grantedCount = count($granted);
         $requiredCount = count($required);
-
-        $gi = 0;
-        $ri = 0;
 
         while ($gi < $grantedCount && $ri < $requiredCount) {
             if ($granted[$gi] === '*') {
@@ -92,13 +101,16 @@ class WildcardMatcher implements Matcher
                     return true;
                 }
 
-                // Advance to the next granted segment and try to find it in the remaining required segments.
+                // Try consuming 1, 2, 3... required segments for the wildcard,
+                // then recursively match the rest of the pattern.
                 $gi++;
-                while ($ri < $requiredCount && $granted[$gi] !== $required[$ri] && $granted[$gi] !== '*') {
-                    $ri++;
+                for ($skip = $ri + 1; $skip <= $requiredCount; $skip++) {
+                    if ($this->doSegmentsMatch($granted, $gi, $required, $skip)) {
+                        return true;
+                    }
                 }
 
-                continue;
+                return false;
             }
 
             if ($granted[$gi] !== $required[$ri]) {
@@ -110,9 +122,6 @@ class WildcardMatcher implements Matcher
         }
 
         // Both must be fully consumed for an exact match.
-        // Remaining granted segments that are all `*` can match zero-or-more, but
-        // per spec a `*` matches "one or more" — so leftover wildcards mean no match
-        // unless the required side is also exhausted naturally.
         return $gi === $grantedCount && $ri === $requiredCount;
     }
 }
