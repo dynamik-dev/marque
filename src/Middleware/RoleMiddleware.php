@@ -36,7 +36,7 @@ class RoleMiddleware
         $subjectId = $user->getKey();
 
         if ($resolvedScope !== null) {
-            $assignments = $this->assignmentStore->forSubjectInScope(
+            $assignments = $this->assignmentStore->forSubjectGlobalAndScope(
                 $user->getMorphClass(),
                 $subjectId,
                 $resolvedScope,

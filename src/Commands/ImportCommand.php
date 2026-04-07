@@ -25,10 +25,8 @@ class ImportCommand extends Command
             return self::FAILURE;
         }
 
-        $path = $pathArg;
-
-        if (! file_exists($path)) {
-            $this->error("File not found: {$path}");
+        if (! file_exists($pathArg)) {
+            $this->error("File not found: {$pathArg}");
 
             return self::FAILURE;
         }
@@ -49,7 +47,7 @@ class ImportCommand extends Command
         );
 
         try {
-            $result = $manager->import($path, $options);
+            $result = $manager->import($pathArg, $options);
         } catch (\InvalidArgumentException $e) {
             $this->error("Failed to parse document: {$e->getMessage()}");
 

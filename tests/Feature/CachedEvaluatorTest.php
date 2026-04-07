@@ -73,14 +73,13 @@ it('serves from cache on subsequent calls', function (): void {
     // First call populates cache.
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 
-    // Now revoke the role directly in DB — cache should still return true.
-    $this->assignmentStore->revoke('App\\Models\\User', 1, 'editor');
+    // Delete assignment directly in DB to avoid triggering cache invalidation events.
+    Assignment::query()
+        ->where('subject_type', 'App\\Models\\User')
+        ->where('subject_id', 1)
+        ->delete();
 
-    // Without invalidation, the cached result persists.
-    // Manually re-set the cached value in the tagged store (array driver supports tags).
-    $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
-    $this->cacheManager->store('array')->tags(['policy-engine'])->put($cacheKey, true, 3600);
-
+    // Second call should still return true from cache despite DB change.
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 });
 

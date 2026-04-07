@@ -36,6 +36,7 @@ use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
 use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Cache\CacheManager;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
@@ -142,7 +143,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
 
     private function registerGateHook(): void
     {
-        Gate::before(function ($user, string $ability, array $arguments): ?bool {
+        Gate::before(static function (Authenticatable $user, string $ability, array $arguments): ?bool {
             if (! str_contains($ability, '.')) {
                 return null;
             }
@@ -160,7 +161,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
 
             $scope = $arguments[0] ?? null;
 
-            return $user->canDo($ability, $scope); // @phpstan-ignore method.nonObject
+            return $user->canDo($ability, $scope); // @phpstan-ignore method.notFound
         });
     }
 

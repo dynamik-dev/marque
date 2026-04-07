@@ -10,7 +10,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('assignments', function (Blueprint $table): void {
+        $prefix = config('policy-engine.table_prefix', '');
+
+        Schema::create($prefix.'assignments', function (Blueprint $table) use ($prefix): void {
             $table->id();
             $table->morphs('subject');
             $table->string('role_id');
@@ -21,7 +23,7 @@ return new class extends Migration
 
             $table->foreign('role_id')
                 ->references('id')
-                ->on('roles')
+                ->on($prefix.'roles')
                 ->cascadeOnDelete();
 
             $table->index('scope');
@@ -30,6 +32,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('assignments');
+        Schema::dropIfExists(config('policy-engine.table_prefix', '').'assignments');
     }
 };

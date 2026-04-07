@@ -6,8 +6,8 @@ namespace DynamikDev\PolicyEngine\Evaluators;
 
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
+use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
-use Illuminate\Cache\Repository;
 
 class CachedEvaluator implements Evaluator
 {
@@ -23,8 +23,15 @@ class CachedEvaluator implements Evaluator
         }
 
         $cacheKey = self::cacheKey($subjectType, $subjectId, $permission);
-        $store = $this->cacheStore();
+        $store = CacheStoreResolver::resolve($this->cache);
 
+        // Race window (TOCTOU): Between the cache miss and the put() below,
+        // another request may revoke a role and clear the cache. This request
+        // would then write a stale "allowed" result that persists for the full
+        // TTL. This is inherent to cache-aside patterns. Mitigations:
+        // - Use a shorter TTL for security-critical applications
+        // - Use a dedicated cache store to isolate invalidation
+        // - See "Customizing the Cache" docs for advanced strategies
         $result = $store->get($cacheKey);
 
         if ($result !== null) {
@@ -59,20 +66,6 @@ class CachedEvaluator implements Evaluator
         }
 
         return $key;
-    }
-
-    private function cacheStore(): \Illuminate\Contracts\Cache\Repository
-    {
-        /** @var string $storeName */
-        $storeName = config('policy-engine.cache.store', 'default');
-
-        $store = $this->cache->store($storeName === 'default' ? null : $storeName);
-
-        if ($store instanceof Repository && $store->supportsTags()) {
-            return $store->tags(['policy-engine']);
-        }
-
-        return $store;
     }
 
     private function ttl(): int

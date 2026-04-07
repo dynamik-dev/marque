@@ -12,6 +12,7 @@ use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\ImportResult;
+use DynamikDev\PolicyEngine\Support\PathValidator;
 use DynamikDev\PolicyEngine\Support\RoleBuilder;
 
 class PrimitivesManager
@@ -61,7 +62,7 @@ class PrimitivesManager
     public function import(string $pathOrContent, ?ImportOptions $options = null): ImportResult
     {
         if (file_exists($pathOrContent)) {
-            $fileContent = file_get_contents($this->validatePath($pathOrContent));
+            $fileContent = file_get_contents(PathValidator::validate($pathOrContent));
 
             if ($fileContent === false) {
                 throw new \InvalidArgumentException("Could not read file [{$pathOrContent}].");
@@ -90,43 +91,8 @@ class PrimitivesManager
 
     public function exportToFile(string $path, ?string $scope = null): void
     {
-        $this->validatePath($path);
+        PathValidator::validate($path);
 
         file_put_contents($path, $this->export($scope));
-    }
-
-    /**
-     * Validate that a file path is within the configured allowed directory.
-     *
-     * When `policy-engine.document_path` is set, paths are restricted to that directory.
-     * When null (default), no restriction is applied.
-     *
-     * @throws \InvalidArgumentException If the path is outside the allowed directory.
-     */
-    private function validatePath(string $path): string
-    {
-        $allowedBase = config('policy-engine.document_path');
-
-        if ($allowedBase === null) {
-            return $path;
-        }
-
-        /** @var string $allowedBaseStr */
-        $allowedBaseStr = $allowedBase;
-        $allowedBaseReal = realpath($allowedBaseStr);
-        $targetDirectoryReal = realpath(dirname($path));
-
-        if ($allowedBaseReal === false || $targetDirectoryReal === false) {
-            throw new \InvalidArgumentException("Path must be within the allowed directory [{$allowedBaseStr}].");
-        }
-
-        $allowedPrefix = rtrim($allowedBaseReal, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
-        $targetPrefix = rtrim($targetDirectoryReal, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR;
-
-        if (! str_starts_with($targetPrefix, $allowedPrefix)) {
-            throw new \InvalidArgumentException("Path must be within the allowed directory [{$allowedBaseStr}].");
-        }
-
-        return $targetDirectoryReal.DIRECTORY_SEPARATOR.basename($path);
     }
 }

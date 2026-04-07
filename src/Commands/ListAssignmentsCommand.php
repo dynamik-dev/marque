@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace DynamikDev\PolicyEngine\Commands;
 
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Models\Assignment;
+use DynamikDev\PolicyEngine\Support\SubjectParser;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use InvalidArgumentException;
 
 class ListAssignmentsCommand extends Command
 {
@@ -34,9 +37,9 @@ class ListAssignmentsCommand extends Command
 
     private function listForSubject(AssignmentStore $store, string $subject, ?string $scope): int
     {
-        [$type, $id] = $this->parseSubject($subject);
-
-        if ($type === null || $id === null) {
+        try {
+            [$type, $id] = SubjectParser::parse($subject);
+        } catch (InvalidArgumentException) {
             $this->error("Invalid subject format. Expected 'type::id' (e.g., user::42).");
 
             return self::FAILURE;
@@ -55,25 +58,7 @@ class ListAssignmentsCommand extends Command
     }
 
     /**
-     * @return array{?string, ?string}
-     */
-    private function parseSubject(string $subject): array
-    {
-        if (! str_contains($subject, '::')) {
-            return [null, null];
-        }
-
-        $parts = explode('::', $subject, 2);
-
-        if ($parts[0] === '' || $parts[1] === '') {
-            return [null, null];
-        }
-
-        return [$parts[0], $parts[1]];
-    }
-
-    /**
-     * @param  Collection<int, \DynamikDev\PolicyEngine\Models\Assignment>  $assignments
+     * @param  Collection<int, Assignment>  $assignments
      */
     private function renderAssignments(Collection $assignments): int
     {

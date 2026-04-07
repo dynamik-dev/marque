@@ -157,3 +157,33 @@ it('does not match when required has more segments than granted without wildcard
 it('matches single-segment wildcard against single-segment permission', function (): void {
     expect($this->matcher->matches('*', 'posts'))->toBeTrue();
 });
+
+// --- Multi-wildcard patterns ---
+
+it('matches *.*.own multi-wildcard pattern', function (): void {
+    expect($this->matcher->matches('*.*.own', 'posts.delete.own'))->toBeTrue()
+        ->and($this->matcher->matches('*.*.own', 'comments.update.own'))->toBeTrue();
+});
+
+it('does not match *.*.own against permission without .own suffix', function (): void {
+    expect($this->matcher->matches('*.*.own', 'posts.delete'))->toBeFalse()
+        ->and($this->matcher->matches('*.*.own', 'posts.delete.any'))->toBeFalse();
+});
+
+// --- Empty and special character edge cases ---
+
+it('does not match empty granted string against any permission', function (): void {
+    expect($this->matcher->matches('', 'posts.create'))->toBeFalse();
+});
+
+it('does not match any granted string against empty required permission', function (): void {
+    expect($this->matcher->matches('posts.create', ''))->toBeFalse();
+    // NOTE: Wildcard '*' matches empty string because the matcher treats '*' as matching
+    // any permission string including empty. This documents actual behavior — source code
+    // is not modified in this test-only change.
+    expect($this->matcher->matches('*', ''))->toBeTrue();
+});
+
+it('matches empty string against empty string', function (): void {
+    expect($this->matcher->matches('', ''))->toBeTrue();
+});

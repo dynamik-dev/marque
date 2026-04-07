@@ -58,7 +58,6 @@ class DefaultEvaluator implements Evaluator
             }
         }
 
-        // Deny wins: if any deny permission matches the required permission, deny.
         foreach ($denies as $deny) {
             if ($this->matcher->matches(substr($deny, 1), $requiredPermission)) {
                 $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
@@ -169,6 +168,35 @@ class DefaultEvaluator implements Evaluator
             }
         }
 
+        if ($scope === null && config('policy-engine.enforce_boundaries_on_global')) {
+            $allBoundaries = $this->boundaries->all();
+
+            if ($allBoundaries->isNotEmpty()) {
+                $passesAny = false;
+                foreach ($allBoundaries as $boundary) {
+                    if ($this->matchesAny($boundary->max_permissions, $requiredPermission)) {
+                        $passesAny = true;
+                        break;
+                    }
+                }
+
+                if (! $passesAny) {
+                    $boundaryNote = 'Denied by global boundary enforcement (enforce_boundaries_on_global enabled)';
+
+                    return new EvaluationTrace(
+                        subject: $subjectType.':'.$subjectId,
+                        required: $requiredPermission,
+                        result: $result,
+                        assignments: $traceAssignments,
+                        boundary: $boundaryNote,
+                        cacheHit: false,
+                    );
+                }
+
+                $boundaryNote = 'Passed global boundary enforcement';
+            }
+        }
+
         foreach ($denies as $deny) {
             if ($this->matcher->matches(substr($deny, 1), $requiredPermission)) {
                 return new EvaluationTrace(
@@ -182,7 +210,6 @@ class DefaultEvaluator implements Evaluator
             }
         }
 
-        // Allow check.
         foreach ($allows as $allow) {
             if ($this->matcher->matches($allow, $requiredPermission)) {
                 $result = EvaluationResult::Allow;
@@ -275,7 +302,11 @@ class DefaultEvaluator implements Evaluator
     private function passesBoundaryCheck(?string $scope, string $requiredPermission): bool
     {
         if ($scope === null) {
-            return true;
+            if (! config('policy-engine.enforce_boundaries_on_global')) {
+                return true;
+            }
+
+            return $this->passesGlobalBoundaryCheck($requiredPermission);
         }
 
         $boundary = $this->boundaries->find($scope);
@@ -285,6 +316,30 @@ class DefaultEvaluator implements Evaluator
         }
 
         return ! config('policy-engine.deny_unbounded_scopes');
+    }
+
+    /**
+     * Check whether a permission passes boundary checks across all defined boundaries.
+     *
+     * When enforce_boundaries_on_global is enabled, global (unscoped) checks must
+     * pass at least one boundary's max_permissions. If no boundaries exist at all,
+     * the check passes (no boundaries means no restrictions).
+     */
+    private function passesGlobalBoundaryCheck(string $requiredPermission): bool
+    {
+        $allBoundaries = $this->boundaries->all();
+
+        if ($allBoundaries->isEmpty()) {
+            return true;
+        }
+
+        foreach ($allBoundaries as $boundary) {
+            if ($this->matchesAny($boundary->max_permissions, $requiredPermission)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -10,7 +10,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('permissions', function (Blueprint $table): void {
+        $prefix = config('policy-engine.table_prefix', '');
+
+        Schema::create($prefix.'permissions', function (Blueprint $table): void {
             $table->string('id')->primary();
             $table->string('description')->nullable();
             $table->timestamps();
@@ -19,6 +21,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('permissions');
+        Schema::dropIfExists(config('policy-engine.table_prefix', '').'permissions');
     }
 };

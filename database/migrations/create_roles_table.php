@@ -10,7 +10,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('roles', function (Blueprint $table): void {
+        $prefix = config('policy-engine.table_prefix', '');
+
+        Schema::create($prefix.'roles', function (Blueprint $table): void {
             $table->string('id')->primary();
             $table->string('name');
             $table->boolean('is_system')->default(false);
@@ -20,6 +22,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('roles');
+        Schema::dropIfExists(config('policy-engine.table_prefix', '').'roles');
     }
 };

@@ -228,3 +228,62 @@ it('allows scoped permission when no boundary exists and deny_unbounded_scopes i
 
     expect($evaluator->can('App\\Models\\User', 1, 'posts.create:company::99'))->toBeTrue();
 });
+
+// --- Finding 8: Wildcard deny across roles in scoped context ---
+
+it('denies wildcard-denied permission even when another role grants it in scoped context', function (): void {
+    $this->permissionStore->register(['billing.view', 'billing.refund']);
+    $this->roleStore->save('billing-admin', 'Billing Admin', ['billing.*']);
+    $this->roleStore->save('refund-restricted', 'Refund Restricted', ['!billing.refund']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'billing-admin', 'org::1');
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'refund-restricted', 'org::1');
+
+    $evaluator = new DefaultEvaluator(
+        assignments: $this->assignmentStore,
+        roles: $this->roleStore,
+        boundaries: $this->boundaryStore,
+        matcher: new WildcardMatcher,
+    );
+
+    expect($evaluator->can('App\\Models\\User', 1, 'billing.refund:org::1'))->toBeFalse()
+        ->and($evaluator->can('App\\Models\\User', 1, 'billing.view:org::1'))->toBeTrue();
+});
+
+// --- Finding 9: Full wildcard grant with wildcard deny ---
+
+it('denies posts.* when full wildcard grant exists but posts deny rule present', function (): void {
+    $this->permissionStore->register(['posts.create', 'billing.manage']);
+    $this->roleStore->save('superadmin', 'Super Admin', ['*.*']);
+    $this->roleStore->save('no-posts', 'No Posts', ['!posts.*']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'superadmin');
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'no-posts');
+
+    $evaluator = new DefaultEvaluator(
+        assignments: $this->assignmentStore,
+        roles: $this->roleStore,
+        boundaries: $this->boundaryStore,
+        matcher: new WildcardMatcher,
+    );
+
+    expect($evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeFalse()
+        ->and($evaluator->can('App\\Models\\User', 1, 'billing.manage'))->toBeTrue();
+});
+
+// --- Finding 10: Boundary enforcement on global assignment checking scoped permission ---
+
+it('enforces boundary on scoped check even when user has global wildcard assignment', function (): void {
+    $this->permissionStore->register(['posts.create', 'billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['*.*']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'admin');
+    $this->boundaryStore->set('org::acme', ['posts.*']);
+
+    $evaluator = new DefaultEvaluator(
+        assignments: $this->assignmentStore,
+        roles: $this->roleStore,
+        boundaries: $this->boundaryStore,
+        matcher: new WildcardMatcher,
+    );
+
+    expect($evaluator->can('App\\Models\\User', 1, 'billing.manage:org::acme'))->toBeFalse()
+        ->and($evaluator->can('App\\Models\\User', 1, 'posts.create:org::acme'))->toBeTrue();
+});

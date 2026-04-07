@@ -244,8 +244,7 @@ it('returns all effective permissions for a subject', function (): void {
 
     $permissions = $this->evaluator->effectivePermissions('App\\Models\\User', 1);
 
-    expect($permissions)->toContain('posts.create', 'posts.read', 'posts.delete')
-        ->toHaveCount(3);
+    expect($permissions)->toEqualCanonicalizing(['posts.create', 'posts.read', 'posts.delete']);
 });
 
 it('excludes denied permissions from effective set', function (): void {
@@ -274,8 +273,7 @@ it('returns scoped effective permissions including global assignments', function
 
     $permissions = $this->evaluator->effectivePermissions('App\\Models\\User', 1, 'team::5');
 
-    expect($permissions)->toContain('posts.read', 'posts.create')
-        ->not->toContain('billing.manage');
+    expect($permissions)->toEqualCanonicalizing(['posts.read', 'posts.create']);
 });
 
 it('excludes permissions blocked by boundary from scoped effective set', function (): void {
@@ -756,4 +754,107 @@ it('uses batched role permission loading when the role store supports it', funct
     expect($evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
     expect($spyRoleStore->batchCalls)->toBe(1)
         ->and($spyRoleStore->singleCalls)->toBe(0);
+});
+
+// --- enforce_boundaries_on_global ---
+
+it('allows global permission when enforce_boundaries_on_global is disabled (default)', function (): void {
+    config()->set('policy-engine.enforce_boundaries_on_global', false);
+
+    $this->permissionStore->register(['billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['*.*']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'admin');
+    $this->boundaryStore->set('team::5', ['posts.*']);
+
+    expect($this->evaluator->can('App\\Models\\User', 1, 'billing.manage'))->toBeTrue();
+});
+
+it('denies global permission blocked by all boundaries when enforce_boundaries_on_global is enabled', function (): void {
+    config()->set('policy-engine.enforce_boundaries_on_global', true);
+
+    $this->permissionStore->register(['billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['*.*']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'admin');
+    $this->boundaryStore->set('team::5', ['posts.*']);
+
+    expect($this->evaluator->can('App\\Models\\User', 1, 'billing.manage'))->toBeFalse();
+});
+
+it('allows global permission matching at least one boundary when enforce_boundaries_on_global is enabled', function (): void {
+    config()->set('policy-engine.enforce_boundaries_on_global', true);
+
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('admin', 'Admin', ['*.*']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'admin');
+    $this->boundaryStore->set('team::5', ['posts.*']);
+    $this->boundaryStore->set('org::acme', ['billing.*']);
+
+    expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
+});
+
+it('allows global permission when enforce_boundaries_on_global is enabled but no boundaries exist', function (): void {
+    config()->set('policy-engine.enforce_boundaries_on_global', true);
+
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+
+    expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
+});
+
+it('explain returns deny trace with global boundary note when enforce_boundaries_on_global blocks', function (): void {
+    config()->set('policy-engine.explain', true);
+    config()->set('policy-engine.enforce_boundaries_on_global', true);
+
+    $this->permissionStore->register(['billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['*.*']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'admin');
+    $this->boundaryStore->set('team::5', ['posts.*']);
+
+    $trace = $this->evaluator->explain('App\\Models\\User', 1, 'billing.manage');
+
+    expect($trace)
+        ->result->toBe(EvaluationResult::Deny)
+        ->boundary->toContain('global boundary enforcement');
+});
+
+it('explain returns allow trace with global boundary note when enforce_boundaries_on_global passes', function (): void {
+    config()->set('policy-engine.explain', true);
+    config()->set('policy-engine.enforce_boundaries_on_global', true);
+
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('admin', 'Admin', ['*.*']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'admin');
+    $this->boundaryStore->set('team::5', ['posts.*']);
+
+    $trace = $this->evaluator->explain('App\\Models\\User', 1, 'posts.create');
+
+    expect($trace)
+        ->result->toBe(EvaluationResult::Allow)
+        ->boundary->toContain('global boundary enforcement');
+});
+
+it('filters effective permissions by global boundaries when enforce_boundaries_on_global is enabled', function (): void {
+    config()->set('policy-engine.enforce_boundaries_on_global', true);
+
+    $this->permissionStore->register(['posts.create', 'billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['posts.create', 'billing.manage']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'admin');
+    $this->boundaryStore->set('team::5', ['posts.*']);
+
+    $permissions = $this->evaluator->effectivePermissions('App\\Models\\User', 1);
+
+    expect($permissions)->toContain('posts.create')
+        ->not->toContain('billing.manage');
+});
+
+// --- Empty boundary max_permissions ---
+
+it('denies all permissions when boundary has empty max_permissions array', function (): void {
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor', 'org::acme');
+    $this->boundaryStore->set('org::acme', []);
+
+    expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create:org::acme'))->toBeFalse();
 });

@@ -45,10 +45,8 @@ class DefaultDocumentExporter implements DocumentExporter
      */
     private function exportPermissions(): array
     {
-        /** @var array<int, string> $ids */
-        $ids = $this->permissionStore->all()->pluck('id')->all();
-
-        return $ids;
+        /** @var array<int, string> */
+        return $this->permissionStore->all()->pluck('id')->all();
     }
 
     /**

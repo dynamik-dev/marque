@@ -16,8 +16,10 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 class Assignment extends Model
 {
-    /** @var string */
-    protected $table = 'assignments';
+    public function getTable(): string
+    {
+        return $this->table ??= config('policy-engine.table_prefix', '').'assignments';
+    }
 
     /** @var list<string> */
     protected $fillable = [

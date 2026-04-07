@@ -87,6 +87,36 @@ When enabled, scoped permission checks fail closed if no boundary exists for tha
 
 ---
 
+### `enforce_boundaries_on_global`
+
+Apply boundary checks to unscoped (global) permission evaluations.
+
+- **Type:** `bool`
+- **Default:** `false`
+
+By default, global assignments are inherently unbounded — boundaries only restrict scoped checks. When enabled, the evaluator applies boundary filtering even when no scope is present. This means a user with global `*.*` can still be restricted by boundaries defined on scopes they access.
+
+Enable this in multi-tenant applications where global roles should not bypass scope-level permission ceilings. Be aware that enabling this requires boundaries to exist for every scope the subject might access; missing boundaries may cause unexpected denials (unless `deny_unbounded_scopes` is also `false`).
+
+---
+
+### `table_prefix`
+
+Prefix prepended to all policy-engine database table names.
+
+- **Type:** `string`
+- **Default:** `''` (empty string)
+
+Useful when another package (e.g. Spatie Permission, Bouncer) already uses generic table names like `permissions` or `roles`. Set to `'pe_'` to produce tables named `pe_permissions`, `pe_roles`, `pe_assignments`, `pe_boundaries`, and `pe_role_permissions`.
+
+```php
+'table_prefix' => 'pe_',
+```
+
+After changing the prefix, you must re-run migrations. If you are adding the prefix to an existing installation, rename the existing tables first or create a migration to rename them.
+
+---
+
 ### `document_path`
 
 Restrict import/export file paths to a specific directory.
@@ -95,17 +125,6 @@ Restrict import/export file paths to a specific directory.
 - **Default:** `null`
 
 When set, paths used by `PrimitivesManager::import()`, `PrimitivesManager::exportToFile()`, and `php artisan primitives:export --path=...` must resolve inside this directory. Paths outside it throw `InvalidArgumentException`.
-
----
-
-### `document_format`
-
-The format used for policy document parsing.
-
-- **Type:** `string`
-- **Default:** `'json'`
-
-Currently only `'json'` is supported out of the box. Swap the `DocumentParser` binding to support other formats like YAML or TOML.
 
 ---
 
@@ -144,8 +163,9 @@ return [
     'log_denials' => true,
     'explain' => env('POLICY_ENGINE_EXPLAIN', false),
     'deny_unbounded_scopes' => false,
+    'enforce_boundaries_on_global' => false,
+    'table_prefix' => '',
     'document_path' => null,
-    'document_format' => 'json',
     'gate_passthrough' => [],
 ];
 ```

@@ -10,7 +10,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('boundaries', function (Blueprint $table): void {
+        $prefix = config('policy-engine.table_prefix', '');
+
+        Schema::create($prefix.'boundaries', function (Blueprint $table): void {
             $table->id();
             $table->string('scope')->unique();
             $table->json('max_permissions');
@@ -20,6 +22,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('boundaries');
+        Schema::dropIfExists(config('policy-engine.table_prefix', '').'boundaries');
     }
 };

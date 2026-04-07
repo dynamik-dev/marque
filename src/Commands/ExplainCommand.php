@@ -7,7 +7,9 @@ namespace DynamikDev\PolicyEngine\Commands;
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
 use DynamikDev\PolicyEngine\Enums\EvaluationResult;
+use DynamikDev\PolicyEngine\Support\SubjectParser;
 use Illuminate\Console\Command;
+use InvalidArgumentException;
 use RuntimeException;
 
 class ExplainCommand extends Command
@@ -27,9 +29,9 @@ class ExplainCommand extends Command
             return self::FAILURE;
         }
 
-        [$subjectType, $subjectId] = $this->parseSubject($subjectArg);
-
-        if ($subjectType === null || $subjectId === null) {
+        try {
+            [$subjectType, $subjectId] = SubjectParser::parse($subjectArg);
+        } catch (InvalidArgumentException) {
             $this->error("Invalid subject format. Expected 'type::id' (e.g., user::42).");
 
             return self::FAILURE;
@@ -52,24 +54,6 @@ class ExplainCommand extends Command
         $this->renderTrace($trace);
 
         return self::SUCCESS;
-    }
-
-    /**
-     * @return array{?string, ?string}
-     */
-    private function parseSubject(string $subject): array
-    {
-        if (! str_contains($subject, '::')) {
-            return [null, null];
-        }
-
-        $parts = explode('::', $subject, 2);
-
-        if ($parts[0] === '' || $parts[1] === '') {
-            return [null, null];
-        }
-
-        return [$parts[0], $parts[1]];
     }
 
     private function buildPermissionString(string $permission, ?string $scope): string

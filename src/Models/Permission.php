@@ -9,10 +9,12 @@ use Illuminate\Database\Eloquent\Model;
 class Permission extends Model
 {
     /** @var string */
-    protected $table = 'permissions';
-
-    /** @var string */
     protected $primaryKey = 'id';
+
+    public function getTable(): string
+    {
+        return $this->table ??= config('policy-engine.table_prefix', '').'permissions';
+    }
 
     /** @var string */
     protected $keyType = 'string';

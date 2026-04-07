@@ -9,8 +9,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RolePermission extends Model
 {
-    /** @var string */
-    protected $table = 'role_permissions';
+    public function getTable(): string
+    {
+        return $this->table ??= config('policy-engine.table_prefix', '').'role_permissions';
+    }
 
     /** @var bool */
     public $incrementing = false;

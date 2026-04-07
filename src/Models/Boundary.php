@@ -12,8 +12,10 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Boundary extends Model
 {
-    /** @var string */
-    protected $table = 'boundaries';
+    public function getTable(): string
+    {
+        return $this->table ??= config('policy-engine.table_prefix', '').'boundaries';
+    }
 
     /** @var list<string> */
     protected $fillable = [

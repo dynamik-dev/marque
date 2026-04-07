@@ -15,10 +15,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Role extends Model
 {
     /** @var string */
-    protected $table = 'roles';
-
-    /** @var string */
     protected $primaryKey = 'id';
+
+    public function getTable(): string
+    {
+        return $this->table ??= config('policy-engine.table_prefix', '').'roles';
+    }
 
     /** @var string */
     protected $keyType = 'string';
@@ -50,7 +52,7 @@ class Role extends Model
     {
         return $this->belongsToMany(
             related: Permission::class,
-            table: 'role_permissions',
+            table: config('policy-engine.table_prefix', '').'role_permissions',
             foreignPivotKey: 'role_id',
             relatedPivotKey: 'permission_id',
         );

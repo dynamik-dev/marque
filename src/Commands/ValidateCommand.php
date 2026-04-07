@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace DynamikDev\PolicyEngine\Commands;
 
 use DynamikDev\PolicyEngine\Contracts\DocumentParser;
+use DynamikDev\PolicyEngine\Support\PathValidator;
 use Illuminate\Console\Command;
+use InvalidArgumentException;
 
 class ValidateCommand extends Command
 {
@@ -29,7 +31,15 @@ class ValidateCommand extends Command
             return self::FAILURE;
         }
 
-        $content = file_get_contents($pathArg);
+        try {
+            $validatedPath = PathValidator::validate($pathArg);
+        } catch (InvalidArgumentException $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
+
+        $content = file_get_contents($validatedPath);
 
         if ($content === false) {
             $this->error("Could not read file: {$pathArg}");

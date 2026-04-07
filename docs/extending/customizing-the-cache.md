@@ -77,6 +77,116 @@ app(CacheManager::class)
     ->flush();
 ```
 
+## Understanding the cache race window
+
+The `CachedEvaluator` uses a cache-aside pattern: check the cache, miss, query the database, write the result back. A narrow race condition exists between the cache miss and the cache write.
+
+Here is the scenario step by step:
+
+1. Request A checks the cache for `posts.delete` and gets a miss.
+2. Request A begins querying the database to evaluate the permission.
+3. Request B revokes the user's `editor` role and fires `AssignmentRevoked`, which flushes the cache.
+4. Request A finishes its evaluation with the now-stale role data, writes `true` to the cache, and the stale result persists for the full TTL.
+
+This is inherent to the cache-aside pattern, not a bug. The race window is small (milliseconds) and requires exact timing to trigger. For most applications, the default 1-hour TTL with event-based invalidation is sufficient. The sections below describe mitigations for security-critical workloads.
+
+### Reducing the TTL
+
+A shorter TTL limits how long a stale result can persist after the race occurs.
+
+```php
+// config/policy-engine.php
+'cache' => [
+    'ttl' => 60 * 5, // 5 minutes
+],
+```
+
+For security-critical applications, 5 minutes or less keeps the exposure window tight. The tradeoff is more frequent database queries when cached results expire.
+
+### Using a dedicated cache store
+
+A dedicated Redis database (or separate store) for policy-engine cache isolates invalidation from your application cache. This prevents a `flush()` on a non-tagged store from clearing unrelated entries, and keeps policy-engine cache behavior predictable.
+
+```php
+// config/cache.php
+'stores' => [
+    'policy' => [
+        'driver' => 'redis',
+        'connection' => 'policy',
+    ],
+],
+
+// config/database.php
+'redis' => [
+    'policy' => [
+        'url' => env('REDIS_URL'),
+        'host' => env('REDIS_HOST', '127.0.0.1'),
+        'port' => env('REDIS_PORT', '6379'),
+        'database' => env('REDIS_POLICY_DB', '2'),
+    ],
+],
+```
+
+```php
+// config/policy-engine.php
+'cache' => [
+    'store' => 'policy',
+],
+```
+
+> If your cache driver supports tags (Redis, Memcached), the package already uses a `policy-engine` tag for scoped invalidation. A dedicated store is most useful for drivers that do not support tags, like the `file` or `database` drivers.
+
+### Implementing a version-counter strategy
+
+For workloads where even a millisecond-level race is unacceptable, implement a custom `Evaluator` that uses a version counter. The counter increments on every authorization change, so a stale write from a pre-increment evaluation is never read.
+
+```php
+use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
+use Illuminate\Cache\CacheManager;
+
+class VersionedCachedEvaluator implements Evaluator
+{
+    public function __construct(
+        private readonly DefaultEvaluator $inner,
+        private readonly CacheManager $cache,
+    ) {}
+
+    public function can(string $subjectType, string|int $subjectId, string $permission): bool
+    {
+        $store = $this->cache->store();
+        $version = (int) $store->get('policy-engine:version', 0);
+        $cacheKey = "policy-engine:v{$version}:{$subjectType}:{$subjectId}:{$permission}";
+
+        return $store->remember($cacheKey, 3600, function () use ($subjectType, $subjectId, $permission): bool {
+            return $this->inner->can($subjectType, $subjectId, $permission);
+        });
+    }
+
+    // ... implement explain() and effectivePermissions() by delegating to $this->inner
+}
+```
+
+Increment the version counter in your event listener whenever authorization state changes:
+
+```php
+Cache::increment('policy-engine:version');
+```
+
+Old versioned keys expire naturally via TTL. New evaluations always read the current version, so stale writes under a previous version number are invisible.
+
+> This strategy trades cache storage (old version keys linger until TTL) for correctness. It works best with Redis or another store that handles TTL-based eviction efficiently.
+
+### Accepting the tradeoff
+
+For most applications, no mitigation is needed. The race requires all of the following to align:
+
+- A cache miss on the exact permission being revoked
+- A revocation event firing during the milliseconds between the miss and the cache write
+- The stale write completing after the flush
+
+The default 1-hour TTL with event-based invalidation covers the vast majority of use cases. If a revocation must take effect instantly across all in-flight requests, consider disabling the cache entirely for that operation using [the `enabled` config flag](#disabling-the-cache-entirely) or binding the `DefaultEvaluator` directly.
+
 ## Replacing the caching strategy
 
 If you need per-subject cache keys, tagged caches, or a completely different strategy, bind your own `Evaluator`:

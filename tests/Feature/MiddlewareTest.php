@@ -24,6 +24,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Laravel\Sanctum\HasApiTokens;
+use Laravel\Sanctum\PersonalAccessToken;
 
 uses(RefreshDatabase::class);
 
@@ -44,6 +46,19 @@ class MiddlewareTestUser extends Authenticatable
  */
 class MiddlewareTestUserWithoutTrait extends Authenticatable
 {
+    protected $table = 'middleware_test_users';
+
+    protected $guarded = [];
+}
+
+/**
+ * A minimal authenticatable model with HasPermissions AND HasApiTokens for Sanctum middleware testing.
+ */
+class MiddlewareTestSanctumUser extends Authenticatable
+{
+    use HasApiTokens;
+    use HasPermissions;
+
     protected $table = 'middleware_test_users';
 
     protected $guarded = [];
@@ -263,12 +278,25 @@ it('role middleware denies request when user lacks the role in scope', function 
         ->assertForbidden();
 });
 
-it('role middleware checks only scoped assignments when scope is provided', function (): void {
+it('role middleware allows request when user has global role and scope is provided', function (): void {
     Route::middleware('role:editor,scope')
         ->get('/test/{scope}', fn (string $scope) => response()->json(['ok' => true]));
 
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
     // Assign globally but not in specific scope.
+    $this->user->assign('editor');
+
+    $this->actingAs($this->user)
+        ->getJson('/test/team::'.$this->team->getKey())
+        ->assertOk();
+});
+
+it('role middleware denies request when user lacks the role in both global and scoped context', function (): void {
+    Route::middleware('role:admin,scope')
+        ->get('/test/{scope}', fn (string $scope) => response()->json(['ok' => true]));
+
+    $this->roleStore->save('admin', 'Admin', ['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.read']);
     $this->user->assign('editor');
 
     $this->actingAs($this->user)
@@ -312,4 +340,43 @@ it('can_do middleware still allows request when user with HasPermissions trait h
     $this->actingAs($this->user)
         ->getJson('/test')
         ->assertOk();
+});
+
+// --- CanDoMiddleware: Sanctum token scoping ---
+
+it('can_do middleware denies when Sanctum token lacks the required ability', function (): void {
+    Route::middleware('can_do:posts.create')->get('/sanctum-test', fn () => response()->json(['ok' => true]));
+
+    $this->permissionStore->register(['posts.create', 'posts.read']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read']);
+
+    $sanctumUser = MiddlewareTestSanctumUser::query()->create(['name' => 'Token User']);
+    $this->assignmentStore->assign($sanctumUser->getMorphClass(), $sanctumUser->getKey(), 'editor');
+
+    $token = new PersonalAccessToken;
+    $token->abilities = ['posts.read'];
+    $sanctumUser->withAccessToken($token);
+
+    $this->actingAs($sanctumUser)
+        ->getJson('/sanctum-test')
+        ->assertForbidden();
+});
+
+it('can_do middleware allows when Sanctum token includes the required ability', function (): void {
+    Route::middleware('can_do:posts.create')->get('/sanctum-test', fn () => response()->json(['ok' => true]));
+
+    $this->permissionStore->register(['posts.create', 'posts.read']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read']);
+
+    $sanctumUser = MiddlewareTestSanctumUser::query()->create(['name' => 'Token User']);
+    $this->assignmentStore->assign($sanctumUser->getMorphClass(), $sanctumUser->getKey(), 'editor');
+
+    $token = new PersonalAccessToken;
+    $token->abilities = ['posts.create', 'posts.read'];
+    $sanctumUser->withAccessToken($token);
+
+    $this->actingAs($sanctumUser)
+        ->getJson('/sanctum-test')
+        ->assertOk()
+        ->assertJson(['ok' => true]);
 });

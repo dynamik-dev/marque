@@ -95,3 +95,32 @@ Boundary patterns use the same wildcard matching as permissions:
 - **Regulatory compliance** — certain scopes are structurally prevented from accessing specific resources
 
 > Boundaries are checked per-scope. If a user has roles in multiple scopes, each scope's boundary applies independently. A permission allowed in one scope can be blocked by a different scope's boundary.
+
+## Enforcing boundaries on global checks
+
+By default, global (unscoped) assignments bypass all boundary checks. A user with a global `admin` role can exercise any permission without scope restrictions, even if boundaries exist on every scope.
+
+The `enforce_boundaries_on_global` config option changes this behavior. When enabled, unscoped permission checks must pass at least one boundary's `max_permissions` to be allowed.
+
+```php
+// config/policy-engine.php
+'enforce_boundaries_on_global' => true,
+```
+
+With this enabled:
+
+```php
+Primitives::boundary('team::5', ['posts.*']);
+Primitives::boundary('org::acme', ['billing.*']);
+
+Primitives::role('admin', 'Admin')->grant(['*.*']);
+$user->assign('admin'); // global assignment, no scope
+
+$user->canDo('posts.create');     // true — matches team::5 boundary
+$user->canDo('billing.manage');   // true — matches org::acme boundary
+$user->canDo('members.remove');   // false — no boundary allows it
+```
+
+If no boundaries are defined at all, global checks still pass. The restriction only applies when at least one boundary exists.
+
+This is recommended for multi-tenant applications where global roles should not bypass scope ceilings. It prevents a globally-assigned admin from accessing permissions that no scope has been configured to allow.

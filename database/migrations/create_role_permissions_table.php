@@ -10,7 +10,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('role_permissions', function (Blueprint $table): void {
+        $prefix = config('policy-engine.table_prefix', '');
+
+        Schema::create($prefix.'role_permissions', function (Blueprint $table) use ($prefix): void {
             $table->string('role_id');
             $table->string('permission_id');
 
@@ -18,18 +20,18 @@ return new class extends Migration
 
             $table->foreign('role_id')
                 ->references('id')
-                ->on('roles')
+                ->on($prefix.'roles')
                 ->cascadeOnDelete();
 
             $table->foreign('permission_id')
                 ->references('id')
-                ->on('permissions')
+                ->on($prefix.'permissions')
                 ->cascadeOnDelete();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('role_permissions');
+        Schema::dropIfExists(config('policy-engine.table_prefix', '').'role_permissions');
     }
 };

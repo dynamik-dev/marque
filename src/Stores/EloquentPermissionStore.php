@@ -78,8 +78,11 @@ class EloquentPermissionStore implements PermissionStore
 
         $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $prefix);
 
+        // whereRaw is necessary here because Laravel's ->where('like') does not
+        // support the ESCAPE clause, which is required for correct handling of
+        // user-supplied prefixes containing '%' or '_' characters.
         return Permission::query()
-            ->whereRaw("\"id\" like ? escape '\\'", [$escaped.'.%'])
+            ->whereRaw("id like ? escape '\\'", [$escaped.'.%'])
             ->get();
     }
 

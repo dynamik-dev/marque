@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine\Commands;
 
+use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Cache\Repository;
 use Illuminate\Console\Command;
@@ -16,10 +17,7 @@ class CacheClearCommand extends Command
 
     public function handle(CacheManager $cache): int
     {
-        /** @var string $storeName */
-        $storeName = config('policy-engine.cache.store', 'default');
-
-        $store = $cache->store($storeName === 'default' ? null : $storeName);
+        $store = CacheStoreResolver::store($cache);
 
         if ($store instanceof Repository && $store->supportsTags()) {
             $store->tags(['policy-engine'])->flush();

@@ -18,6 +18,7 @@ use DynamikDev\PolicyEngine\Models\Boundary;
 use DynamikDev\PolicyEngine\Models\Permission;
 use DynamikDev\PolicyEngine\Models\Role;
 use DynamikDev\PolicyEngine\Models\RolePermission;
+use DynamikDev\PolicyEngine\Support\SubjectParser;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
 use InvalidArgumentException;
@@ -47,8 +48,8 @@ class DefaultDocumentImporter implements DocumentImporter
 
         $permissionsCreated = $this->importPermissions($document, $options, $isReplace);
         $rolesResult = $this->importRoles($document, $options, $isReplace);
-        $this->importBoundaries($document, $options, $isReplace);
-        $assignmentsCreated = $this->importAssignments($document, $options, $isReplace);
+        $this->importBoundaries($document, $options);
+        $assignmentsCreated = $this->importAssignments($document, $options);
 
         $warnings = [...$warnings, ...$rolesResult['warnings']];
 
@@ -167,7 +168,7 @@ class DefaultDocumentImporter implements DocumentImporter
     /**
      * Import boundaries from the document.
      */
-    private function importBoundaries(PolicyDocument $document, ImportOptions $options, bool $isReplace): void
+    private function importBoundaries(PolicyDocument $document, ImportOptions $options): void
     {
         if ($options->dryRun) {
             return;
@@ -181,7 +182,7 @@ class DefaultDocumentImporter implements DocumentImporter
     /**
      * Import assignments from the document.
      */
-    private function importAssignments(PolicyDocument $document, ImportOptions $options, bool $isReplace): int
+    private function importAssignments(PolicyDocument $document, ImportOptions $options): int
     {
         if ($options->skipAssignments) {
             return 0;
@@ -194,7 +195,7 @@ class DefaultDocumentImporter implements DocumentImporter
         $allowedTypes = $this->buildAllowedSubjectTypes();
 
         foreach ($document->assignments as $assignment) {
-            [$subjectType, $subjectId] = $this->parseSubject($assignment['subject']);
+            [$subjectType, $subjectId] = SubjectParser::parse($assignment['subject']);
 
             $this->validateSubjectType($subjectType, $allowedTypes);
 
@@ -207,25 +208,6 @@ class DefaultDocumentImporter implements DocumentImporter
         }
 
         return count($document->assignments);
-    }
-
-    /**
-     * Parse a subject string in the format "type::id" into its components.
-     *
-     * @return array{0: string, 1: string}
-     */
-    private function parseSubject(string $subject): array
-    {
-        $separatorPos = strpos($subject, '::');
-
-        if ($separatorPos === false) {
-            throw new InvalidArgumentException("Malformed subject string [{$subject}]. Expected format: 'type::id'.");
-        }
-
-        return [
-            substr($subject, 0, $separatorPos),
-            substr($subject, $separatorPos + 2),
-        ];
     }
 
     /**
