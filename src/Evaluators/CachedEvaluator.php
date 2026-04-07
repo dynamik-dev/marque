@@ -7,6 +7,7 @@ namespace DynamikDev\PolicyEngine\Evaluators;
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
 use Illuminate\Cache\CacheManager;
+use Illuminate\Cache\Repository;
 
 class CachedEvaluator implements Evaluator
 {
@@ -65,7 +66,13 @@ class CachedEvaluator implements Evaluator
         /** @var string $storeName */
         $storeName = config('policy-engine.cache.store', 'default');
 
-        return $this->cache->store($storeName === 'default' ? null : $storeName);
+        $store = $this->cache->store($storeName === 'default' ? null : $storeName);
+
+        if ($store instanceof Repository && $store->supportsTags()) {
+            return $store->tags(['policy-engine']);
+        }
+
+        return $store;
     }
 
     private function ttl(): int

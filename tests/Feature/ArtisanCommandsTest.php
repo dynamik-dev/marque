@@ -439,11 +439,28 @@ it('exports scoped authorization state', function (): void {
 
 // --- primitives:cache-clear ---
 
-it('clears the policy engine cache', function (): void {
+it('clears the policy engine cache using tags when supported', function (): void {
     config()->set('policy-engine.cache.store', 'array');
 
     $this->artisan('primitives:cache-clear')
-        ->expectsOutputToContain('cache cleared')
+        ->expectsOutputToContain('cache cleared (tagged)')
+        ->assertSuccessful();
+});
+
+it('clears the policy engine cache with --force on untaggable store', function (): void {
+    config()->set('policy-engine.cache.store', 'file');
+
+    $this->artisan('primitives:cache-clear', ['--force' => true])
+        ->expectsOutputToContain('full store flush')
+        ->assertSuccessful();
+});
+
+it('aborts cache clear when user declines confirmation on untaggable store', function (): void {
+    config()->set('policy-engine.cache.store', 'file');
+
+    $this->artisan('primitives:cache-clear')
+        ->expectsConfirmation('Cache driver does not support tags. This will clear the entire cache store. Continue?', 'no')
+        ->expectsOutput('Aborted.')
         ->assertSuccessful();
 });
 

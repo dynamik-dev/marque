@@ -6,9 +6,13 @@ use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Events\AssignmentCreated;
+use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
+use DynamikDev\PolicyEngine\Events\RoleDeleted;
 use DynamikDev\PolicyEngine\Events\RoleUpdated;
 use DynamikDev\PolicyEngine\Listeners\InvalidatePermissionCache;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
+use DynamikDev\PolicyEngine\Models\Assignment;
+use DynamikDev\PolicyEngine\Models\Role;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
@@ -52,9 +56,9 @@ it('resolves permissions on cache miss and caches the result', function (): void
 
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 
-    // Verify the result was cached per permission.
+    // Verify the result was cached per permission (tagged store for array driver).
     $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
-    $cached = $this->cacheManager->store('array')->get($cacheKey);
+    $cached = $this->cacheManager->store('array')->tags(['policy-engine'])->get($cacheKey);
 
     expect($cached)->toBeTrue();
 });
@@ -73,9 +77,9 @@ it('serves from cache on subsequent calls', function (): void {
     $this->assignmentStore->revoke('App\\Models\\User', 1, 'editor');
 
     // Without invalidation, the cached result persists.
-    // Manually re-set the cached value.
+    // Manually re-set the cached value in the tagged store (array driver supports tags).
     $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
-    $this->cacheManager->store('array')->put($cacheKey, true, 3600);
+    $this->cacheManager->store('array')->tags(['policy-engine'])->put($cacheKey, true, 3600);
 
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 });
@@ -86,15 +90,15 @@ it('invalidates cache when an assignment is created', function (): void {
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
 
-    // Pre-populate cache with a deny result (no assignments yet).
+    // Pre-populate cache with a deny result in the tagged store (no assignments yet).
     $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
-    $this->cacheManager->store('array')->put($cacheKey, false, 3600);
+    $this->cacheManager->store('array')->tags(['policy-engine'])->put($cacheKey, false, 3600);
 
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeFalse();
 
     // Create assignment and fire listener manually.
     $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
-    $assignment = \DynamikDev\PolicyEngine\Models\Assignment::query()->first();
+    $assignment = Assignment::query()->first();
 
     $listener = new InvalidatePermissionCache($this->cacheManager);
     $listener->handle(new AssignmentCreated($assignment));
@@ -112,11 +116,11 @@ it('invalidates cache when an assignment is revoked', function (): void {
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 
     // Revoke and fire listener.
-    $assignment = \DynamikDev\PolicyEngine\Models\Assignment::query()->first();
+    $assignment = Assignment::query()->first();
     $this->assignmentStore->revoke('App\\Models\\User', 1, 'editor');
 
     $listener = new InvalidatePermissionCache($this->cacheManager);
-    $listener->handle(new \DynamikDev\PolicyEngine\Events\AssignmentRevoked($assignment));
+    $listener->handle(new AssignmentRevoked($assignment));
 
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeFalse();
 });
@@ -133,7 +137,7 @@ it('invalidates cache when a role is updated', function (): void {
 
     // Update role to include posts.delete.
     $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.delete']);
-    $role = \DynamikDev\PolicyEngine\Models\Role::query()->find('editor');
+    $role = Role::query()->find('editor');
 
     $listener = new InvalidatePermissionCache($this->cacheManager);
     $listener->handle(new RoleUpdated($role, ['permissions' => ['posts.create', 'posts.delete']]));
@@ -153,11 +157,11 @@ it('invalidates cache when a role is deleted', function (): void {
     // Revoke assignment first, then delete the role.
     // (SQLite does not enforce FK cascades by default.)
     $this->assignmentStore->revoke('App\\Models\\User', 1, 'editor');
-    $role = \DynamikDev\PolicyEngine\Models\Role::query()->find('editor');
+    $role = Role::query()->find('editor');
     $this->roleStore->remove('editor');
 
     $listener = new InvalidatePermissionCache($this->cacheManager);
-    $listener->handle(new \DynamikDev\PolicyEngine\Events\RoleDeleted($role));
+    $listener->handle(new RoleDeleted($role));
 
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeFalse();
 });
@@ -218,10 +222,10 @@ it('uses separate cache keys for different scopes', function (): void {
         ->and($this->evaluator->can('App\\Models\\User', 1, 'posts.delete:team::5'))->toBeFalse()
         ->and($this->evaluator->can('App\\Models\\User', 1, 'posts.delete:org::acme'))->toBeTrue();
 
-    // Verify separate cache keys exist for different permission+scope combos.
+    // Verify separate cache keys exist for different permission+scope combos (tagged store).
     $teamCreateKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create:team::5');
     $orgDeleteKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.delete:org::acme');
 
-    expect($this->cacheManager->store('array')->get($teamCreateKey))->toBeTrue()
-        ->and($this->cacheManager->store('array')->get($orgDeleteKey))->toBeTrue();
+    expect($this->cacheManager->store('array')->tags(['policy-engine'])->get($teamCreateKey))->toBeTrue()
+        ->and($this->cacheManager->store('array')->tags(['policy-engine'])->get($orgDeleteKey))->toBeTrue();
 });

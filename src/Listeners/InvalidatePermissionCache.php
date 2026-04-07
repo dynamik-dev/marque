@@ -12,7 +12,7 @@ use DynamikDev\PolicyEngine\Events\PermissionDeleted;
 use DynamikDev\PolicyEngine\Events\RoleDeleted;
 use DynamikDev\PolicyEngine\Events\RoleUpdated;
 use Illuminate\Cache\CacheManager;
-use Illuminate\Contracts\Cache\Repository;
+use Illuminate\Cache\Repository;
 
 class InvalidatePermissionCache
 {
@@ -26,19 +26,20 @@ class InvalidatePermissionCache
             return;
         }
 
-        $store = $this->cacheStore();
-
-        // For assignment events, we know the exact subject and can forget their specific key.
-        // However, scoped keys are unpredictable, so we flush the whole store.
-        // For role/permission changes, any number of subjects may be affected — flush all.
-        $store->clear();
-    }
-
-    private function cacheStore(): Repository
-    {
         /** @var string $storeName */
         $storeName = config('policy-engine.cache.store', 'default');
 
-        return $this->cache->store($storeName === 'default' ? null : $storeName);
+        $store = $this->cache->store($storeName === 'default' ? null : $storeName);
+
+        if ($store instanceof Repository && $store->supportsTags()) {
+            $store->tags(['policy-engine'])->flush();
+
+            return;
+        }
+
+        // For stores without tag support, we cannot selectively clear policy-engine keys.
+        // Users should configure a dedicated cache store via policy-engine.cache.store
+        // to avoid flushing unrelated cache entries.
+        $store->clear();
     }
 }

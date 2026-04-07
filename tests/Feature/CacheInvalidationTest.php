@@ -150,3 +150,38 @@ it('invalidates cache when a boundary is removed so canDo reflects the removal',
 
     expect($this->user->canDo('billing.manage', 'org::acme'))->toBeTrue();
 });
+
+// --- Scoped cache invalidation preserves non-policy-engine keys ---
+
+it('does not clear non-policy-engine cache keys during invalidation', function (): void {
+    // Store a value in the same cache store but outside policy-engine tags.
+    cache()->store('array')->put('my-app-key', 'preserved', 3600);
+
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->user->assign('editor');
+
+    // Trigger a cached canDo evaluation.
+    expect($this->user->canDo('posts.create'))->toBeTrue();
+
+    // Update the role — triggers cache invalidation via RoleUpdated event.
+    $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.update']);
+
+    // The non-policy-engine cache key should survive the flush.
+    expect(cache()->store('array')->get('my-app-key'))->toBe('preserved');
+});
+
+it('clears only policy-engine tagged entries when flushing cache', function (): void {
+    // Store values both inside and outside the policy-engine tag.
+    cache()->store('array')->put('session-token', 'abc123', 3600);
+    cache()->store('array')->tags(['policy-engine'])->put('policy-engine:user:1:posts.create', true, 3600);
+
+    // Flush the policy-engine tag.
+    cache()->store('array')->tags(['policy-engine'])->flush();
+
+    // Policy-engine key should be gone.
+    expect(cache()->store('array')->tags(['policy-engine'])->get('policy-engine:user:1:posts.create'))->toBeNull();
+
+    // Non-tagged key should survive.
+    expect(cache()->store('array')->get('session-token'))->toBe('abc123');
+});
