@@ -15,4 +15,5 @@ return [
     'document_path' => null,
     'document_format' => 'json',
     'gate_passthrough' => [],
+    'import_subject_types' => [],
 ];

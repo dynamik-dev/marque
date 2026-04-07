@@ -18,7 +18,9 @@ use DynamikDev\PolicyEngine\Models\Boundary;
 use DynamikDev\PolicyEngine\Models\Permission;
 use DynamikDev\PolicyEngine\Models\Role;
 use DynamikDev\PolicyEngine\Models\RolePermission;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
+use InvalidArgumentException;
 
 class DefaultDocumentImporter implements DocumentImporter
 {
@@ -189,8 +191,12 @@ class DefaultDocumentImporter implements DocumentImporter
             return count($document->assignments);
         }
 
+        $allowedTypes = $this->buildAllowedSubjectTypes();
+
         foreach ($document->assignments as $assignment) {
             [$subjectType, $subjectId] = $this->parseSubject($assignment['subject']);
+
+            $this->validateSubjectType($subjectType, $allowedTypes);
 
             $this->assignmentStore->assign(
                 subjectType: $subjectType,
@@ -213,12 +219,47 @@ class DefaultDocumentImporter implements DocumentImporter
         $separatorPos = strpos($subject, '::');
 
         if ($separatorPos === false) {
-            return [$subject, ''];
+            throw new InvalidArgumentException("Malformed subject string [{$subject}]. Expected format: 'type::id'.");
         }
 
         return [
             substr($subject, 0, $separatorPos),
             substr($subject, $separatorPos + 2),
         ];
+    }
+
+    /**
+     * Build the set of allowed subject types from the morph map and config whitelist.
+     *
+     * @return array<int, string>
+     */
+    private function buildAllowedSubjectTypes(): array
+    {
+        $morphMap = Relation::morphMap();
+        $whitelist = config('policy-engine.import_subject_types', []);
+
+        return [
+            ...array_keys($morphMap),
+            ...array_values($morphMap),
+            ...$whitelist,
+        ];
+    }
+
+    /**
+     * Validate that a subject type is in the allowed set.
+     *
+     * Skips validation when no morph map or whitelist is configured (backward compatibility).
+     *
+     * @param  array<int, string>  $allowedTypes
+     */
+    private function validateSubjectType(string $subjectType, array $allowedTypes): void
+    {
+        if ($allowedTypes === []) {
+            return;
+        }
+
+        if (! in_array($subjectType, $allowedTypes, strict: true)) {
+            throw new InvalidArgumentException("Subject type [{$subjectType}] is not in the morph map or import_subject_types whitelist.");
+        }
     }
 }

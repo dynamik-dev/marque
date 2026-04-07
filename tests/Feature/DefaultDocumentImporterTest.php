@@ -14,6 +14,7 @@ use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
 use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 
@@ -31,6 +32,10 @@ beforeEach(function (): void {
         assignmentStore: $this->assignmentStore,
         boundaryStore: $this->boundaryStore,
     );
+});
+
+afterEach(function (): void {
+    Relation::morphMap([], merge: false);
 });
 
 function fullDocument(): PolicyDocument
@@ -267,4 +272,115 @@ it('handles an empty document gracefully', function (): void {
         ->and($result->rolesUpdated)->toBe([])
         ->and($result->assignmentsCreated)->toBe(0)
         ->and($result->warnings)->toBe([]);
+});
+
+// --- subject validation ---
+
+it('throws on malformed subject string without separator', function (): void {
+    $document = new PolicyDocument(
+        version: '1.0',
+        permissions: ['posts.create'],
+        roles: [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create']],
+        ],
+        assignments: [
+            ['subject' => 'BadSubjectNoSeparator', 'role' => 'editor'],
+        ],
+    );
+
+    $this->importer->import($document, new ImportOptions);
+})->throws(InvalidArgumentException::class, 'Malformed subject string');
+
+it('rejects subject type not in morph map or whitelist', function (): void {
+    Relation::morphMap(['user' => 'App\Models\User']);
+
+    $document = new PolicyDocument(
+        version: '1.0',
+        permissions: ['posts.create'],
+        roles: [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create']],
+        ],
+        assignments: [
+            ['subject' => 'App\Models\Hacker::1', 'role' => 'editor'],
+        ],
+    );
+
+    $this->importer->import($document, new ImportOptions);
+})->throws(InvalidArgumentException::class, 'not in the morph map');
+
+it('accepts subject type found in morph map values', function (): void {
+    Relation::morphMap(['user' => 'App\Models\User']);
+
+    $document = new PolicyDocument(
+        version: '1.0',
+        permissions: ['posts.create'],
+        roles: [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create']],
+        ],
+        assignments: [
+            ['subject' => 'App\Models\User::1', 'role' => 'editor'],
+        ],
+    );
+
+    $result = $this->importer->import($document, new ImportOptions);
+
+    expect($result->assignmentsCreated)->toBe(1);
+});
+
+it('accepts subject type found in morph map keys (alias)', function (): void {
+    Relation::morphMap(['user' => 'App\Models\User']);
+
+    $document = new PolicyDocument(
+        version: '1.0',
+        permissions: ['posts.create'],
+        roles: [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create']],
+        ],
+        assignments: [
+            ['subject' => 'user::1', 'role' => 'editor'],
+        ],
+    );
+
+    $result = $this->importer->import($document, new ImportOptions);
+
+    expect($result->assignmentsCreated)->toBe(1);
+});
+
+it('accepts subject type found in config whitelist', function (): void {
+    config()->set('policy-engine.import_subject_types', ['App\Models\User']);
+
+    $document = new PolicyDocument(
+        version: '1.0',
+        permissions: ['posts.create'],
+        roles: [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create']],
+        ],
+        assignments: [
+            ['subject' => 'App\Models\User::1', 'role' => 'editor'],
+        ],
+    );
+
+    $result = $this->importer->import($document, new ImportOptions);
+
+    expect($result->assignmentsCreated)->toBe(1);
+});
+
+it('skips morph validation when no morph map or whitelist is configured', function (): void {
+    Relation::morphMap([], merge: false);
+    config()->set('policy-engine.import_subject_types', []);
+
+    $document = new PolicyDocument(
+        version: '1.0',
+        permissions: ['posts.create'],
+        roles: [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create']],
+        ],
+        assignments: [
+            ['subject' => 'Anything\Goes::1', 'role' => 'editor'],
+        ],
+    );
+
+    $result = $this->importer->import($document, new ImportOptions);
+
+    expect($result->assignmentsCreated)->toBe(1);
 });
