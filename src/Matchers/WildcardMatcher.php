@@ -21,6 +21,10 @@ class WildcardMatcher implements Matcher
      */
     public function matches(string $granted, string $required): bool
     {
+        if ($granted === '' || $required === '') {
+            return false;
+        }
+
         [$grantedPermission, $grantedScope] = $this->splitScope($granted);
         [$requiredPermission, $requiredScope] = $this->splitScope($required);
 

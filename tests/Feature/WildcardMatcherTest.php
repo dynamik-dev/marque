@@ -177,13 +177,29 @@ it('does not match empty granted string against any permission', function (): vo
 });
 
 it('does not match any granted string against empty required permission', function (): void {
-    expect($this->matcher->matches('posts.create', ''))->toBeFalse();
-    // NOTE: Wildcard '*' matches empty string because the matcher treats '*' as matching
-    // any permission string including empty. This documents actual behavior — source code
-    // is not modified in this test-only change.
-    expect($this->matcher->matches('*', ''))->toBeTrue();
+    expect($this->matcher->matches('posts.create', ''))->toBeFalse()
+        ->and($this->matcher->matches('*', ''))->toBeFalse()
+        ->and($this->matcher->matches('*.*', ''))->toBeFalse();
 });
 
-it('matches empty string against empty string', function (): void {
-    expect($this->matcher->matches('', ''))->toBeTrue();
+it('does not match empty string against empty string', function (): void {
+    expect($this->matcher->matches('', ''))->toBeFalse();
+});
+
+// --- Special characters and long strings ---
+
+it('matches permissions containing unicode characters', function (): void {
+    expect($this->matcher->matches('posts.créer', 'posts.créer'))->toBeTrue()
+        ->and($this->matcher->matches('posts.*', 'posts.créer'))->toBeTrue()
+        ->and($this->matcher->matches('投稿.作成', '投稿.作成'))->toBeTrue();
+});
+
+it('does not match permissions with spaces as equivalent', function (): void {
+    expect($this->matcher->matches('posts.create', 'posts .create'))->toBeFalse();
+});
+
+it('handles very long permission strings', function (): void {
+    $long = implode('.', array_fill(0, 50, 'segment'));
+    expect($this->matcher->matches($long, $long))->toBeTrue()
+        ->and($this->matcher->matches('*', $long))->toBeTrue();
 });
