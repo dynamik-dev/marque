@@ -22,6 +22,8 @@ class EloquentRoleStore implements RoleStore
      */
     public function save(string $id, string $name, array $permissions, bool $system = false): Role
     {
+        $this->validateIdentifier($id);
+
         $existing = Role::query()->find($id);
 
         if ($existing !== null && $existing->is_system && config('policy-engine.protect_system_roles')) {
@@ -133,5 +135,19 @@ class EloquentRoleStore implements RoleStore
         }
 
         return $result;
+    }
+
+    /**
+     * Validate that a role identifier string is safe for use as a role ID.
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function validateIdentifier(string $id): void
+    {
+        if ($id === '' || preg_match('/[\s:]/', $id) || str_starts_with($id, '!')) {
+            throw new \InvalidArgumentException(
+                "Invalid role ID [{$id}]. IDs must not be empty, contain whitespace or colons, or start with '!'.",
+            );
+        }
     }
 }

@@ -121,6 +121,30 @@ it('returns empty collection when prefix matches nothing', function (): void {
     expect($filtered)->toBeEmpty();
 });
 
+// --- register validation ---
+
+it('rejects empty permission string', function (): void {
+    $this->store->register('');
+})->throws(InvalidArgumentException::class, 'Invalid permission ID');
+
+it('rejects permission string containing a colon', function (): void {
+    $this->store->register('admin:panel');
+})->throws(InvalidArgumentException::class, 'Invalid permission ID');
+
+it('rejects permission string starting with bang prefix', function (): void {
+    $this->store->register('!posts.create');
+})->throws(InvalidArgumentException::class, 'Invalid permission ID');
+
+it('rejects permission string containing whitespace', function (): void {
+    $this->store->register('posts .create');
+})->throws(InvalidArgumentException::class, 'Invalid permission ID');
+
+it('accepts valid dot-notated permission strings', function (): void {
+    $this->store->register(['posts.create', 'posts.delete.own', 'billing', 'a.b.c.d']);
+
+    expect($this->store->all())->toHaveCount(4);
+});
+
 // --- exists ---
 
 it('returns true for existing permission', function (): void {

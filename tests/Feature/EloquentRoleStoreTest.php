@@ -83,6 +83,30 @@ it('dispatches RoleUpdated for existing roles', function (): void {
     });
 });
 
+// --- save validation ---
+
+it('rejects empty role ID', function (): void {
+    $this->store->save('', 'Empty', []);
+})->throws(InvalidArgumentException::class, 'Invalid role ID');
+
+it('rejects role ID containing a colon', function (): void {
+    $this->store->save('admin:super', 'Admin Super', []);
+})->throws(InvalidArgumentException::class, 'Invalid role ID');
+
+it('rejects role ID starting with bang prefix', function (): void {
+    $this->store->save('!admin', 'Not Admin', []);
+})->throws(InvalidArgumentException::class, 'Invalid role ID');
+
+it('rejects role ID containing whitespace', function (): void {
+    $this->store->save('my role', 'My Role', []);
+})->throws(InvalidArgumentException::class, 'Invalid role ID');
+
+it('accepts valid role IDs', function (): void {
+    $role = $this->store->save('team-editor', 'Team Editor', []);
+
+    expect($role->id)->toBe('team-editor');
+});
+
 // --- remove ---
 
 it('deletes a role', function (): void {
