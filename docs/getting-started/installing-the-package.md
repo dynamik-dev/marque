@@ -43,7 +43,7 @@ class User extends Authenticatable
 }
 ```
 
-This gives the model methods like `canDo()`, `assign()`, `revoke()`, and `roles()`. No configuration needed — the trait delegates everything to the service container.
+This gives the model methods like `canDo()`, `assign()`, `revoke()`, `hasRole()`, and `getRoles()`. No configuration needed — the trait delegates everything to the service container.
 
 ## Making a model act as a scope
 

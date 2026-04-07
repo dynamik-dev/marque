@@ -79,6 +79,22 @@ $user->revoke('editor', scope: $group);
 
 Revoking a role that isn't assigned is a no-op.
 
+## Checking if a user has a role
+
+```php
+$user->hasRole('editor');
+```
+
+Returns `true` if the user holds the role globally.
+
+### Checking within a scope
+
+```php
+$user->hasRole('editor', scope: $group);
+```
+
+Checks both global and scoped assignments — a global `editor` role satisfies a scoped check.
+
 ## Querying role membership from a scope
 
 If you have a `Scopeable` model, you can query who holds roles within it.

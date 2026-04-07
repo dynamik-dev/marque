@@ -65,7 +65,7 @@ Raw strings work anywhere a scope is accepted. Use them when you have the identi
 ## Listing roles within a scope
 
 ```php
-$roles = $user->rolesFor(scope: $team);
+$roles = $user->getRolesFor(scope: $team);
 ```
 
 Returns only the roles the user holds within this scope — not their global roles.

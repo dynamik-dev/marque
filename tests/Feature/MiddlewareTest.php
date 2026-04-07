@@ -124,10 +124,10 @@ afterEach(function (): void {
     Schema::dropIfExists('middleware_test_users');
 });
 
-// --- CanDoMiddleware: allows ---
+// --- can middleware (via Gate hook): allows ---
 
-it('can_do middleware allows request when user has the permission', function (): void {
-    Route::middleware('can_do:posts.create')->get('/test', fn () => response()->json(['ok' => true]));
+it('can middleware allows request when user has the permission', function (): void {
+    Route::middleware('can:posts.create')->get('/test', fn () => response()->json(['ok' => true]));
 
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
@@ -139,10 +139,10 @@ it('can_do middleware allows request when user has the permission', function ():
         ->assertJson(['ok' => true]);
 });
 
-// --- CanDoMiddleware: denies ---
+// --- can middleware: denies ---
 
-it('can_do middleware denies request with 403 when user lacks the permission', function (): void {
-    Route::middleware('can_do:posts.delete')->get('/test', fn () => response()->json(['ok' => true]));
+it('can middleware denies request with 403 when user lacks the permission', function (): void {
+    Route::middleware('can:posts.delete')->get('/test', fn () => response()->json(['ok' => true]));
 
     $this->permissionStore->register(['posts.read']);
     $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
@@ -153,47 +153,10 @@ it('can_do middleware denies request with 403 when user lacks the permission', f
         ->assertForbidden();
 });
 
-// --- CanDoMiddleware: unauthenticated ---
+// --- can middleware: with scope parameter (route model binding) ---
 
-it('can_do middleware returns 401 for unauthenticated user', function (): void {
-    Route::middleware('can_do:posts.create')->get('/test', fn () => response()->json(['ok' => true]));
-
-    $this->getJson('/test')
-        ->assertUnauthorized();
-});
-
-// --- CanDoMiddleware: with scope parameter (string) ---
-
-it('can_do middleware allows request with scope from route parameter string', function (): void {
-    Route::middleware('can_do:posts.create,scope')
-        ->get('/test/{scope}', fn (string $scope) => response()->json(['ok' => true]));
-
-    $this->permissionStore->register(['posts.create']);
-    $this->roleStore->save('team-editor', 'Team Editor', ['posts.create']);
-    $this->user->assign('team-editor', 'team::'.$this->team->getKey());
-
-    $this->actingAs($this->user)
-        ->getJson('/test/team::'.$this->team->getKey())
-        ->assertOk();
-});
-
-it('can_do middleware denies request when user lacks permission in scope', function (): void {
-    Route::middleware('can_do:posts.create,scope')
-        ->get('/test/{scope}', fn (string $scope) => response()->json(['ok' => true]));
-
-    $this->permissionStore->register(['posts.create']);
-    $this->roleStore->save('team-editor', 'Team Editor', ['posts.create']);
-    $this->user->assign('team-editor', 'team::999');
-
-    $this->actingAs($this->user)
-        ->getJson('/test/team::'.$this->team->getKey())
-        ->assertForbidden();
-});
-
-// --- CanDoMiddleware: with scope parameter (route model binding) ---
-
-it('can_do middleware resolves scope from route model binding', function (): void {
-    Route::middleware([SubstituteBindings::class, 'can_do:posts.create,team'])
+it('can middleware resolves scope from route model binding', function (): void {
+    Route::middleware([SubstituteBindings::class, 'can:posts.create,team'])
         ->get('/test/{team}', fn (MiddlewareTestTeam $team) => response()->json(['ok' => true]));
 
     $this->permissionStore->register(['posts.create']);
@@ -203,6 +166,33 @@ it('can_do middleware resolves scope from route model binding', function (): voi
     $this->actingAs($this->user)
         ->getJson('/test/'.$this->team->getKey())
         ->assertOk();
+});
+
+// --- can middleware: denies scoped ---
+
+it('can middleware denies scoped request when user lacks permission in that scope', function (): void {
+    Route::middleware([SubstituteBindings::class, 'can:posts.create,team'])
+        ->get('/test/{team}', fn (MiddlewareTestTeam $team) => response()->json(['ok' => true]));
+
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('team-editor', 'Team Editor', ['posts.create']);
+    $this->user->assign('team-editor', 'team::999');
+
+    $this->actingAs($this->user)
+        ->getJson('/test/'.$this->team->getKey())
+        ->assertForbidden();
+});
+
+// --- can middleware: fail-closed without HasPermissions trait ---
+
+it('can middleware denies when user model lacks HasPermissions trait', function (): void {
+    Route::middleware('can:posts.create')->get('/test', fn () => response()->json(['ok' => true]));
+
+    $user = MiddlewareTestUserWithoutTrait::query()->create(['name' => 'Bob']);
+
+    $this->actingAs($user)
+        ->getJson('/test')
+        ->assertForbidden();
 });
 
 // --- RoleMiddleware: allows ---
@@ -318,34 +308,10 @@ it('role middleware resolves scope from route model binding', function (): void 
         ->assertOk();
 });
 
-// --- CanDoMiddleware: fail-closed when HasPermissions trait is missing ---
+// --- can middleware: Sanctum token scoping ---
 
-it('can_do middleware returns 403 when user model lacks HasPermissions trait', function (): void {
-    Route::middleware('can_do:posts.create')->get('/test', fn () => response()->json(['ok' => true]));
-
-    $user = MiddlewareTestUserWithoutTrait::query()->create(['name' => 'Bob']);
-
-    $this->actingAs($user)
-        ->getJson('/test')
-        ->assertForbidden();
-});
-
-it('can_do middleware still allows request when user with HasPermissions trait has the permission', function (): void {
-    Route::middleware('can_do:posts.create')->get('/test', fn () => response()->json(['ok' => true]));
-
-    $this->permissionStore->register(['posts.create']);
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->user->assign('editor');
-
-    $this->actingAs($this->user)
-        ->getJson('/test')
-        ->assertOk();
-});
-
-// --- CanDoMiddleware: Sanctum token scoping ---
-
-it('can_do middleware denies when Sanctum token lacks the required ability', function (): void {
-    Route::middleware('can_do:posts.create')->get('/sanctum-test', fn () => response()->json(['ok' => true]));
+it('can middleware denies when Sanctum token lacks the required ability', function (): void {
+    Route::middleware('can:posts.create')->get('/sanctum-test', fn () => response()->json(['ok' => true]));
 
     $this->permissionStore->register(['posts.create', 'posts.read']);
     $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read']);
@@ -362,8 +328,8 @@ it('can_do middleware denies when Sanctum token lacks the required ability', fun
         ->assertForbidden();
 });
 
-it('can_do middleware allows when Sanctum token includes the required ability', function (): void {
-    Route::middleware('can_do:posts.create')->get('/sanctum-test', fn () => response()->json(['ok' => true]));
+it('can middleware allows when Sanctum token includes the required ability', function (): void {
+    Route::middleware('can:posts.create')->get('/sanctum-test', fn () => response()->json(['ok' => true]));
 
     $this->permissionStore->register(['posts.create', 'posts.read']);
     $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read']);

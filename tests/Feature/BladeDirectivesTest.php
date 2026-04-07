@@ -82,9 +82,9 @@ function renderBlade(string $template, array $data = []): string
     return trim(Blade::render($template, $data));
 }
 
-// --- @canDo ---
+// --- @can (via Gate hook) ---
 
-it('renders content inside @canDo when user has the permission', function (): void {
+it('renders content inside @can when user has the permission', function (): void {
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
     $this->user->assign('editor');
@@ -92,15 +92,15 @@ it('renders content inside @canDo when user has the permission', function (): vo
     $this->actingAs($this->user);
 
     $html = renderBlade(<<<'BLADE'
-        @canDo("posts.create")
+        @can("posts.create")
             VISIBLE
-        @endcanDo
+        @endcan
         BLADE);
 
     expect($html)->toBe('VISIBLE');
 });
 
-it('hides content inside @canDo when user lacks the permission', function (): void {
+it('hides content inside @can when user lacks the permission', function (): void {
     $this->permissionStore->register(['posts.read']);
     $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
     $this->user->assign('viewer');
@@ -108,15 +108,15 @@ it('hides content inside @canDo when user lacks the permission', function (): vo
     $this->actingAs($this->user);
 
     $html = renderBlade(<<<'BLADE'
-        @canDo("posts.delete")
+        @can("posts.delete")
             HIDDEN
-        @endcanDo
+        @endcan
         BLADE);
 
     expect($html)->toBe('');
 });
 
-it('renders content inside @canDo with scope when user has scoped permission', function (): void {
+it('renders content inside @can with scope when user has scoped permission', function (): void {
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('team-editor', 'Team Editor', ['posts.create']);
     $this->user->assign('team-editor', 'team::5');
@@ -124,15 +124,15 @@ it('renders content inside @canDo with scope when user has scoped permission', f
     $this->actingAs($this->user);
 
     $html = renderBlade(<<<'BLADE'
-        @canDo("posts.create", "team::5")
+        @can("posts.create", "team::5")
             SCOPED
-        @endcanDo
+        @endcan
         BLADE);
 
     expect($html)->toBe('SCOPED');
 });
 
-it('hides content inside @canDo with scope when user lacks scoped permission', function (): void {
+it('hides content inside @can with scope when user lacks scoped permission', function (): void {
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('team-editor', 'Team Editor', ['posts.create']);
     $this->user->assign('team-editor', 'team::5');
@@ -140,29 +140,29 @@ it('hides content inside @canDo with scope when user lacks scoped permission', f
     $this->actingAs($this->user);
 
     $html = renderBlade(<<<'BLADE'
-        @canDo("posts.create", "team::99")
+        @can("posts.create", "team::99")
             HIDDEN
-        @endcanDo
+        @endcan
         BLADE);
 
     expect($html)->toBe('');
 });
 
-// --- @cannotDo ---
+// --- @cannot ---
 
-it('renders content inside @cannotDo when user lacks the permission', function (): void {
+it('renders content inside @cannot when user lacks the permission', function (): void {
     $this->actingAs($this->user);
 
     $html = renderBlade(<<<'BLADE'
-        @cannotDo("posts.delete")
+        @cannot("posts.delete")
             DENIED
-        @endcannotDo
+        @endcannot
         BLADE);
 
     expect($html)->toBe('DENIED');
 });
 
-it('hides content inside @cannotDo when user has the permission', function (): void {
+it('hides content inside @cannot when user has the permission', function (): void {
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
     $this->user->assign('editor');
@@ -170,15 +170,15 @@ it('hides content inside @cannotDo when user has the permission', function (): v
     $this->actingAs($this->user);
 
     $html = renderBlade(<<<'BLADE'
-        @cannotDo("posts.create")
+        @cannot("posts.create")
             HIDDEN
-        @endcannotDo
+        @endcannot
         BLADE);
 
     expect($html)->toBe('');
 });
 
-it('renders content inside @cannotDo with scope when user lacks scoped permission', function (): void {
+it('renders content inside @cannot with scope when user lacks scoped permission', function (): void {
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('team-editor', 'Team Editor', ['posts.create']);
     $this->user->assign('team-editor', 'team::5');
@@ -186,9 +186,9 @@ it('renders content inside @cannotDo with scope when user lacks scoped permissio
     $this->actingAs($this->user);
 
     $html = renderBlade(<<<'BLADE'
-        @cannotDo("posts.create", "team::99")
+        @cannot("posts.create", "team::99")
             NO_ACCESS
-        @endcannotDo
+        @endcannot
         BLADE);
 
     expect($html)->toBe('NO_ACCESS');
@@ -288,21 +288,11 @@ it('hides content inside @hasRole when user has role only in a scope and no scop
 
 // --- Unauthenticated user ---
 
-it('hides @canDo content for unauthenticated user', function (): void {
+it('hides @can content for unauthenticated user', function (): void {
     $html = renderBlade(<<<'BLADE'
-        @canDo("posts.create")
+        @can("posts.create")
             HIDDEN
-        @endcanDo
-        BLADE);
-
-    expect($html)->toBe('');
-});
-
-it('hides @cannotDo content for unauthenticated user', function (): void {
-    $html = renderBlade(<<<'BLADE'
-        @cannotDo("posts.create")
-            HIDDEN
-        @endcannotDo
+        @endcan
         BLADE);
 
     expect($html)->toBe('');
@@ -320,15 +310,15 @@ it('hides @hasRole content for unauthenticated user', function (): void {
 
 // --- @else support ---
 
-it('supports @else with @canDo directive', function (): void {
+it('supports @else with @can directive', function (): void {
     $this->actingAs($this->user);
 
     $html = renderBlade(<<<'BLADE'
-        @canDo("posts.delete")
+        @can("posts.delete")
             ALLOWED
         @else
             FALLBACK
-        @endcanDo
+        @endcan
         BLADE);
 
     expect($html)->toBe('FALLBACK');

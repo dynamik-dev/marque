@@ -30,6 +30,7 @@ Creates, updates, and queries roles and their permissions.
 | `find(string $id)` | `?Role` | Get a role by ID. |
 | `all()` | `Collection` | List all roles. |
 | `permissionsFor(string $roleId)` | `array` | Get permission strings for a role. |
+| `permissionsForRoles(array $roleIds)` | `array` | Get permissions for multiple roles in one call. Keyed by role ID. |
 
 **Default implementation:** `DynamikDev\PolicyEngine\Stores\EloquentRoleStore`
 
@@ -45,6 +46,8 @@ Links subjects to roles, optionally within a scope.
 | `revoke(string $subjectType, string\|int $subjectId, string $roleId, ?string $scope = null)` | `void` | Revoke a role from a subject. No-op if not assigned. |
 | `forSubject(string $subjectType, string\|int $subjectId)` | `Collection` | All assignments for a subject. |
 | `forSubjectInScope(string $subjectType, string\|int $subjectId, string $scope)` | `Collection` | Assignments for a subject in a specific scope. |
+| `forSubjectGlobal(string $subjectType, string\|int $subjectId)` | `Collection` | Global (unscoped) assignments for a subject. |
+| `forSubjectGlobalAndScope(string $subjectType, string\|int $subjectId, string $scope)` | `Collection` | Assignments that are either global or in the given scope. |
 | `subjectsInScope(string $scope, ?string $roleId = null)` | `Collection` | All subjects assigned in a scope, optionally filtered by role. |
 
 **Default implementation:** `DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore`

@@ -28,7 +28,6 @@ use DynamikDev\PolicyEngine\Events\RoleDeleted;
 use DynamikDev\PolicyEngine\Events\RoleUpdated;
 use DynamikDev\PolicyEngine\Listeners\InvalidatePermissionCache;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
-use DynamikDev\PolicyEngine\Middleware\CanDoMiddleware;
 use DynamikDev\PolicyEngine\Middleware\RoleMiddleware;
 use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
@@ -76,7 +75,6 @@ class PolicyEngineServiceProvider extends ServiceProvider
 
     public function boot(Router $router): void
     {
-        $router->aliasMiddleware('can_do', CanDoMiddleware::class);
         $router->aliasMiddleware('role', RoleMiddleware::class);
 
         $this->registerGateHook();
@@ -110,26 +108,6 @@ class PolicyEngineServiceProvider extends ServiceProvider
 
     private function registerBladeDirectives(): void
     {
-        Blade::if('canDo', static function (string $permission, mixed $scope = null): bool {
-            $user = auth()->user();
-
-            if ($user === null) {
-                return false;
-            }
-
-            return method_exists($user, 'canDo') && $user->canDo($permission, $scope);
-        });
-
-        Blade::if('cannotDo', static function (string $permission, mixed $scope = null): bool {
-            $user = auth()->user();
-
-            if ($user === null) {
-                return false;
-            }
-
-            return method_exists($user, 'cannotDo') && $user->cannotDo($permission, $scope);
-        });
-
         Blade::if('hasRole', static function (string $role, mixed $scope = null): bool {
             $user = auth()->user();
 

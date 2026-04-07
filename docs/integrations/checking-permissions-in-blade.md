@@ -86,24 +86,6 @@ The first argument is the role ID, the second is an optional scope.
 @endhasRole
 ```
 
-## Using @canDo alongside @can
-
-The package also registers `@canDo`, `@cannotDo`, and `@hasRole` directives. These are not deprecated and still work, but `@can` is now the recommended approach for permission checks since it uses the standard Laravel directive.
-
-```blade
-{{-- Recommended — uses standard @can with Gate hook --}}
-@can('posts.create', $group)
-    <button>New Post</button>
-@endcan
-
-{{-- Also works — uses the package's custom directive --}}
-@canDo('posts.create', $group)
-    <button>New Post</button>
-@endcanDo
-```
-
-Both produce the same result. `@can` has the advantage of being familiar to any Laravel developer and working identically with dot-notated permissions and model policies.
-
 ## How @can handles both permissions and policies
 
 `@can` now routes through the Gate hook for any dot-notated ability. Non-dot abilities (like `update` or `delete`) pass through to your model policies as usual.

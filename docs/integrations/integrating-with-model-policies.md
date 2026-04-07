@@ -104,7 +104,7 @@ protected $policies = [
 
 Or use automatic policy discovery if your policy follows Laravel's naming convention.
 
-## Using @can alongside @canDo in Blade
+## Using @can in Blade with policies
 
 ```blade
 {{-- Pure permission check — no resource involved --}}

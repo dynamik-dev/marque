@@ -89,7 +89,7 @@ This combines permissions from both global and scoped assignments, then filters 
 ## Listing a user's roles
 
 ```php
-$roles = $user->roles();
+$roles = $user->getRoles();
 ```
 
 Returns a `Collection` of `Role` models — deduplicated across all scopes.
@@ -97,7 +97,7 @@ Returns a `Collection` of `Role` models — deduplicated across all scopes.
 ### Listing roles in a specific scope
 
 ```php
-$roles = $user->rolesFor(scope: $group);
+$roles = $user->getRolesFor(scope: $group);
 ```
 
 ## Listing a user's assignments
