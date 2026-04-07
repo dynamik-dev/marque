@@ -4,7 +4,7 @@ The `CachedEvaluator` wraps the `DefaultEvaluator` with Laravel's cache. It cach
 
 ## How caching works
 
-Every `canDo()` call generates a cache key based on the subject type, subject ID, and permission string:
+Every permission check generates a cache key based on the subject type, subject ID, and permission string:
 
 ```
 policy-engine:{subject_type}:{subject_id}:{permission}
@@ -45,7 +45,7 @@ The TTL is in seconds. Cached results expire after this duration even if no inva
 ],
 ```
 
-When disabled, every `canDo()` call queries the database directly. The `CachedEvaluator` delegates straight to the `DefaultEvaluator` with no caching layer.
+When disabled, every permission check queries the database directly. The `CachedEvaluator` delegates straight to the `DefaultEvaluator` with no caching layer.
 
 ## How cache invalidation works
 
@@ -70,12 +70,13 @@ php artisan primitives:cache-clear
 Or programmatically:
 
 ```php
+use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 
-app(CacheManager::class)
-    ->store(config('policy-engine.cache.store'))
-    ->flush();
+CacheStoreResolver::flush(app(CacheManager::class));
 ```
+
+This handles tag-scoped flushing when the driver supports it, and falls back to a full store clear otherwise.
 
 ## Understanding the cache race window
 

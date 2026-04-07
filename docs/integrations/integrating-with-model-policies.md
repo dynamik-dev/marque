@@ -56,7 +56,7 @@ class PostPolicy
 
 The policy never hardcodes role names. It asks `canDo()` about permissions and applies business logic (ownership, pinned state) on top.
 
-> Policy methods receive a raw `User` object, so they call `canDo()` directly on the trait. This is the correct usage inside policies — `canDo()` is deprecated for external callers, not for internal policy logic.
+> Policy methods receive a raw `User` object, so they call `canDo()` directly on the trait. This is the correct usage inside policies — `canDo()` is the engine method that evaluates permissions directly, without going through the Gate.
 
 ## Using the policy in a controller
 

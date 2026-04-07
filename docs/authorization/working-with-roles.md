@@ -93,7 +93,9 @@ Returns `true` if the user holds the role globally.
 $user->hasRole('editor', scope: $group);
 ```
 
-Checks both global and scoped assignments — a global `editor` role satisfies a scoped check.
+Checks only scoped assignments for the given scope. A global `editor` role does not satisfy a scoped `hasRole()` check.
+
+> The `role` middleware behaves differently — it includes both global and scoped assignments. See [restricting routes with middleware](../integrations/restricting-routes-with-middleware.md#requiring-a-scoped-role) for details.
 
 ## Querying role membership from a scope
 

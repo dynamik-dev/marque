@@ -49,6 +49,7 @@ Links subjects to roles, optionally within a scope.
 | `forSubjectGlobal(string $subjectType, string\|int $subjectId)` | `Collection` | Global (unscoped) assignments for a subject. |
 | `forSubjectGlobalAndScope(string $subjectType, string\|int $subjectId, string $scope)` | `Collection` | Assignments that are either global or in the given scope. |
 | `subjectsInScope(string $scope, ?string $roleId = null)` | `Collection` | All subjects assigned in a scope, optionally filtered by role. |
+| `all()` | `Collection` | Get all assignments. |
 
 **Default implementation:** `DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore`
 
@@ -63,6 +64,7 @@ Manages permission ceilings per scope.
 | `set(string $scope, array $maxPermissions)` | `void` | Set a boundary for a scope. Replaces existing. |
 | `remove(string $scope)` | `void` | Remove a boundary. No-op if not set. |
 | `find(string $scope)` | `?Boundary` | Get the boundary for a scope. |
+| `all()` | `Collection` | Get all boundaries. |
 
 **Default implementation:** `DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore`
 

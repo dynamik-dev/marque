@@ -15,7 +15,7 @@ The default store implementations dispatch Laravel events on every mutation. Use
 | `AssignmentRevoked` | An assignment is removed | `Assignment $assignment` |
 | `BoundarySet` | A boundary is created or updated | `Boundary $boundary` |
 | `BoundaryRemoved` | A boundary is removed | `string $scope` |
-| `AuthorizationDenied` | A `canDo()` check fails | `string $subject`, `string $permission`, `?string $scope` |
+| `AuthorizationDenied` | A permission check fails | `string $subject`, `string $permission`, `?string $scope` |
 | `DocumentImported` | A policy document is imported (not dry run) | `ImportResult $result` |
 
 All event classes live in `DynamikDev\PolicyEngine\Events\` and use readonly constructor properties.

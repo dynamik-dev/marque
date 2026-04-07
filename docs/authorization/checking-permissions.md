@@ -59,16 +59,18 @@ class PostController extends Controller
 
 `$this->authorize()` and `Gate::allows()` both route through the Gate hook for dot-notated permissions. For pure permission checks with no business logic, this is the simplest approach. When authorization depends on the state of a specific resource (ownership, flags, timestamps), use a [model policy](../integrations/integrating-with-model-policies.md) instead.
 
-## Using the deprecated canDo and cannotDo methods
+## Using canDo and cannotDo directly
 
 ```php
 $user->canDo('posts.create', scope: $group);
 $user->cannotDo('posts.delete');
 ```
 
-`canDo()` and `cannotDo()` on the `HasPermissions` trait still work but are deprecated. Prefer `$user->can()` and `$user->cannot()`, which go through the Gate and behave identically for dot-notated permissions.
+`canDo()` and `cannotDo()` on the `HasPermissions` trait are the engine methods that power the Gate hook, middleware, and Blade directives. They work directly without going through the Gate.
 
-> The Gate hook delegates to `canDo()` internally. The two approaches produce the same result. The difference is that `can()` is standard Laravel and works with `@can`, `$this->authorize()`, and `Gate::allows()` without any package-specific method calls.
+Prefer `$user->can()` and `$user->cannot()` in application code. They go through the Gate and behave identically for dot-notated permissions, but they also integrate with `@can`, `$this->authorize()`, and `Gate::allows()` without any package-specific method calls.
+
+`canDo()` is the correct choice inside [model policies](../integrations/integrating-with-model-policies.md#writing-a-policy-that-uses-cando), where the policy method receives a raw user and needs to check permissions without re-entering the Gate.
 
 ## Listing a user's effective permissions
 
@@ -76,7 +78,7 @@ $user->cannotDo('posts.delete');
 $permissions = $user->effectivePermissions();
 ```
 
-Returns a flat array of permission strings the user is allowed, after deny rules have been applied. Useful for rendering UI states like checkbox grids.
+Returns a flat array of permission strings the user is allowed from global assignments, after deny rules have been applied. Useful for rendering UI states like checkbox grids.
 
 ### Listing effective permissions in a scope
 
@@ -84,7 +86,7 @@ Returns a flat array of permission strings the user is allowed, after deny rules
 $permissions = $user->effectivePermissions(scope: $group);
 ```
 
-This combines permissions from both global and scoped assignments, then filters out anything covered by a deny rule.
+When a scope is provided, this combines permissions from both global and scoped assignments, then filters out anything covered by a deny rule or blocked by a boundary. Without a scope, only global assignments are included.
 
 ## Listing a user's roles
 
@@ -124,10 +126,10 @@ Returns an `EvaluationTrace` with the full decision path: which assignments were
 
 ```php
 $trace->subject;      // "App\Models\User:42"
-$trace->required;     // "posts.delete:group::5"
+$trace->required;     // "posts.delete"
 $trace->result;       // EvaluationResult::Allow or EvaluationResult::Deny
 $trace->assignments;  // array of role/scope/permissions_checked
-$trace->boundary;     // null or boundary denial message
+$trace->boundary;     // null or boundary note (e.g., "Passed boundary on scope [group::5]")
 $trace->cacheHit;     // bool
 ```
 

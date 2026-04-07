@@ -13,20 +13,9 @@ $token = $user->createToken('deploy-bot', abilities: [
 
 This token can only use `posts.read` and `posts.create`, even if the user's roles grant broader permissions.
 
-### Scoping a token to a specific scope
-
-```php
-$token = $user->createToken('group-bot', abilities: [
-    'posts.read:group::5',
-    'posts.create:group::5',
-]);
-```
-
-Append the scope string after a colon to limit the token to a specific scope.
-
 ## How token scoping works
 
-When the evaluator processes a `canDo()` check, it detects whether the current request is authenticated via a Sanctum `PersonalAccessToken`. If so, it applies an additional gate after the normal role/boundary/deny evaluation:
+When the evaluator processes a permission check, it detects whether the current request is authenticated via a Sanctum `PersonalAccessToken`. If so, it applies an additional gate after the normal role/boundary/deny evaluation:
 
 1. Normal evaluation runs (assignments, roles, permissions, boundaries, deny rules)
 2. If the normal evaluation returns `deny`, the result is `deny` (token doesn't override)
@@ -35,6 +24,8 @@ When the evaluator processes a `canDo()` check, it detects whether the current r
 5. If the token lacks the ability, the result is `deny`
 
 The token narrows the user's permissions. It can never expand them.
+
+> Token abilities are matched against the permission string only, not the scope. A token with `posts.create` allows `posts.create` in any scope where the user's roles grant it. Scope restrictions are handled by role assignments and boundaries, not by token abilities.
 
 ## Creating a wildcard token
 
@@ -50,7 +41,7 @@ When a user authenticates via session (not a token), token scoping is skipped en
 
 - Web routes with session auth are unaffected by token logic
 - API routes with Sanctum token auth get the additional token ability check
-- The same `canDo()` call works in both contexts — the evaluator detects the auth method automatically
+- The same permission check works in both contexts — the evaluator detects the auth method automatically
 
 ## Behavior when Sanctum is not installed
 

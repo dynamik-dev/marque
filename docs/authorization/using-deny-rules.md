@@ -46,8 +46,8 @@ $user->assign('restricted');
 The user has `posts.*` from one role and `!posts.delete.any` from another. The deny rule from the `restricted` role blocks `posts.delete.any`, even though `content-creator` would allow it.
 
 ```php
-$user->canDo('posts.create');      // true
-$user->canDo('posts.delete.any');  // false — denied
+$user->can('posts.create');      // true
+$user->can('posts.delete.any');  // false — denied
 ```
 
 ## Deny rules support wildcards

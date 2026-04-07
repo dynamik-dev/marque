@@ -24,7 +24,7 @@ The second parameter is the name of a route parameter. Laravel's `can` middlewar
 
 ### How scope resolution works
 
-If the route uses model binding and the bound model has a `toScope()` method (i.e., uses the `Scopeable` trait), the scope resolver converts it to a `type::id` string. The Gate hook passes the resolved scope to `canDo()` automatically.
+If the route uses model binding and the bound model has a `toScope()` method (i.e., uses the `Scopeable` trait), the scope resolver converts it to a `type::id` string. The Gate hook passes the resolved scope to the evaluator automatically.
 
 ```php
 // Model binding — Group uses Scopeable, resolves to "group::5"

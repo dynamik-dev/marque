@@ -45,7 +45,7 @@ The same user can hold different roles in different scopes simultaneously.
 ## Checking permissions in a scope
 
 ```php
-$user->canDo('posts.create', scope: $team);
+$user->can('posts.create', $team);
 ```
 
 This checks both:
@@ -57,7 +57,7 @@ If either path grants the permission, the check passes.
 ### Using a raw scope string
 
 ```php
-$user->canDo('posts.create', scope: 'team::12');
+$user->can('posts.create', 'team::12');
 ```
 
 Raw strings work anywhere a scope is accepted. Use them when you have the identifier but not the model instance.
@@ -82,7 +82,7 @@ $assignments = $user->assignmentsFor(scope: $team);
 $permissions = $user->effectivePermissions(scope: $team);
 ```
 
-This combines permissions from both global and scoped assignments, applies deny rules, and returns the net result.
+This combines permissions from both global and scoped assignments, applies deny rules and boundary filtering, and returns the net result.
 
 ## Querying members of a scope
 
@@ -114,4 +114,4 @@ The `ScopeResolver` contract handles converting scope arguments into strings:
 | `$team` (Scopeable model) | `$team->toScope()` |
 | Anything else | `InvalidArgumentException` |
 
-You never need to call the resolver directly — `canDo()`, `assign()`, `revoke()`, and the middleware all resolve scopes automatically.
+You never need to call the resolver directly — `can()`, `canDo()`, `assign()`, `revoke()`, and the middleware all resolve scopes automatically.

@@ -148,6 +148,26 @@ Use this when you have dot-notated abilities that are not managed by Policy Engi
 
 ---
 
+### `import_subject_types`
+
+Additional subject types allowed during document import.
+
+- **Type:** `array`
+- **Default:** `[]`
+
+During import, subject types in the `assignments` section are validated against Laravel's morph map. If you use subject types in your policy documents that are not in the morph map (e.g., `user` when your morph map uses `App\Models\User`), add them here.
+
+```php
+'import_subject_types' => [
+    'user',
+    'team',
+],
+```
+
+When both the morph map and this config are empty, subject type validation is skipped entirely.
+
+---
+
 ## Full default config
 
 ```php
@@ -167,5 +187,6 @@ return [
     'table_prefix' => '',
     'document_path' => null,
     'gate_passthrough' => [],
+    'import_subject_types' => [],
 ];
 ```

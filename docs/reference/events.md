@@ -113,7 +113,7 @@ Not fired when removing a boundary that doesn't exist (no-op). Triggers cache in
 
 ### `AuthorizationDenied`
 
-Fired when a `canDo()` check returns `false`, if `log_denials` is enabled in the config.
+Fired when a permission check returns `false`, if `log_denials` is enabled in the config.
 
 | Property | Type | Description |
 | --- | --- | --- |

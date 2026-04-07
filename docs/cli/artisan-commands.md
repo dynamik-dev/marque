@@ -138,9 +138,8 @@ php artisan primitives:export {--scope=} {--path=} {--stdout}
 | --- | --- |
 | `--scope` | Export only data relevant to this scope |
 | `--path` | Write to a file instead of stdout |
-| `--stdout` | Print to stdout (default when no `--path`) |
 
-If `policy-engine.document_path` is set, `--path` must resolve inside that directory. Otherwise the command fails with an error and exit code `1`.
+When `--path` is omitted, the command prints JSON to stdout. If `policy-engine.document_path` is set, `--path` must resolve inside that directory. Otherwise the command fails with an error and exit code `1`.
 
 ```bash
 # Export to file
@@ -176,10 +175,18 @@ Prints "Policy document is valid." on success, or lists validation errors.
 Flush the permission evaluation cache.
 
 ```bash
-php artisan primitives:cache-clear
+php artisan primitives:cache-clear {--force}
 ```
 
-Clears all cached `canDo()` results. The cache rebuilds on the next permission check.
+| Option | Description |
+| --- | --- |
+| `--force` | Skip confirmation when the cache store does not support tags |
+
+When the cache store supports tags (Redis, Memcached), only the `policy-engine` tag is flushed. When the store does not support tags, the command prompts for confirmation before flushing the entire store. Use `--force` to skip the prompt.
+
+```bash
+php artisan primitives:cache-clear --force
+```
 
 ## Syncing permissions from your seeder
 

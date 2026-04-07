@@ -30,19 +30,19 @@ Primitives::boundary('org::acme', ['posts.*', 'comments.*']);
 Primitives::role('admin', 'Admin')->grant(['*.*']);
 $user->assign('admin', scope: 'org::acme');
 
-$user->canDo('posts.create', scope: 'org::acme');    // true — within boundary
-$user->canDo('members.remove', scope: 'org::acme');  // false — outside boundary
+$user->can('posts.create', 'org::acme');    // true — within boundary
+$user->can('members.remove', 'org::acme');  // false — outside boundary
 ```
 
 The admin role grants `*.*`, but the boundary restricts the scope to posts and comments only.
 
-## Boundaries only apply to scoped checks
+## Boundaries only apply to scoped checks by default
 
-A boundary set on `org::acme` only affects permission checks made within that scope. Global checks (no scope) are not affected by any boundary.
+A boundary set on `org::acme` only affects permission checks made within that scope. Global checks (no scope) are not affected by any boundary, unless you enable [`enforce_boundaries_on_global`](#enforcing-boundaries-on-global-checks).
 
 ```php
-$user->canDo('members.remove');                       // true — no scope, no boundary
-$user->canDo('members.remove', scope: 'org::acme');  // false — blocked by boundary
+$user->can('members.remove');                       // true — no scope, no boundary
+$user->can('members.remove', 'org::acme');          // false — blocked by boundary
 ```
 
 ## Updating a boundary
@@ -96,6 +96,24 @@ Boundary patterns use the same wildcard matching as permissions:
 
 > Boundaries are checked per-scope. If a user has roles in multiple scopes, each scope's boundary applies independently. A permission allowed in one scope can be blocked by a different scope's boundary.
 
+## Denying permissions in scopes without boundaries
+
+By default, if a scope has no boundary defined, permissions are unrestricted in that scope. The `deny_unbounded_scopes` config option changes this to fail-closed: scoped permission checks are denied when no boundary exists for the scope.
+
+```php
+// config/policy-engine.php
+'deny_unbounded_scopes' => true,
+```
+
+```php
+Primitives::boundary('team::5', ['posts.*']);
+
+$user->can('posts.create', 'team::5');  // true — boundary exists and allows it
+$user->can('posts.create', 'team::99'); // false — no boundary for team::99
+```
+
+This is useful when every scope must be explicitly configured before permissions are granted within it. Global (unscoped) checks are unaffected.
+
 ## Enforcing boundaries on global checks
 
 By default, global (unscoped) assignments bypass all boundary checks. A user with a global `admin` role can exercise any permission without scope restrictions, even if boundaries exist on every scope.
@@ -116,9 +134,9 @@ Primitives::boundary('org::acme', ['billing.*']);
 Primitives::role('admin', 'Admin')->grant(['*.*']);
 $user->assign('admin'); // global assignment, no scope
 
-$user->canDo('posts.create');     // true — matches team::5 boundary
-$user->canDo('billing.manage');   // true — matches org::acme boundary
-$user->canDo('members.remove');   // false — no boundary allows it
+$user->can('posts.create');     // true — matches team::5 boundary
+$user->can('billing.manage');   // true — matches org::acme boundary
+$user->can('members.remove');   // false — no boundary allows it
 ```
 
 If no boundaries are defined at all, global checks still pass. The restriction only applies when at least one boundary exists.
