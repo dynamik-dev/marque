@@ -9,6 +9,7 @@ use DynamikDev\PolicyEngine\Contracts\Evaluator;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
+use DynamikDev\PolicyEngine\Models\Assignment;
 use DynamikDev\PolicyEngine\Models\Role;
 use Illuminate\Support\Collection;
 
@@ -74,7 +75,7 @@ trait HasPermissions
         );
     }
 
-    /** @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> */
+    /** @return Collection<int, Assignment> */
     public function assignments(): Collection
     {
         return app(AssignmentStore::class)->forSubject(
@@ -83,7 +84,7 @@ trait HasPermissions
         );
     }
 
-    /** @return Collection<int, \DynamikDev\PolicyEngine\Models\Assignment> */
+    /** @return Collection<int, Assignment> */
     public function assignmentsFor(mixed $scope): Collection
     {
         return app(AssignmentStore::class)->forSubjectInScope(
@@ -127,6 +128,30 @@ trait HasPermissions
             ->map(static fn (string $roleId): ?Role => $roleStore->find($roleId))
             ->filter()
             ->values();
+    }
+
+    /**
+     * Check whether this subject has a specific role assignment.
+     *
+     * When a scope is provided, checks scoped assignments only.
+     * When no scope is provided, checks global (unscoped) assignments only.
+     */
+    public function hasRole(string $role, mixed $scope = null): bool
+    {
+        $resolvedScope = app(ScopeResolver::class)->resolve($scope);
+
+        if ($resolvedScope !== null) {
+            return app(AssignmentStore::class)->forSubjectInScope(
+                $this->getMorphClass(),
+                $this->getKey(),
+                $resolvedScope,
+            )->contains('role_id', $role);
+        }
+
+        return app(AssignmentStore::class)->forSubjectGlobal(
+            $this->getMorphClass(),
+            $this->getKey(),
+        )->contains('role_id', $role);
     }
 
     public function explain(string $permission, mixed $scope = null): EvaluationTrace

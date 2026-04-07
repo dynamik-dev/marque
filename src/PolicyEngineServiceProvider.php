@@ -136,35 +136,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
                 return false;
             }
 
-            $assignmentStore = app(AssignmentStore::class);
-
-            /** @var int|string $subjectId */
-            $subjectId = $user->getKey();
-
-            if ($scope !== null) {
-                $resolvedScope = app(ScopeResolver::class)->resolve($scope);
-
-                if (! is_string($resolvedScope)) {
-                    return false;
-                }
-
-                return $assignmentStore->forSubjectInScope(
-                    $user->getMorphClass(),
-                    $subjectId,
-                    $resolvedScope,
-                )->contains('role_id', $role);
-            }
-
-            if (method_exists($assignmentStore, 'forSubjectGlobal')) {
-                /** @var \Illuminate\Support\Collection<int, mixed> $globalAssignments */
-                $globalAssignments = call_user_func([$assignmentStore, 'forSubjectGlobal'], $user->getMorphClass(), $subjectId);
-
-                return $globalAssignments->contains('role_id', $role);
-            }
-
-            return $assignmentStore->forSubject($user->getMorphClass(), $subjectId)
-                ->filter(static fn ($assignment): bool => $assignment->scope === null)
-                ->contains('role_id', $role);
+            return method_exists($user, 'hasRole') && $user->hasRole($role, $scope);
         });
     }
 

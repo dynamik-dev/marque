@@ -21,6 +21,7 @@ use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
@@ -214,7 +215,51 @@ it('returns roles filtered by scope', function (): void {
 
 it('returns empty collection when subject has no roles', function (): void {
     expect($this->user->roles())->toHaveCount(0)
-        ->and($this->user->roles())->toBeInstanceOf(\Illuminate\Support\Collection::class);
+        ->and($this->user->roles())->toBeInstanceOf(Collection::class);
+});
+
+// --- hasRole ---
+
+it('returns true when user has the role (unscoped)', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->user->assign('editor');
+
+    expect($this->user->hasRole('editor'))->toBeTrue();
+});
+
+it('returns false when user does not have the role', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->user->assign('editor');
+
+    expect($this->user->hasRole('admin'))->toBeFalse();
+});
+
+it('returns true when user has role in the given scope', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->user->assign('editor', 'team::5');
+
+    expect($this->user->hasRole('editor', 'team::5'))->toBeTrue();
+});
+
+it('returns false when user has role in a different scope', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->user->assign('editor', 'team::5');
+
+    expect($this->user->hasRole('editor', 'team::99'))->toBeFalse();
+});
+
+it('returns false for unscoped hasRole when role is only scoped', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->user->assign('editor', 'team::5');
+
+    expect($this->user->hasRole('editor'))->toBeFalse();
+});
+
+it('returns false for scoped hasRole when role is only global', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->user->assign('editor');
+
+    expect($this->user->hasRole('editor', 'team::5'))->toBeFalse();
 });
 
 // --- effectivePermissions ---
@@ -302,7 +347,7 @@ it('throws RuntimeException when explain mode is disabled', function (): void {
     config()->set('policy-engine.explain', false);
 
     $this->user->explain('posts.create');
-})->throws(\RuntimeException::class);
+})->throws(RuntimeException::class);
 
 // --- wildcard permissions ---
 
