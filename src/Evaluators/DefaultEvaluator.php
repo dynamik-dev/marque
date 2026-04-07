@@ -223,10 +223,11 @@ class DefaultEvaluator implements Evaluator
             }
         }
 
-        // Remove any allowed permission that is matched by a deny rule.
+        // Remove any allowed permission that is matched by a deny rule or blocked by a boundary.
         return array_values(array_filter(
             array_unique($allows),
-            fn (string $allow): bool => ! $this->isDenied($allow, $denies),
+            fn (string $allow): bool => ! $this->isDenied($allow, $denies)
+                && $this->passesBoundaryCheck($scope, $allow),
         ));
     }
 

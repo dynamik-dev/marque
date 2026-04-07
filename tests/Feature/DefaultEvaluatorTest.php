@@ -278,6 +278,30 @@ it('returns scoped effective permissions including global assignments', function
         ->not->toContain('billing.manage');
 });
 
+it('excludes permissions blocked by boundary from scoped effective set', function (): void {
+    $this->permissionStore->register(['posts.create', 'posts.read', 'billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['posts.create', 'posts.read', 'billing.manage']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'admin', 'team::5');
+    $this->boundaryStore->set('team::5', ['posts.*']);
+
+    $permissions = $this->evaluator->effectivePermissions('App\\Models\\User', 1, 'team::5');
+
+    expect($permissions)->toContain('posts.create', 'posts.read')
+        ->not->toContain('billing.manage');
+});
+
+it('does not apply boundary filtering for unscoped effective permissions', function (): void {
+    $this->permissionStore->register(['posts.create', 'billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['posts.create', 'billing.manage']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'admin');
+    $this->boundaryStore->set('team::5', ['posts.*']);
+
+    $permissions = $this->evaluator->effectivePermissions('App\\Models\\User', 1);
+
+    expect($permissions)->toContain('posts.create', 'billing.manage')
+        ->toHaveCount(2);
+});
+
 it('deduplicates permissions from multiple roles', function (): void {
     $this->permissionStore->register(['posts.create', 'posts.read']);
     $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read']);
