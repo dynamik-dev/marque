@@ -21,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
@@ -33,6 +34,16 @@ class MiddlewareTestUser extends Authenticatable
 {
     use HasPermissions;
 
+    protected $table = 'middleware_test_users';
+
+    protected $guarded = [];
+}
+
+/**
+ * A minimal authenticatable model WITHOUT HasPermissions — for fail-closed testing.
+ */
+class MiddlewareTestUserWithoutTrait extends Authenticatable
+{
     protected $table = 'middleware_test_users';
 
     protected $guarded = [];
@@ -167,7 +178,7 @@ it('can_do middleware denies request when user lacks permission in scope', funct
 // --- CanDoMiddleware: with scope parameter (route model binding) ---
 
 it('can_do middleware resolves scope from route model binding', function (): void {
-    Route::middleware([\Illuminate\Routing\Middleware\SubstituteBindings::class, 'can_do:posts.create,team'])
+    Route::middleware([SubstituteBindings::class, 'can_do:posts.create,team'])
         ->get('/test/{team}', fn (MiddlewareTestTeam $team) => response()->json(['ok' => true]));
 
     $this->permissionStore->register(['posts.create']);
@@ -268,7 +279,7 @@ it('role middleware checks only scoped assignments when scope is provided', func
 // --- RoleMiddleware: with route model binding ---
 
 it('role middleware resolves scope from route model binding', function (): void {
-    Route::middleware([\Illuminate\Routing\Middleware\SubstituteBindings::class, 'role:team-editor,team'])
+    Route::middleware([SubstituteBindings::class, 'role:team-editor,team'])
         ->get('/test/{team}', fn (MiddlewareTestTeam $team) => response()->json(['ok' => true]));
 
     $this->roleStore->save('team-editor', 'Team Editor', ['posts.create']);
@@ -276,5 +287,29 @@ it('role middleware resolves scope from route model binding', function (): void 
 
     $this->actingAs($this->user)
         ->getJson('/test/'.$this->team->getKey())
+        ->assertOk();
+});
+
+// --- CanDoMiddleware: fail-closed when HasPermissions trait is missing ---
+
+it('can_do middleware returns 403 when user model lacks HasPermissions trait', function (): void {
+    Route::middleware('can_do:posts.create')->get('/test', fn () => response()->json(['ok' => true]));
+
+    $user = MiddlewareTestUserWithoutTrait::query()->create(['name' => 'Bob']);
+
+    $this->actingAs($user)
+        ->getJson('/test')
+        ->assertForbidden();
+});
+
+it('can_do middleware still allows request when user with HasPermissions trait has the permission', function (): void {
+    Route::middleware('can_do:posts.create')->get('/test', fn () => response()->json(['ok' => true]));
+
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->user->assign('editor');
+
+    $this->actingAs($this->user)
+        ->getJson('/test')
         ->assertOk();
 });
