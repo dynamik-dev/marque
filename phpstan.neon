@@ -9,4 +9,3 @@ parameters:
 
     ignoreErrors:
         - identifier: trait.unused
-        - identifier: constructor.unusedParameter

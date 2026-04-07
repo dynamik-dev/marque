@@ -13,7 +13,10 @@ class Permission extends Model
 
     public function getTable(): string
     {
-        return $this->table ??= config('policy-engine.table_prefix', '').'permissions';
+        /** @var string $prefix */
+        $prefix = config('policy-engine.table_prefix', '');
+
+        return $this->table ??= $prefix.'permissions';
     }
 
     /** @var string */

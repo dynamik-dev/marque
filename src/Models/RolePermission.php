@@ -11,7 +11,10 @@ class RolePermission extends Model
 {
     public function getTable(): string
     {
-        return $this->table ??= config('policy-engine.table_prefix', '').'role_permissions';
+        /** @var string $prefix */
+        $prefix = config('policy-engine.table_prefix', '');
+
+        return $this->table ??= $prefix.'role_permissions';
     }
 
     /** @var bool */

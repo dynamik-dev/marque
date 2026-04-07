@@ -19,7 +19,10 @@ class Role extends Model
 
     public function getTable(): string
     {
-        return $this->table ??= config('policy-engine.table_prefix', '').'roles';
+        /** @var string $prefix */
+        $prefix = config('policy-engine.table_prefix', '');
+
+        return $this->table ??= $prefix.'roles';
     }
 
     /** @var string */
@@ -50,9 +53,12 @@ class Role extends Model
      */
     public function permissions(): BelongsToMany
     {
+        /** @var string $prefix */
+        $prefix = config('policy-engine.table_prefix', '');
+
         return $this->belongsToMany(
             related: Permission::class,
-            table: config('policy-engine.table_prefix', '').'role_permissions',
+            table: $prefix.'role_permissions',
             foreignPivotKey: 'role_id',
             relatedPivotKey: 'permission_id',
         );

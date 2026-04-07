@@ -218,6 +218,7 @@ class DefaultDocumentImporter implements DocumentImporter
     private function buildAllowedSubjectTypes(): array
     {
         $morphMap = Relation::morphMap();
+        /** @var array<int, string> $whitelist */
         $whitelist = config('policy-engine.import_subject_types', []);
 
         return [

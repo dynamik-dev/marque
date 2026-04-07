@@ -36,7 +36,7 @@ class CanDoMiddleware
             abort(403);
         }
 
-        if ($user->cannotDo($permission, $resolvedScope)) {
+        if ($user->cannotDo($permission, $resolvedScope)) { // @phpstan-ignore method.notFound
             abort(403);
         }
 

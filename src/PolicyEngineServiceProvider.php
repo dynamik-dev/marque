@@ -161,7 +161,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
 
             $scope = $arguments[0] ?? null;
 
-            return $user->canDo($ability, $scope); // @phpstan-ignore method.notFound
+            return $user->canDo($ability, $scope);
         });
     }
 

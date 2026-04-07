@@ -14,7 +14,10 @@ class Boundary extends Model
 {
     public function getTable(): string
     {
-        return $this->table ??= config('policy-engine.table_prefix', '').'boundaries';
+        /** @var string $prefix */
+        $prefix = config('policy-engine.table_prefix', '');
+
+        return $this->table ??= $prefix.'boundaries';
     }
 
     /** @var list<string> */
