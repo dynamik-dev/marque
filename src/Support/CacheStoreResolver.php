@@ -10,18 +10,12 @@ use Illuminate\Contracts\Cache\Repository as CacheRepository;
 
 class CacheStoreResolver
 {
-    /**
-     * Memoized per CacheManager instance ID, so Octane's fresh app
-     * instances get fresh resolutions without manual resets.
-     */
     private static ?int $managerHash = null;
-
-    private static ?CacheRepository $resolvedStore = null;
 
     private static ?CacheRepository $rawStore = null;
 
     /**
-     * Resolve the configured policy-engine cache store (without tag wrapping).
+     * Resolve the raw configured cache store (without tags).
      */
     public static function store(CacheManager $cache): CacheRepository
     {
@@ -31,23 +25,49 @@ class CacheStoreResolver
     }
 
     /**
-     * Resolve the configured store with tag support when available.
+     * Resolve a tagged store scoped to a specific subject.
      *
-     * Returns a tagged cache if the driver supports tags,
-     * otherwise returns the raw store.
+     * Tagged stores get both 'policy-engine' (global) and per-subject tags,
+     * allowing either per-subject or full invalidation.
+     * Non-tagged stores return the raw store.
      */
-    public static function resolve(CacheManager $cache): CacheRepository
+    public static function forSubject(CacheManager $cache, string $subjectType, string|int $subjectId): CacheRepository
     {
-        self::resetIfStale($cache);
+        $store = self::store($cache);
 
-        return self::$resolvedStore ??= self::buildResolved($cache);
+        if ($store instanceof Repository && $store->supportsTags()) {
+            return $store->tags([
+                'policy-engine',
+                "pe:{$subjectType}:{$subjectId}",
+            ]);
+        }
+
+        return $store;
+    }
+
+    /**
+     * Flush cache entries for a single subject.
+     *
+     * On tagged stores, flushes only entries tagged with this subject.
+     * On non-tagged stores, falls back to clearing the entire store.
+     */
+    public static function flushSubject(CacheManager $cache, string $subjectType, string|int $subjectId): void
+    {
+        $store = self::store($cache);
+
+        if ($store instanceof Repository && $store->supportsTags()) {
+            $store->tags(["pe:{$subjectType}:{$subjectId}"])->flush();
+
+            return;
+        }
+
+        $store->clear();
     }
 
     /**
      * Flush all policy-engine cache entries.
      *
-     * Uses tag-scoped flush when the store supports tags,
-     * otherwise clears the entire store.
+     * Uses tag-scoped flush when available, otherwise clears the entire store.
      */
     public static function flush(CacheManager $cache): void
     {
@@ -67,14 +87,10 @@ class CacheStoreResolver
      */
     public static function reset(): void
     {
-        self::$resolvedStore = null;
         self::$rawStore = null;
         self::$managerHash = null;
     }
 
-    /**
-     * Reset if the CacheManager instance changed (Octane, testing).
-     */
     private static function resetIfStale(CacheManager $cache): void
     {
         $hash = spl_object_id($cache);
@@ -91,16 +107,5 @@ class CacheStoreResolver
         $storeName = config('policy-engine.cache.store', 'default');
 
         return $cache->store($storeName === 'default' ? null : $storeName);
-    }
-
-    private static function buildResolved(CacheManager $cache): CacheRepository
-    {
-        $store = self::store($cache);
-
-        if ($store instanceof Repository && $store->supportsTags()) {
-            return $store->tags(['policy-engine']);
-        }
-
-        return $store;
     }
 }

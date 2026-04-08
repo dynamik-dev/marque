@@ -23,7 +23,7 @@ class CachedEvaluator implements Evaluator
         }
 
         $cacheKey = self::key('can', $subjectType, $subjectId, $permission);
-        $store = CacheStoreResolver::resolve($this->cache);
+        $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
 
         // Race window (TOCTOU): Between the cache miss and the put() below,
         // another request may revoke a role and clear the cache. This request
@@ -59,7 +59,7 @@ class CachedEvaluator implements Evaluator
         }
 
         $cacheKey = self::key('effective', $subjectType, $subjectId, $scope);
-        $store = CacheStoreResolver::resolve($this->cache);
+        $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
 
         /** @var array<int, string>|null $result */
         $result = $store->get($cacheKey);
@@ -81,7 +81,7 @@ class CachedEvaluator implements Evaluator
         }
 
         $cacheKey = self::key('role', $subjectType, $subjectId, $role.($scope !== null ? ":{$scope}" : ''));
-        $store = CacheStoreResolver::resolve($this->cache);
+        $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
 
         $result = $store->get($cacheKey);
 

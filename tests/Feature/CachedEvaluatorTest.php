@@ -58,7 +58,7 @@ it('resolves permissions on cache miss and caches the result', function (): void
 
     // Verify the result was cached per permission (tagged store for array driver).
     $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
-    $cached = $this->cacheManager->store('array')->tags(['policy-engine'])->get($cacheKey);
+    $cached = $this->cacheManager->store('array')->tags(['policy-engine', 'pe:App\\Models\\User:1'])->get($cacheKey);
 
     expect($cached)->toBeTrue();
 });
@@ -91,7 +91,7 @@ it('invalidates cache when an assignment is created', function (): void {
 
     // Pre-populate cache with a deny result in the tagged store (no assignments yet).
     $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
-    $this->cacheManager->store('array')->tags(['policy-engine'])->put($cacheKey, false, 3600);
+    $this->cacheManager->store('array')->tags(['policy-engine', 'pe:App\\Models\\User:1'])->put($cacheKey, false, 3600);
 
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeFalse();
 
@@ -302,6 +302,6 @@ it('uses separate cache keys for different scopes', function (): void {
     $teamCreateKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create:team::5');
     $orgDeleteKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.delete:org::acme');
 
-    expect($this->cacheManager->store('array')->tags(['policy-engine'])->get($teamCreateKey))->toBeTrue()
-        ->and($this->cacheManager->store('array')->tags(['policy-engine'])->get($orgDeleteKey))->toBeTrue();
+    expect($this->cacheManager->store('array')->tags(['policy-engine', 'pe:App\\Models\\User:1'])->get($teamCreateKey))->toBeTrue()
+        ->and($this->cacheManager->store('array')->tags(['policy-engine', 'pe:App\\Models\\User:1'])->get($orgDeleteKey))->toBeTrue();
 });
