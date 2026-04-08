@@ -17,6 +17,7 @@ use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
 use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,7 +43,7 @@ class GateTestUserWithoutTrait extends Authenticatable
     protected $guarded = [];
 }
 
-class GateTestTeam extends \Illuminate\Database\Eloquent\Model
+class GateTestTeam extends Model
 {
     use Scopeable;
 
@@ -51,6 +52,28 @@ class GateTestTeam extends \Illuminate\Database\Eloquent\Model
     protected $table = 'gate_test_teams';
 
     protected $guarded = [];
+}
+
+/**
+ * A policy that always denies — proves the Gate hook defers to it.
+ */
+class GateTestAlwaysDenyPolicy
+{
+    public function view(GateTestUser $user, GateTestTeam $team): bool
+    {
+        return false;
+    }
+}
+
+/**
+ * A policy that calls canDo() internally — proves engine + policy composition.
+ */
+class GateTestCanDoPolicy
+{
+    public function update(GateTestUser $user, GateTestTeam $team): bool
+    {
+        return $user->canDo('teams.update', $team);
+    }
 }
 
 beforeEach(function (): void {
@@ -201,4 +224,51 @@ it('skips passthrough abilities so other Gate definitions can handle them', func
     $this->actingAs($this->user);
 
     expect($this->user->can('admin.panel'))->toBeTrue();
+});
+
+// --- Two-lane authorization: dot-notated = engine, non-dot = policy ---
+
+it('handles dot-notated abilities through the engine even when a policy exists', function (): void {
+    Gate::policy(GateTestTeam::class, GateTestAlwaysDenyPolicy::class);
+
+    $team = GateTestTeam::query()->create(['name' => 'Team A']);
+
+    $this->permissionStore->register(['teams.view']);
+    $this->roleStore->save('viewer', 'Viewer', ['teams.view']);
+    $this->user->assign('viewer', $team);
+
+    $this->actingAs($this->user);
+
+    // Dot-notated: engine handles it, policy is not consulted.
+    expect($this->user->can('teams.view', $team))->toBeTrue();
+});
+
+it('defers non-dot abilities to policies that call canDo internally', function (): void {
+    Gate::policy(GateTestTeam::class, GateTestCanDoPolicy::class);
+
+    $team = GateTestTeam::query()->create(['name' => 'Team A']);
+
+    $this->permissionStore->register(['teams.update']);
+    $this->roleStore->save('team-admin', 'Team Admin', ['teams.update']);
+    $this->user->assign('team-admin', $team);
+
+    $this->actingAs($this->user);
+
+    // Non-dot 'update': policy handles it, calls canDo() internally.
+    expect($this->user->can('update', $team))->toBeTrue();
+});
+
+it('policy calling canDo denies when engine denies', function (): void {
+    Gate::policy(GateTestTeam::class, GateTestCanDoPolicy::class);
+
+    $team = GateTestTeam::query()->create(['name' => 'Team A']);
+
+    $this->permissionStore->register(['teams.update']);
+    $this->roleStore->save('viewer', 'Viewer', ['teams.view']);
+    $this->user->assign('viewer');
+
+    $this->actingAs($this->user);
+
+    // Policy calls canDo('teams.update', $team) — user lacks permission.
+    expect($this->user->can('update', $team))->toBeFalse();
 });

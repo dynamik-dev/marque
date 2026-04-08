@@ -25,13 +25,21 @@ trait Scopeable
         return $this->getScopeType().'::'.$this->getKey();
     }
 
+    /** @var array<class-string, string> */
+    private static array $scopeTypeCache = [];
+
     /**
      * Get the scope type string for this model.
      *
      * Checks for a #[ScopeType] attribute first, then a $scopeType property,
-     * then falls back to the lowercased class basename.
+     * then falls back to the lowercased class basename. Memoized per class.
      */
     public function getScopeType(): string
+    {
+        return self::$scopeTypeCache[static::class] ??= $this->resolveScopeType();
+    }
+
+    private function resolveScopeType(): string
     {
         $attribute = (new ReflectionClass(static::class))
             ->getAttributes(ScopeType::class)[0] ?? null;

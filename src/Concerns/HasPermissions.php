@@ -138,25 +138,16 @@ trait HasPermissions
     /**
      * Check whether this subject has a specific role assignment.
      *
-     * When a scope is provided, checks scoped assignments only.
-     * When no scope is provided, checks global (unscoped) assignments only.
+     * Delegates to the Evaluator (which caches results via CachedEvaluator).
      */
     public function hasRole(string $role, mixed $scope = null): bool
     {
-        $resolvedScope = app(ScopeResolver::class)->resolve($scope);
-
-        if ($resolvedScope !== null) {
-            return app(AssignmentStore::class)->forSubjectInScope(
-                $this->getMorphClass(),
-                $this->getKey(),
-                $resolvedScope,
-            )->contains('role_id', $role);
-        }
-
-        return app(AssignmentStore::class)->forSubjectGlobal(
+        return app(Evaluator::class)->hasRole(
             $this->getMorphClass(),
             $this->getKey(),
-        )->contains('role_id', $role);
+            $role,
+            app(ScopeResolver::class)->resolve($scope),
+        );
     }
 
     public function explain(string $permission, mixed $scope = null): EvaluationTrace

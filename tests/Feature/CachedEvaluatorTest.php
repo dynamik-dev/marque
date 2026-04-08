@@ -210,6 +210,83 @@ it('delegates effectivePermissions() to inner evaluator', function (): void {
 
 // --- Scoped cache key ---
 
+// --- hasRole caching ---
+
+it('caches hasRole results', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+
+    expect($this->evaluator->hasRole('App\\Models\\User', 1, 'editor'))->toBeTrue();
+
+    // Delete assignment directly to avoid cache invalidation events.
+    Assignment::query()->delete();
+
+    // Should still return true from cache.
+    expect($this->evaluator->hasRole('App\\Models\\User', 1, 'editor'))->toBeTrue();
+});
+
+it('invalidates hasRole cache on assignment revoke', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+
+    expect($this->evaluator->hasRole('App\\Models\\User', 1, 'editor'))->toBeTrue();
+
+    // Revoke via store (fires invalidation events).
+    $assignment = Assignment::query()->first();
+    $this->assignmentStore->revoke('App\\Models\\User', 1, 'editor');
+
+    $listener = new InvalidatePermissionCache($this->cacheManager);
+    $listener->handle(new AssignmentRevoked($assignment));
+
+    expect($this->evaluator->hasRole('App\\Models\\User', 1, 'editor'))->toBeFalse();
+});
+
+// --- effectivePermissions caching ---
+
+it('caches effectivePermissions results', function (): void {
+    $this->permissionStore->register(['posts.create', 'posts.read']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+
+    $first = $this->evaluator->effectivePermissions('App\\Models\\User', 1);
+    expect($first)->toEqualCanonicalizing(['posts.create', 'posts.read']);
+
+    // Delete assignment directly to avoid cache invalidation.
+    Assignment::query()->delete();
+
+    // Should still return cached result.
+    $second = $this->evaluator->effectivePermissions('App\\Models\\User', 1);
+    expect($second)->toEqualCanonicalizing(['posts.create', 'posts.read']);
+});
+
+// --- Cache key isolation ---
+
+it('does not collide cache keys between can, hasRole, and effectivePermissions', function (): void {
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+
+    // Populate all three cache types for the same subject.
+    $canResult = $this->evaluator->can('App\\Models\\User', 1, 'posts.create');
+    $roleResult = $this->evaluator->hasRole('App\\Models\\User', 1, 'editor');
+    $effectiveResult = $this->evaluator->effectivePermissions('App\\Models\\User', 1);
+
+    expect($canResult)->toBeTrue()
+        ->and($roleResult)->toBeTrue()
+        ->and($effectiveResult)->toContain('posts.create');
+
+    // Verify keys are distinct.
+    $canKey = CachedEvaluator::key('can', 'App\\Models\\User', 1, 'posts.create');
+    $roleKey = CachedEvaluator::key('role', 'App\\Models\\User', 1, 'editor');
+    $effectiveKey = CachedEvaluator::key('effective', 'App\\Models\\User', 1);
+
+    expect($canKey)->not->toBe($roleKey)
+        ->and($canKey)->not->toBe($effectiveKey)
+        ->and($roleKey)->not->toBe($effectiveKey);
+});
+
+// --- Scoped cache keys ---
+
 it('uses separate cache keys for different scopes', function (): void {
     $this->permissionStore->register(['posts.create', 'posts.delete']);
     $this->roleStore->save('team-editor', 'Team Editor', ['posts.create']);

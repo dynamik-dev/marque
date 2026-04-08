@@ -34,6 +34,7 @@ use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
 use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
+use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Routing\Router;
@@ -47,6 +48,9 @@ class PolicyEngineServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/policy-engine.php', 'policy-engine');
+
+        // Reset memoized cache store when the app is re-bootstrapped (testing).
+        CacheStoreResolver::reset();
 
         $this->app->bind(PermissionStore::class, EloquentPermissionStore::class);
         $this->app->bind(RoleStore::class, EloquentRoleStore::class);
@@ -122,6 +126,9 @@ class PolicyEngineServiceProvider extends ServiceProvider
     private function registerGateHook(): void
     {
         Gate::before(static function (Authenticatable $user, string $ability, array $arguments): ?bool {
+            // Non-dot abilities (update, delete, view) are left to Laravel's
+            // standard Gate and Policy resolution. Policies can call canDo()
+            // internally when they need the engine.
             if (! str_contains($ability, '.')) {
                 return null;
             }
@@ -137,6 +144,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
                 return null;
             }
 
+            // Dot-notated abilities are always handled by the engine.
             $scope = $arguments[0] ?? null;
 
             return $user->canDo($ability, $scope);

@@ -19,6 +19,11 @@ interface Evaluator
     public function explain(string $subjectType, string|int $subjectId, string $permission): EvaluationTrace;
 
     /**
+     * Check whether a subject has a specific role assignment.
+     */
+    public function hasRole(string $subjectType, string|int $subjectId, string $role, ?string $scope = null): bool;
+
+    /**
      * Collect all effective permissions for a subject, optionally within a scope.
      *
      * @return array<int, string>

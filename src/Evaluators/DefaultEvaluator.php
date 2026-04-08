@@ -227,6 +227,17 @@ class DefaultEvaluator implements Evaluator
         );
     }
 
+    public function hasRole(string $subjectType, string|int $subjectId, string $role, ?string $scope = null): bool
+    {
+        if ($scope !== null) {
+            return $this->assignments->forSubjectInScope($subjectType, $subjectId, $scope)
+                ->contains('role_id', $role);
+        }
+
+        return $this->assignments->forSubjectGlobal($subjectType, $subjectId)
+            ->contains('role_id', $role);
+    }
+
     /**
      * Collect all effective permissions for a subject, optionally within a scope.
      *
