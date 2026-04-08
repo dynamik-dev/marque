@@ -22,6 +22,12 @@ class EloquentBoundaryStore implements BoundaryStore
      */
     public function set(string $scope, array $maxPermissions): void
     {
+        foreach ($maxPermissions as $value) {
+            if (! is_string($value) || $value === '') { // @phpstan-ignore function.alreadyNarrowedType
+                throw new \InvalidArgumentException('All max_permissions values must be non-empty strings.');
+            }
+        }
+
         $boundary = Boundary::query()->updateOrCreate(
             ['scope' => $scope],
             ['max_permissions' => $maxPermissions],
@@ -57,5 +63,16 @@ class EloquentBoundaryStore implements BoundaryStore
     public function all(): Collection
     {
         return Boundary::query()->get();
+    }
+
+    /**
+     * Remove all boundaries, dispatching BoundaryRemoved for each.
+     */
+    public function removeAll(): void
+    {
+        Boundary::query()->get()->each(function (Boundary $boundary): void {
+            $boundary->delete();
+            Event::dispatch(new BoundaryRemoved($boundary->scope));
+        });
     }
 }

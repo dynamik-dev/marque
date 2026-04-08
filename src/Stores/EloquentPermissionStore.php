@@ -24,14 +24,26 @@ class EloquentPermissionStore implements PermissionStore
      */
     public function register(string|array $permissions): void
     {
-        foreach ((array) $permissions as $permission) {
+        $permissions = (array) $permissions;
+
+        foreach ($permissions as $permission) {
             $this->validateIdentifier($permission, 'permission');
+        }
 
-            $wasRecentlyCreated = Permission::query()
-                ->firstOrCreate(['id' => $permission])
-                ->wasRecentlyCreated;
+        /** @var array<int, string> $existing */
+        $existing = Permission::query()
+            ->whereIn('id', $permissions)
+            ->pluck('id')
+            ->all();
 
-            if ($wasRecentlyCreated) {
+        $new = array_diff($permissions, $existing);
+
+        if ($new !== []) {
+            Permission::query()->insert(
+                array_map(static fn (string $id): array => ['id' => $id], $new),
+            );
+
+            foreach ($new as $permission) {
                 Event::dispatch(new PermissionCreated($permission));
             }
         }
@@ -47,6 +59,12 @@ class EloquentPermissionStore implements PermissionStore
         if ($id === '' || preg_match('/[\s:]/', $id) || str_starts_with($id, '!')) {
             throw new \InvalidArgumentException(
                 "Invalid {$type} ID [{$id}]. IDs must not be empty, contain whitespace or colons, or start with '!'.",
+            );
+        }
+
+        if (strlen($id) > 255) {
+            throw new \InvalidArgumentException(
+                "Invalid {$type} ID [{$id}]. IDs must not exceed 255 characters.",
             );
         }
     }
@@ -89,5 +107,20 @@ class EloquentPermissionStore implements PermissionStore
     public function exists(string $id): bool
     {
         return Permission::query()->where('id', $id)->exists();
+    }
+
+    /**
+     * Remove all permissions, dispatching PermissionDeleted for each.
+     *
+     * Also removes all role_permission pivot rows referencing the deleted permissions.
+     */
+    public function removeAll(): void
+    {
+        RolePermission::query()->delete();
+
+        Permission::query()->get()->each(function (Permission $permission): void {
+            $permission->delete();
+            Event::dispatch(new PermissionDeleted($permission->id));
+        });
     }
 }

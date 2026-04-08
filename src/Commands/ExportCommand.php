@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 
 class ExportCommand extends Command
 {
-    protected $signature = 'policy-engine:export {--scope=} {--path=} {--stdout}';
+    protected $signature = 'policy-engine:export {--scope=} {--path=}';
 
     protected $description = 'Export the current authorization state to JSON';
 

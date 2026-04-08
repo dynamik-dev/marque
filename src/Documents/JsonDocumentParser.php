@@ -118,6 +118,18 @@ class JsonDocumentParser implements DocumentParser
                     $errors[] = "roles[{$index}] is missing required key: {$key}";
                 }
             }
+
+            if (array_key_exists('permissions', $role)) {
+                if (! is_array($role['permissions'])) {
+                    $errors[] = "roles[{$index}].permissions must be an array";
+                } else {
+                    foreach ($role['permissions'] as $pIndex => $permission) {
+                        if (! is_string($permission)) {
+                            $errors[] = "roles[{$index}].permissions[{$pIndex}] must be a string";
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -168,6 +180,18 @@ class JsonDocumentParser implements DocumentParser
             foreach (['scope', 'max_permissions'] as $key) {
                 if (! array_key_exists($key, $boundary)) {
                     $errors[] = "boundaries[{$index}] is missing required key: {$key}";
+                }
+            }
+
+            if (array_key_exists('max_permissions', $boundary)) {
+                if (! is_array($boundary['max_permissions'])) {
+                    $errors[] = "boundaries[{$index}].max_permissions must be an array";
+                } else {
+                    foreach ($boundary['max_permissions'] as $pIndex => $permission) {
+                        if (! is_string($permission)) {
+                            $errors[] = "boundaries[{$index}].max_permissions[{$pIndex}] must be a string";
+                        }
+                    }
                 }
             }
         }

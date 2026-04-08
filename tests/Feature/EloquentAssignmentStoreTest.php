@@ -40,6 +40,19 @@ it('is idempotent for duplicate assignments', function (): void {
         ->count())->toBe(1);
 });
 
+it('global assign is idempotent and does not create duplicate rows', function (): void {
+    $this->store->assign('App\\Models\\User', 1, 'editor');
+    $this->store->assign('App\\Models\\User', 1, 'editor');
+    $this->store->assign('App\\Models\\User', 1, 'editor');
+
+    expect(Assignment::query()
+        ->where('subject_type', 'App\\Models\\User')
+        ->where('subject_id', 1)
+        ->where('role_id', 'editor')
+        ->whereNull('scope')
+        ->count())->toBe(1);
+});
+
 it('dispatches AssignmentCreated for new assignment', function (): void {
     Event::fake([AssignmentCreated::class]);
 

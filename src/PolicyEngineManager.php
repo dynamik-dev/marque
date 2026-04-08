@@ -61,22 +61,35 @@ class PolicyEngineManager
      */
     public function import(string $pathOrContent, ?ImportOptions $options = null): ImportResult
     {
-        if (file_exists($pathOrContent)) {
-            $fileContent = file_get_contents(PathValidator::validate($pathOrContent));
+        if ($this->looksLikeFilePath($pathOrContent)) {
+            $validatedPath = PathValidator::validate($pathOrContent);
 
-            if ($fileContent === false) {
-                throw new \InvalidArgumentException("Could not read file [{$pathOrContent}].");
+            if (file_exists($validatedPath)) {
+                $fileContent = file_get_contents($validatedPath);
+
+                if ($fileContent === false) {
+                    throw new \InvalidArgumentException("Could not read file [{$pathOrContent}].");
+                }
+
+                return $this->importer->import(
+                    $this->parser->parse($fileContent),
+                    $options ?? new ImportOptions,
+                );
             }
-
-            $content = $fileContent;
-        } else {
-            $content = $pathOrContent;
         }
 
         return $this->importer->import(
-            $this->parser->parse($content),
+            $this->parser->parse($pathOrContent),
             $options ?? new ImportOptions,
         );
+    }
+
+    /**
+     * Determine whether the input looks like a file path rather than raw content.
+     */
+    private function looksLikeFilePath(string $input): bool
+    {
+        return str_contains($input, DIRECTORY_SEPARATOR) || str_ends_with($input, '.json');
     }
 
     /**

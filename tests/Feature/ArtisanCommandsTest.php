@@ -482,3 +482,23 @@ it('runs the sync command successfully with a valid seeder', function (): void {
         ->expectsOutputToContain('sync completed')
         ->assertSuccessful();
 });
+
+it('sync command uses the configured seeder class', function (): void {
+    if (! class_exists('Database\Seeders\CustomPolicySeeder', false)) {
+        eval('namespace Database\Seeders; class CustomPolicySeeder extends \Illuminate\Database\Seeder { public function run(): void {} }');
+    }
+
+    config()->set('policy-engine.seeder_class', 'CustomPolicySeeder');
+
+    $this->artisan('policy-engine:sync')
+        ->expectsOutputToContain('sync completed')
+        ->assertSuccessful();
+});
+
+it('sync command fails gracefully when configured seeder class does not exist', function (): void {
+    config()->set('policy-engine.seeder_class', 'NonExistentSeeder');
+
+    $this->artisan('policy-engine:sync')
+        ->expectsOutputToContain('Failed to sync')
+        ->assertExitCode(1);
+});

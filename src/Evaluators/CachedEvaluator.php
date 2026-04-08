@@ -32,16 +32,21 @@ class CachedEvaluator implements Evaluator
         // - Use a shorter TTL for security-critical applications
         // - Use a dedicated cache store to isolate invalidation
         // - See "Customizing the Cache" docs for advanced strategies
+        //
+        // Values are wrapped in an array (['v' => bool]) so that a stored
+        // `false` is never confused with a cache miss (`null`). Some cache
+        // drivers cannot distinguish stored `false` from a miss.
         $result = $store->get($cacheKey);
 
-        if ($result !== null) {
-            return (bool) $result;
+        if (is_array($result)) {
+            /** @var bool */
+            return $result['v'];
         }
 
-        $result = $this->inner->can($subjectType, $subjectId, $permission);
-        $store->put($cacheKey, $result, $this->ttl());
+        $evaluated = $this->inner->can($subjectType, $subjectId, $permission);
+        $store->put($cacheKey, ['v' => $evaluated], $this->ttl());
 
-        return $result;
+        return $evaluated;
     }
 
     public function explain(string $subjectType, string|int $subjectId, string $permission): EvaluationTrace
@@ -85,29 +90,32 @@ class CachedEvaluator implements Evaluator
 
         $result = $store->get($cacheKey);
 
-        if ($result !== null) {
-            return (bool) $result;
+        if (is_array($result)) {
+            /** @var bool */
+            return $result['v'];
         }
 
-        $result = $this->inner->hasRole($subjectType, $subjectId, $role, $scope);
-        $store->put($cacheKey, $result, $this->ttl());
+        $evaluated = $this->inner->hasRole($subjectType, $subjectId, $role, $scope);
+        $store->put($cacheKey, ['v' => $evaluated], $this->ttl());
 
-        return $result;
+        return $evaluated;
     }
 
     /**
      * Build a namespaced cache key.
      *
-     * Format: policy-engine:{type}:{subjectType}:{subjectId}:{suffix}
+     * Format: policy-engine:{type}:{subjectType}:{subjectId}:{hashedSuffix}
      * The type prefix (can, role, effective) prevents collisions between
-     * different cache entry kinds.
+     * different cache entry kinds. The suffix is hashed with MD5 to ensure
+     * safe key lengths across all cache drivers (Memcached 250-char limit,
+     * file-based drivers that use the key as a filename, etc.).
      */
     public static function key(string $type, string $subjectType, string|int $subjectId, ?string $suffix = null): string
     {
         $key = "policy-engine:{$type}:{$subjectType}:{$subjectId}";
 
         if ($suffix !== null) {
-            $key .= ":{$suffix}";
+            $key .= ':'.md5($suffix);
         }
 
         return $key;
@@ -124,7 +132,7 @@ class CachedEvaluator implements Evaluator
     private function ttl(): int
     {
         /** @var int $ttl */
-        $ttl = config('policy-engine.cache.ttl', 3600);
+        $ttl = config('policy-engine.cache.ttl', 300);
 
         return $ttl;
     }

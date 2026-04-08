@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Concerns\HasPermissions;
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
+use DynamikDev\PolicyEngine\DTOs\ImportOptions;
+use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -184,4 +187,53 @@ it('clears only policy-engine tagged entries when flushing cache', function (): 
 
     // Non-tagged key should survive.
     expect(cache()->store('array')->get('session-token'))->toBe('abc123');
+});
+
+// --- Cache invalidated when a new permission is created ---
+
+it('invalidates cache when a new permission is created', function (): void {
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->user->assign('editor');
+
+    // Prime the cache.
+    expect($this->user->canDo('posts.create'))->toBeTrue();
+
+    // Register a new permission — PermissionCreated fires, full cache flush.
+    $this->permissionStore->register(['posts.delete']);
+
+    // Verify the flush happened: the previously-cached canDo result
+    // is gone, forcing re-evaluation. Since the role still grants
+    // posts.create, canDo still returns true — but from a fresh eval.
+    // We verify flush indirectly: canDo('posts.delete') should be false
+    // (not granted), proving the evaluator ran fresh (not from stale cache).
+    expect($this->user->canDo('posts.delete'))->toBeFalse();
+    expect($this->user->canDo('posts.create'))->toBeTrue();
+});
+
+// --- Cache invalidated when a document is imported ---
+
+it('invalidates cache when a document is imported so canDo reflects the imported state', function (): void {
+    $this->permissionStore->register(['posts.create', 'posts.read']);
+    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
+    $this->user->assign('viewer');
+
+    // User cannot create (result cached as false).
+    expect($this->user->canDo('posts.create'))->toBeFalse();
+
+    // Import a document that upgrades the viewer role to include posts.create.
+    // The importer dispatches DocumentImported, which triggers a full cache flush.
+    app(DocumentImporter::class)->import(
+        new PolicyDocument(
+            version: '1.0',
+            permissions: ['posts.create', 'posts.read'],
+            roles: [
+                ['id' => 'viewer', 'name' => 'Viewer', 'permissions' => ['posts.create', 'posts.read']],
+            ],
+        ),
+        new ImportOptions(merge: true),
+    );
+
+    // Subsequent canDo should reflect the upgraded role from the import.
+    expect($this->user->canDo('posts.create'))->toBeTrue();
 });

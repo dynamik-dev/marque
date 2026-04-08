@@ -9,6 +9,14 @@ use DynamikDev\PolicyEngine\Contracts\Matcher;
 class WildcardMatcher implements Matcher
 {
     /**
+     * Maximum number of dot-separated segments allowed in a permission pattern.
+     *
+     * Limits recursion depth in the backtracking algorithm to prevent
+     * pathological patterns from causing excessive CPU usage.
+     */
+    private const int MAX_SEGMENTS = 10;
+
+    /**
      * Determine whether a granted permission pattern matches a required permission.
      *
      * Permissions are dot-notated (`resource.verb.qualifier`) with an optional
@@ -18,6 +26,8 @@ class WildcardMatcher implements Matcher
      * Scope rules:
      *  - Unscoped grants cover any scope (including scoped checks).
      *  - Scoped grants must match the required scope exactly.
+     *
+     * Returns false if either pattern exceeds MAX_SEGMENTS dot-separated segments.
      */
     public function matches(string $granted, string $required): bool
     {
@@ -32,10 +42,14 @@ class WildcardMatcher implements Matcher
             return false;
         }
 
-        return $this->segmentsMatch(
-            explode('.', $grantedPermission),
-            explode('.', $requiredPermission),
-        );
+        $grantedSegments = explode('.', $grantedPermission);
+        $requiredSegments = explode('.', $requiredPermission);
+
+        if (count($grantedSegments) > self::MAX_SEGMENTS || count($requiredSegments) > self::MAX_SEGMENTS) {
+            return false;
+        }
+
+        return $this->segmentsMatch($grantedSegments, $requiredSegments);
     }
 
     /**

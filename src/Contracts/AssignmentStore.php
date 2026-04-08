@@ -60,4 +60,9 @@ interface AssignmentStore
      * @return Collection<int, Assignment>
      */
     public function all(): Collection;
+
+    /**
+     * Remove all assignments, dispatching events for each.
+     */
+    public function removeAll(): void;
 }

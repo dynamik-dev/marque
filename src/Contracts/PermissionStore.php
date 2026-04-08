@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine\Contracts;
 
+use DynamikDev\PolicyEngine\Models\Permission;
 use Illuminate\Support\Collection;
 
 interface PermissionStore
@@ -23,7 +24,7 @@ interface PermissionStore
     /**
      * Retrieve all permissions, optionally filtered by a dot-notated prefix.
      *
-     * @return Collection<int, \DynamikDev\PolicyEngine\Models\Permission>
+     * @return Collection<int, Permission>
      */
     public function all(?string $prefix = null): Collection;
 
@@ -31,4 +32,9 @@ interface PermissionStore
      * Check whether a permission exists.
      */
     public function exists(string $id): bool;
+
+    /**
+     * Remove all permissions, dispatching events for each.
+     */
+    public function removeAll(): void;
 }

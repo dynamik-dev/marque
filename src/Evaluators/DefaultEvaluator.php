@@ -217,6 +217,13 @@ class DefaultEvaluator implements Evaluator
             }
         }
 
+        $sanctumNote = null;
+
+        if ($result === EvaluationResult::Allow && ! $this->sanctumTokenAllows($subjectType, $subjectId, $requiredPermission)) {
+            $result = EvaluationResult::Deny;
+            $sanctumNote = 'Denied by Sanctum token ability restriction';
+        }
+
         return new EvaluationTrace(
             subject: $subjectType.':'.$subjectId,
             required: $requiredPermission,
@@ -224,6 +231,7 @@ class DefaultEvaluator implements Evaluator
             assignments: $traceAssignments,
             boundary: $boundaryNote,
             cacheHit: false,
+            sanctum: $sanctumNote,
         );
     }
 

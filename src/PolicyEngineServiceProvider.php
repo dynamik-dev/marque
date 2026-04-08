@@ -23,6 +23,8 @@ use DynamikDev\PolicyEngine\Events\AssignmentCreated;
 use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
 use DynamikDev\PolicyEngine\Events\BoundaryRemoved;
 use DynamikDev\PolicyEngine\Events\BoundarySet;
+use DynamikDev\PolicyEngine\Events\DocumentImported;
+use DynamikDev\PolicyEngine\Events\PermissionCreated;
 use DynamikDev\PolicyEngine\Events\PermissionDeleted;
 use DynamikDev\PolicyEngine\Events\RoleDeleted;
 use DynamikDev\PolicyEngine\Events\RoleUpdated;
@@ -52,15 +54,15 @@ class PolicyEngineServiceProvider extends ServiceProvider
         // Reset memoized cache store when the app is re-bootstrapped (testing).
         CacheStoreResolver::reset();
 
-        $this->app->bind(PermissionStore::class, EloquentPermissionStore::class);
-        $this->app->bind(RoleStore::class, EloquentRoleStore::class);
-        $this->app->bind(AssignmentStore::class, EloquentAssignmentStore::class);
-        $this->app->bind(BoundaryStore::class, EloquentBoundaryStore::class);
-        $this->app->bind(Matcher::class, WildcardMatcher::class);
-        $this->app->bind(ScopeResolver::class, ModelScopeResolver::class);
-        $this->app->bind(DocumentParser::class, JsonDocumentParser::class);
-        $this->app->bind(DocumentImporter::class, DefaultDocumentImporter::class);
-        $this->app->bind(DocumentExporter::class, DefaultDocumentExporter::class);
+        $this->app->singleton(PermissionStore::class, EloquentPermissionStore::class);
+        $this->app->singleton(RoleStore::class, EloquentRoleStore::class);
+        $this->app->singleton(AssignmentStore::class, EloquentAssignmentStore::class);
+        $this->app->singleton(BoundaryStore::class, EloquentBoundaryStore::class);
+        $this->app->singleton(Matcher::class, WildcardMatcher::class);
+        $this->app->singleton(ScopeResolver::class, ModelScopeResolver::class);
+        $this->app->singleton(DocumentParser::class, JsonDocumentParser::class);
+        $this->app->singleton(DocumentImporter::class, DefaultDocumentImporter::class);
+        $this->app->singleton(DocumentExporter::class, DefaultDocumentExporter::class);
 
         $this->app->bind(Evaluator::class, function ($app): CachedEvaluator {
             return new CachedEvaluator(
@@ -160,5 +162,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
         Event::listen(PermissionDeleted::class, InvalidatePermissionCache::class);
         Event::listen(BoundarySet::class, InvalidatePermissionCache::class);
         Event::listen(BoundaryRemoved::class, InvalidatePermissionCache::class);
+        Event::listen(PermissionCreated::class, InvalidatePermissionCache::class);
+        Event::listen(DocumentImported::class, InvalidatePermissionCache::class);
     }
 }

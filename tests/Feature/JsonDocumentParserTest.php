@@ -74,11 +74,11 @@ it('defaults version to 1.0 when missing', function (): void {
 
 it('throws InvalidArgumentException for invalid JSON', function (): void {
     $this->parser->parse('not valid json {{{');
-})->throws(\InvalidArgumentException::class, 'Invalid JSON');
+})->throws(InvalidArgumentException::class, 'Invalid JSON');
 
 it('throws InvalidArgumentException for non-object JSON', function (): void {
     $this->parser->parse('"just a string"');
-})->throws(\InvalidArgumentException::class, 'Invalid JSON');
+})->throws(InvalidArgumentException::class, 'Invalid JSON');
 
 // --- serialize() ---
 
@@ -332,6 +332,63 @@ it('rejects a non-array boundary entry', function (): void {
     expect($result)->valid->toBeFalse();
     expect($result->errors)->toContain('boundaries[0] must be an object');
     expect($result->errors)->toContain('boundaries[1] must be an object');
+});
+
+it('rejects role permissions that is a string instead of an array', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'roles' => [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => 'posts.create'],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('roles[0].permissions must be an array');
+});
+
+it('rejects role permissions containing non-string items', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'roles' => [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => [123, null]],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('roles[0].permissions[0] must be a string');
+    expect($result->errors)->toContain('roles[0].permissions[1] must be a string');
+});
+
+it('rejects boundary max_permissions that is a string instead of an array', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'boundaries' => [
+            ['scope' => 'group::5', 'max_permissions' => 'posts.*'],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('boundaries[0].max_permissions must be an array');
+});
+
+it('rejects boundary max_permissions containing non-string items', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'boundaries' => [
+            ['scope' => 'group::5', 'max_permissions' => [123]],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('boundaries[0].max_permissions[0] must be a string');
 });
 
 it('collects multiple validation errors', function (): void {

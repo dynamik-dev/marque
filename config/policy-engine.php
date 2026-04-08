@@ -7,10 +7,9 @@ return [
         'enabled' => true,
         'store' => env('POLICY_ENGINE_CACHE_STORE', 'default'),
 
-        // TTL in seconds. For security-critical applications, consider a shorter
-        // TTL (e.g. 300) to reduce the window where stale cached results could
-        // grant access after a revocation. See "Customizing the Cache" docs.
-        'ttl' => 60 * 60,
+        // TTL in seconds.
+        // Lower values reduce the window for stale cached permissions after revocation.
+        'ttl' => 60 * 5,
     ],
     'protect_system_roles' => true,
     'log_denials' => true,
@@ -30,6 +29,10 @@ return [
     // like "permissions" or "roles". Set to 'pe_' for new installs alongside
     // other permission packages. Empty string preserves backwards compatibility.
     'table_prefix' => '',
+
+    // The seeder class used by the policy-engine:sync command.
+    // Must be resolvable by db:seed --class (typically in Database\Seeders namespace).
+    'seeder_class' => 'PermissionSeeder',
 
     'document_path' => null,
     'gate_passthrough' => [],

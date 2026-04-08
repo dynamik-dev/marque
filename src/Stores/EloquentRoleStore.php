@@ -33,25 +33,37 @@ class EloquentRoleStore implements RoleStore
 
             $currentPermissions = $this->permissionsFor($id);
 
-            if ($permissions !== $currentPermissions) {
+            $sortedCurrent = $currentPermissions;
+            $sortedNew = $permissions;
+            sort($sortedCurrent);
+            sort($sortedNew);
+
+            if ($sortedNew !== $sortedCurrent) {
                 throw new \RuntimeException("Cannot modify permissions on protected system role [{$id}].");
             }
         }
 
-        $role = Role::query()->updateOrCreate(
-            ['id' => $id],
-            ['name' => $name, 'is_system' => $system],
-        );
+        $role = Role::query()->getConnection()->transaction(function () use ($id, $name, $permissions, $system): Role {
+            $role = Role::query()->updateOrCreate(
+                ['id' => $id],
+                ['name' => $name, 'is_system' => $system],
+            );
 
-        RolePermission::query()->where('role_id', $id)->delete();
+            RolePermission::query()->where('role_id', $id)->delete();
 
-        foreach ($permissions as $permissionId) {
-            RolePermission::query()->create([
-                'role_id' => $id,
-                'permission_id' => $permissionId,
-            ]);
-        }
+            if ($permissions !== []) {
+                RolePermission::query()->insert(
+                    array_map(
+                        static fn (string $perm): array => ['role_id' => $id, 'permission_id' => $perm],
+                        $permissions,
+                    ),
+                );
+            }
 
+            return $role;
+        });
+
+        /** @var Role $role */
         Event::dispatch(
             $role->wasRecentlyCreated
                 ? new RoleCreated($role)
@@ -77,6 +89,22 @@ class EloquentRoleStore implements RoleStore
         $role->delete();
 
         Event::dispatch(new RoleDeleted($role));
+    }
+
+    /**
+     * Remove all roles, dispatching RoleDeleted for each.
+     *
+     * Bypasses system-role protection since this is used for full-replace imports.
+     * Also removes all role_permission pivot rows.
+     */
+    public function removeAll(): void
+    {
+        RolePermission::query()->delete();
+
+        Role::query()->get()->each(function (Role $role): void {
+            $role->delete();
+            Event::dispatch(new RoleDeleted($role));
+        });
     }
 
     public function find(string $id): ?Role
@@ -147,6 +175,12 @@ class EloquentRoleStore implements RoleStore
         if ($id === '' || preg_match('/[\s:]/', $id) || str_starts_with($id, '!')) {
             throw new \InvalidArgumentException(
                 "Invalid role ID [{$id}]. IDs must not be empty, contain whitespace or colons, or start with '!'.",
+            );
+        }
+
+        if (strlen($id) > 255) {
+            throw new \InvalidArgumentException(
+                "Invalid role ID [{$id}]. IDs must not exceed 255 characters.",
             );
         }
     }

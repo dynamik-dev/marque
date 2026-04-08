@@ -339,6 +339,11 @@ it('short-circuits before role permission lookups when boundary denies', functio
             $this->inner->remove($id);
         }
 
+        public function removeAll(): void
+        {
+            $this->inner->removeAll();
+        }
+
         public function find(string $id): ?Role
         {
             return $this->inner->find($id);
@@ -494,6 +499,11 @@ it('works with custom assignment store implementing forSubjectGlobal', function 
         {
             return collect($this->assignments);
         }
+
+        public function removeAll(): void
+        {
+            $this->assignments = [];
+        }
     };
 
     $minimalAssignmentStore->assign('App\\Models\\User', 1, 'editor');
@@ -566,6 +576,11 @@ it('works with custom assignment store implementing forSubjectGlobalAndScope', f
         public function all(): Collection
         {
             return collect($this->assignments);
+        }
+
+        public function removeAll(): void
+        {
+            $this->assignments = [];
         }
     };
 
@@ -642,6 +657,11 @@ it('works with custom role store implementing permissionsForRoles', function ():
 
             return $result;
         }
+
+        public function removeAll(): void
+        {
+            $this->roles = [];
+        }
     };
 
     $minimalRoleStore->save('editor', 'Editor', ['posts.create']);
@@ -716,6 +736,11 @@ it('uses batched role permission loading when the role store supports it', funct
         public function remove(string $id): void
         {
             $this->inner->remove($id);
+        }
+
+        public function removeAll(): void
+        {
+            $this->inner->removeAll();
         }
 
         public function find(string $id): ?Role

@@ -139,6 +139,10 @@ it('rejects permission string containing whitespace', function (): void {
     $this->store->register('posts .create');
 })->throws(InvalidArgumentException::class, 'Invalid permission ID');
 
+it('rejects permission string exceeding 255 characters', function (): void {
+    $this->store->register(str_repeat('a', 256));
+})->throws(InvalidArgumentException::class, 'IDs must not exceed 255 characters');
+
 it('accepts valid dot-notated permission strings', function (): void {
     $this->store->register(['posts.create', 'posts.delete.own', 'billing', 'a.b.c.d']);
 

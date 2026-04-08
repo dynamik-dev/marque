@@ -15,16 +15,29 @@ class EloquentAssignmentStore implements AssignmentStore
 {
     public function assign(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
     {
-        $assignment = Assignment::query()->firstOrCreate([
+        $exists = Assignment::query()
+            ->where('subject_type', $subjectType)
+            ->where('subject_id', $subjectId)
+            ->where('role_id', $roleId)
+            ->when(
+                $scope === null,
+                static fn ($query) => $query->whereNull('scope'),
+                static fn ($query) => $query->where('scope', $scope),
+            )
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        $assignment = Assignment::query()->create([
             'subject_type' => $subjectType,
             'subject_id' => $subjectId,
             'role_id' => $roleId,
             'scope' => $scope,
         ]);
 
-        if ($assignment->wasRecentlyCreated) {
-            Event::dispatch(new AssignmentCreated($assignment));
-        }
+        Event::dispatch(new AssignmentCreated($assignment));
     }
 
     public function revoke(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
@@ -33,7 +46,11 @@ class EloquentAssignmentStore implements AssignmentStore
             ->where('subject_type', $subjectType)
             ->where('subject_id', $subjectId)
             ->where('role_id', $roleId)
-            ->where('scope', $scope)
+            ->when(
+                $scope === null,
+                static fn ($query) => $query->whereNull('scope'),
+                static fn ($query) => $query->where('scope', $scope),
+            )
             ->first();
 
         if ($assignment) {
@@ -121,5 +138,16 @@ class EloquentAssignmentStore implements AssignmentStore
     public function all(): Collection
     {
         return Assignment::query()->get();
+    }
+
+    /**
+     * Remove all assignments, dispatching AssignmentRevoked for each.
+     */
+    public function removeAll(): void
+    {
+        Assignment::query()->get()->each(function (Assignment $assignment): void {
+            $assignment->delete();
+            Event::dispatch(new AssignmentRevoked($assignment));
+        });
     }
 }

@@ -5,7 +5,11 @@ declare(strict_types=1);
 use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
+use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
+use DynamikDev\PolicyEngine\Events\BoundaryRemoved;
 use DynamikDev\PolicyEngine\Events\DocumentImported;
+use DynamikDev\PolicyEngine\Events\PermissionDeleted;
+use DynamikDev\PolicyEngine\Events\RoleDeleted;
 use DynamikDev\PolicyEngine\Models\Assignment;
 use DynamikDev\PolicyEngine\Models\Boundary;
 use DynamikDev\PolicyEngine\Models\Permission;
@@ -383,4 +387,75 @@ it('skips morph validation when no morph map or whitelist is configured', functi
     $result = $this->importer->import($document, new ImportOptions);
 
     expect($result->assignmentsCreated)->toBe(1);
+});
+
+// --- transaction rollback ---
+
+it('rolls back replace-mode import when assignment subject type is invalid', function (): void {
+    // Seed existing data that should survive the failed import
+    $this->permissionStore->register(['existing.perm']);
+    $this->roleStore->save('existing-role', 'Existing Role', ['existing.perm']);
+    $this->assignmentStore->assign('App\Models\User', 1, 'existing-role');
+    $this->boundaryStore->set('team::1', ['existing.perm']);
+
+    // Whitelist only App\Models\User — the document contains an invalid subject type
+    config()->set('policy-engine.import_subject_types', ['App\Models\User']);
+
+    $document = new PolicyDocument(
+        version: '1.0',
+        permissions: ['posts.create'],
+        roles: [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create']],
+        ],
+        assignments: [
+            ['subject' => 'App\Models\Hacker::1', 'role' => 'editor'],
+        ],
+    );
+
+    try {
+        $this->importer->import($document, new ImportOptions(merge: false));
+    } catch (InvalidArgumentException) {
+        // Expected — the invalid subject type triggers the exception
+    }
+
+    // All original data should be preserved because the transaction rolled back
+    expect(Permission::query()->where('id', 'existing.perm')->exists())->toBeTrue()
+        ->and(Role::query()->where('id', 'existing-role')->exists())->toBeTrue()
+        ->and(Assignment::query()->count())->toBe(1)
+        ->and(Boundary::query()->where('scope', 'team::1')->exists())->toBeTrue();
+
+    // The new document data should NOT have been persisted
+    expect(Permission::query()->where('id', 'posts.create')->exists())->toBeFalse()
+        ->and(Role::query()->where('id', 'editor')->exists())->toBeFalse();
+});
+
+// --- replace-mode event dispatch ---
+
+it('dispatches cache invalidation events during replace-mode clear', function (): void {
+    // Seed data that will be cleared
+    $this->permissionStore->register(['posts.create', 'posts.delete']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->assignmentStore->assign('App\Models\User', 1, 'editor');
+    $this->boundaryStore->set('team::1', ['posts.create']);
+
+    Event::fake();
+
+    $document = new PolicyDocument(
+        version: '1.0',
+        permissions: ['new.perm'],
+        roles: [
+            ['id' => 'admin', 'name' => 'Admin', 'permissions' => ['new.perm']],
+        ],
+    );
+
+    $this->importer->import($document, new ImportOptions(merge: false));
+
+    // Removal events from clearAllData()
+    Event::assertDispatched(AssignmentRevoked::class);
+    Event::assertDispatched(RoleDeleted::class);
+    Event::assertDispatched(PermissionDeleted::class);
+    Event::assertDispatched(BoundaryRemoved::class);
+
+    // Import events from the new data
+    Event::assertDispatched(DocumentImported::class);
 });

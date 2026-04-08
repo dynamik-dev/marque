@@ -14,7 +14,8 @@ class SyncCommand extends Command
 
     public function handle(): int
     {
-        $seederClass = 'PermissionSeeder';
+        /** @var string $seederClass */
+        $seederClass = config('policy-engine.seeder_class', 'PermissionSeeder');
 
         try {
             $this->call('db:seed', ['--class' => $seederClass]);

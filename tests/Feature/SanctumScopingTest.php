@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Concerns\HasPermissions;
+use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
@@ -150,4 +151,59 @@ it('allows normally when user is not authenticated', function (): void {
         $this->user->getKey(),
         'posts.create',
     ))->toBeTrue();
+});
+
+// --- explain() mirrors Sanctum token scoping ---
+
+it('explain reports deny with sanctum note when token lacks required ability', function (): void {
+    config()->set('policy-engine.explain', true);
+
+    $token = new PersonalAccessToken;
+    $token->abilities = ['posts.read'];
+
+    $this->user->withAccessToken($token);
+    $this->actingAs($this->user);
+
+    $trace = $this->evaluator->explain(
+        $this->user->getMorphClass(),
+        $this->user->getKey(),
+        'posts.delete',
+    );
+
+    expect($trace->result)->toBe(EvaluationResult::Deny)
+        ->and($trace->sanctum)->toBe('Denied by Sanctum token ability restriction');
+});
+
+it('explain reports allow with no sanctum note when token includes required ability', function (): void {
+    config()->set('policy-engine.explain', true);
+
+    $token = new PersonalAccessToken;
+    $token->abilities = ['posts.create', 'posts.read'];
+
+    $this->user->withAccessToken($token);
+    $this->actingAs($this->user);
+
+    $trace = $this->evaluator->explain(
+        $this->user->getMorphClass(),
+        $this->user->getKey(),
+        'posts.create',
+    );
+
+    expect($trace->result)->toBe(EvaluationResult::Allow)
+        ->and($trace->sanctum)->toBeNull();
+});
+
+it('explain reports allow with no sanctum note when no token is present', function (): void {
+    config()->set('policy-engine.explain', true);
+
+    $this->actingAs($this->user);
+
+    $trace = $this->evaluator->explain(
+        $this->user->getMorphClass(),
+        $this->user->getKey(),
+        'posts.create',
+    );
+
+    expect($trace->result)->toBe(EvaluationResult::Allow)
+        ->and($trace->sanctum)->toBeNull();
 });

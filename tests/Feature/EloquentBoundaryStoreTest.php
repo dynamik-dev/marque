@@ -37,6 +37,24 @@ it('updates an existing boundary for the same scope', function (): void {
     expect($boundary->max_permissions)->toBe(['posts.*', 'comments.*', 'files.read']);
 });
 
+// --- set validation ---
+
+it('rejects an integer element in max_permissions', function (): void {
+    $this->store->set('org::acme', ['posts.*', 42]);
+})->throws(InvalidArgumentException::class, 'All max_permissions values must be non-empty strings.');
+
+it('rejects a null element in max_permissions', function (): void {
+    $this->store->set('org::acme', ['posts.*', null]);
+})->throws(InvalidArgumentException::class, 'All max_permissions values must be non-empty strings.');
+
+it('rejects an empty string element in max_permissions', function (): void {
+    $this->store->set('org::acme', ['posts.*', '']);
+})->throws(InvalidArgumentException::class, 'All max_permissions values must be non-empty strings.');
+
+it('rejects a nested array element in max_permissions', function (): void {
+    $this->store->set('org::acme', ['posts.*', ['nested']]);
+})->throws(InvalidArgumentException::class, 'All max_permissions values must be non-empty strings.');
+
 // --- remove ---
 
 it('deletes an existing boundary', function (): void {

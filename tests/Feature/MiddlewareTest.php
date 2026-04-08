@@ -22,6 +22,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
@@ -345,4 +346,23 @@ it('can middleware allows when Sanctum token includes the required ability', fun
         ->getJson('/sanctum-test')
         ->assertOk()
         ->assertJson(['ok' => true]);
+});
+
+// --- RoleMiddleware: logs warning when scope parameter not found in route ---
+
+it('role middleware logs warning when scope parameter does not match a route parameter', function (): void {
+    Log::spy();
+
+    Route::middleware('role:editor,nonexistent_param')
+        ->get('/test-warn', fn () => response()->json(['ok' => true]));
+
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->user->assign('editor');
+
+    $this->actingAs($this->user)
+        ->getJson('/test-warn');
+
+    Log::shouldHaveReceived('warning')
+        ->withArgs(fn (string $message): bool => str_contains($message, 'nonexistent_param'))
+        ->once();
 });

@@ -13,13 +13,9 @@ use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\ImportResult;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 use DynamikDev\PolicyEngine\Events\DocumentImported;
-use DynamikDev\PolicyEngine\Models\Assignment;
-use DynamikDev\PolicyEngine\Models\Boundary;
-use DynamikDev\PolicyEngine\Models\Permission;
-use DynamikDev\PolicyEngine\Models\Role;
-use DynamikDev\PolicyEngine\Models\RolePermission;
 use DynamikDev\PolicyEngine\Support\SubjectParser;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use InvalidArgumentException;
 
@@ -42,30 +38,32 @@ class DefaultDocumentImporter implements DocumentImporter
 
         $isReplace = ! $options->merge;
 
-        if ($isReplace && ! $options->dryRun) {
-            $this->clearAllData();
-        }
+        return DB::transaction(function () use ($document, $options, $warnings, $isReplace): ImportResult {
+            if ($isReplace && ! $options->dryRun) {
+                $this->clearAllData();
+            }
 
-        $permissionsCreated = $this->importPermissions($document, $options, $isReplace);
-        $rolesResult = $this->importRoles($document, $options, $isReplace);
-        $this->importBoundaries($document, $options);
-        $assignmentsCreated = $this->importAssignments($document, $options);
+            $permissionsCreated = $this->importPermissions($document, $options, $isReplace);
+            $rolesResult = $this->importRoles($document, $options, $isReplace);
+            $this->importBoundaries($document, $options);
+            $assignmentsCreated = $this->importAssignments($document, $options);
 
-        $warnings = [...$warnings, ...$rolesResult['warnings']];
+            $warnings = [...$warnings, ...$rolesResult['warnings']];
 
-        $result = new ImportResult(
-            permissionsCreated: $permissionsCreated,
-            rolesCreated: $rolesResult['created'],
-            rolesUpdated: $rolesResult['updated'],
-            assignmentsCreated: $assignmentsCreated,
-            warnings: $warnings,
-        );
+            $result = new ImportResult(
+                permissionsCreated: $permissionsCreated,
+                rolesCreated: $rolesResult['created'],
+                rolesUpdated: $rolesResult['updated'],
+                assignmentsCreated: $assignmentsCreated,
+                warnings: $warnings,
+            );
 
-        if (! $options->dryRun) {
-            Event::dispatch(new DocumentImported($result));
-        }
+            if (! $options->dryRun) {
+                Event::dispatch(new DocumentImported($result));
+            }
 
-        return $result;
+            return $result;
+        });
     }
 
     /**
@@ -90,15 +88,16 @@ class DefaultDocumentImporter implements DocumentImporter
     }
 
     /**
-     * Remove all existing permissions, roles, assignments, and boundaries.
+     * Remove all existing permissions, roles, assignments, and boundaries via store contracts.
+     *
+     * Dispatches removal events for each entity so cache invalidation listeners fire.
      */
     private function clearAllData(): void
     {
-        Assignment::query()->delete();
-        RolePermission::query()->delete();
-        Boundary::query()->delete();
-        Role::query()->delete();
-        Permission::query()->delete();
+        $this->assignmentStore->removeAll();
+        $this->boundaryStore->removeAll();
+        $this->roleStore->removeAll();
+        $this->permissionStore->removeAll();
     }
 
     /**

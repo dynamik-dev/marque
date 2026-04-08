@@ -47,4 +47,9 @@ interface RoleStore
      * @return array<string, array<int, string>>
      */
     public function permissionsForRoles(array $roleIds): array;
+
+    /**
+     * Remove all roles, dispatching events for each.
+     */
+    public function removeAll(): void;
 }

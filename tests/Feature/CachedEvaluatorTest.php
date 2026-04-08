@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
 use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
@@ -44,7 +46,7 @@ beforeEach(function (): void {
 
     config()->set('policy-engine.cache.enabled', true);
     config()->set('policy-engine.cache.store', 'array');
-    config()->set('policy-engine.cache.ttl', 3600);
+    config()->set('policy-engine.cache.ttl', 300);
 });
 
 // --- Cache miss: delegates to inner evaluator and caches ---
@@ -60,7 +62,7 @@ it('resolves permissions on cache miss and caches the result', function (): void
     $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
     $cached = $this->cacheManager->store('array')->tags(['policy-engine', 'pe:App\\Models\\User:1'])->get($cacheKey);
 
-    expect($cached)->toBeTrue();
+    expect($cached)->toBe(['v' => true]);
 });
 
 // --- Cache hit: serves from cache without inner evaluation ---
@@ -83,6 +85,56 @@ it('serves from cache on subsequent calls', function (): void {
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 });
 
+// --- Denied permission is served from cache, not re-evaluated ---
+
+it('caches denied permissions and returns false from cache without re-evaluating', function (): void {
+    $this->permissionStore->register(['posts.delete']);
+    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'viewer');
+
+    // Build a spy that counts calls to the inner evaluator.
+    $callCount = 0;
+    $spy = new class($this->inner, $callCount) implements Evaluator
+    {
+        public function __construct(
+            private readonly Evaluator $delegate,
+            private int &$callCount,
+        ) {}
+
+        public function can(string $subjectType, string|int $subjectId, string $permission): bool
+        {
+            $this->callCount++;
+
+            return $this->delegate->can($subjectType, $subjectId, $permission);
+        }
+
+        public function explain(string $subjectType, string|int $subjectId, string $permission): EvaluationTrace
+        {
+            return $this->delegate->explain($subjectType, $subjectId, $permission);
+        }
+
+        public function effectivePermissions(string $subjectType, string|int $subjectId, ?string $scope = null): array
+        {
+            return $this->delegate->effectivePermissions($subjectType, $subjectId, $scope);
+        }
+
+        public function hasRole(string $subjectType, string|int $subjectId, string $role, ?string $scope = null): bool
+        {
+            return $this->delegate->hasRole($subjectType, $subjectId, $role, $scope);
+        }
+    };
+
+    $evaluator = new CachedEvaluator(inner: $spy, cache: $this->cacheManager);
+
+    // First call: cache miss, delegates to inner evaluator.
+    expect($evaluator->can('App\\Models\\User', 1, 'posts.delete'))->toBeFalse();
+    expect($callCount)->toBe(1);
+
+    // Second call: cache hit, must NOT delegate to inner evaluator.
+    expect($evaluator->can('App\\Models\\User', 1, 'posts.delete'))->toBeFalse();
+    expect($callCount)->toBe(1);
+});
+
 // --- Cache invalidation on assignment change ---
 
 it('invalidates cache when an assignment is created', function (): void {
@@ -91,7 +143,7 @@ it('invalidates cache when an assignment is created', function (): void {
 
     // Pre-populate cache with a deny result in the tagged store (no assignments yet).
     $cacheKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create');
-    $this->cacheManager->store('array')->tags(['policy-engine', 'pe:App\\Models\\User:1'])->put($cacheKey, false, 3600);
+    $this->cacheManager->store('array')->tags(['policy-engine', 'pe:App\\Models\\User:1'])->put($cacheKey, ['v' => false], 3600);
 
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeFalse();
 
@@ -302,6 +354,6 @@ it('uses separate cache keys for different scopes', function (): void {
     $teamCreateKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.create:team::5');
     $orgDeleteKey = CachedEvaluator::cacheKey('App\\Models\\User', 1, 'posts.delete:org::acme');
 
-    expect($this->cacheManager->store('array')->tags(['policy-engine', 'pe:App\\Models\\User:1'])->get($teamCreateKey))->toBeTrue()
-        ->and($this->cacheManager->store('array')->tags(['policy-engine', 'pe:App\\Models\\User:1'])->get($orgDeleteKey))->toBeTrue();
+    expect($this->cacheManager->store('array')->tags(['policy-engine', 'pe:App\\Models\\User:1'])->get($teamCreateKey))->toBe(['v' => true])
+        ->and($this->cacheManager->store('array')->tags(['policy-engine', 'pe:App\\Models\\User:1'])->get($orgDeleteKey))->toBe(['v' => true]);
 });

@@ -198,8 +198,25 @@ it('does not match permissions with spaces as equivalent', function (): void {
     expect($this->matcher->matches('posts.create', 'posts .create'))->toBeFalse();
 });
 
-it('handles very long permission strings', function (): void {
-    $long = implode('.', array_fill(0, 50, 'segment'));
+it('handles long permission strings within segment limit', function (): void {
+    $long = implode('.', array_fill(0, 10, 'segment'));
     expect($this->matcher->matches($long, $long))->toBeTrue()
         ->and($this->matcher->matches('*', $long))->toBeTrue();
+});
+
+// --- Segment count limit ---
+
+it('returns false when granted pattern exceeds 10 segments', function (): void {
+    $granted = implode('.', array_fill(0, 11, 'segment'));
+    expect($this->matcher->matches($granted, 'segment.segment'))->toBeFalse();
+});
+
+it('returns false when required pattern exceeds 10 segments', function (): void {
+    $required = implode('.', array_fill(0, 11, 'segment'));
+    expect($this->matcher->matches('segment.segment', $required))->toBeFalse();
+});
+
+it('matches patterns at exactly 10 segments', function (): void {
+    $pattern = implode('.', array_fill(0, 10, 'segment'));
+    expect($this->matcher->matches($pattern, $pattern))->toBeTrue();
 });

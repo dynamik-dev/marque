@@ -18,5 +18,6 @@ readonly class EvaluationTrace
         public array $assignments,
         public ?string $boundary,
         public bool $cacheHit,
+        public ?string $sanctum = null,
     ) {}
 }

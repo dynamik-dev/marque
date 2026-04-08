@@ -32,4 +32,9 @@ interface BoundaryStore
      * @return Collection<int, Boundary>
      */
     public function all(): Collection;
+
+    /**
+     * Remove all boundaries, dispatching events for each.
+     */
+    public function removeAll(): void;
 }

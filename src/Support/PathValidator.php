@@ -39,6 +39,19 @@ class PathValidator
             throw new InvalidArgumentException("Path must be within the allowed directory [{$allowedBase}].");
         }
 
-        return $targetDirectoryReal.DIRECTORY_SEPARATOR.basename($path);
+        $resolvedPath = $targetDirectoryReal.DIRECTORY_SEPARATOR.basename($path);
+
+        // If the file exists, resolve symlinks on the full path and re-verify.
+        if (file_exists($resolvedPath)) {
+            $fullReal = realpath($resolvedPath);
+
+            if ($fullReal === false || ! str_starts_with($fullReal, rtrim($allowedBaseReal, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR)) {
+                throw new InvalidArgumentException("Path must be within the allowed directory [{$allowedBase}].");
+            }
+
+            return $fullReal;
+        }
+
+        return $resolvedPath;
     }
 }

@@ -454,6 +454,21 @@ it('syncs scoped roles without affecting global assignments', function (): void 
         ->and($this->user->hasRole('viewer', 'team::5'))->toBeTrue();
 });
 
+it('syncRoles does not revoke direct permission roles', function (): void {
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
+
+    $this->user->givePermission('posts.create');
+    $this->user->assign('editor');
+
+    $this->user->syncRoles(['viewer']);
+
+    expect($this->user->canDo('posts.create'))->toBeTrue()
+        ->and($this->user->hasRole('editor'))->toBeFalse()
+        ->and($this->user->hasRole('viewer'))->toBeTrue();
+});
+
 it('syncs to empty array revokes all roles in scope', function (): void {
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
 
@@ -510,3 +525,13 @@ it('hasAnyRole works with scope', function (): void {
     expect($this->user->hasAnyRole(['editor'], 'team::5'))->toBeTrue()
         ->and($this->user->hasAnyRole(['editor'], 'team::99'))->toBeFalse();
 });
+
+it('hasAllRoles returns false for an empty array', function (): void {
+    expect($this->user->hasAllRoles([]))->toBeFalse();
+});
+
+// --- assignmentsFor null scope ---
+
+it('throws InvalidArgumentException when assignmentsFor receives a null scope', function (): void {
+    $this->user->assignmentsFor(null);
+})->throws(InvalidArgumentException::class, 'Scope could not be resolved.');

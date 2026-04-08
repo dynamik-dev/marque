@@ -101,6 +101,10 @@ it('rejects role ID containing whitespace', function (): void {
     $this->store->save('my role', 'My Role', []);
 })->throws(InvalidArgumentException::class, 'Invalid role ID');
 
+it('rejects role ID exceeding 255 characters', function (): void {
+    $this->store->save(str_repeat('a', 256), 'Too Long', []);
+})->throws(InvalidArgumentException::class, 'IDs must not exceed 255 characters');
+
 it('accepts valid role IDs', function (): void {
     $role = $this->store->save('team-editor', 'Team Editor', []);
 
@@ -194,6 +198,32 @@ it('returns empty array when role has no permissions', function (): void {
 
     expect($this->store->permissionsFor('editor'))->toBe([]);
 });
+
+it('allows saving a system role with the same permissions in different order', function (): void {
+    config()->set('policy-engine.protect_system_roles', true);
+
+    Permission::query()->create(['id' => 'posts.create']);
+    Permission::query()->create(['id' => 'posts.update']);
+    Permission::query()->create(['id' => 'posts.delete']);
+
+    $this->store->save('admin', 'Admin', ['posts.create', 'posts.update', 'posts.delete'], system: true);
+
+    $role = $this->store->save('admin', 'Admin', ['posts.delete', 'posts.create', 'posts.update'], system: true);
+
+    expect($role->id)->toBe('admin');
+});
+
+it('throws when saving a system role with actually different permissions', function (): void {
+    config()->set('policy-engine.protect_system_roles', true);
+
+    Permission::query()->create(['id' => 'posts.create']);
+    Permission::query()->create(['id' => 'posts.update']);
+    Permission::query()->create(['id' => 'posts.delete']);
+
+    $this->store->save('admin', 'Admin', ['posts.create', 'posts.update'], system: true);
+
+    $this->store->save('admin', 'Admin', ['posts.create', 'posts.delete'], system: true);
+})->throws(RuntimeException::class, 'Cannot modify permissions on protected system role [admin].');
 
 it('returns permission ids for multiple roles in one mapping', function (): void {
     Permission::query()->create(['id' => 'posts.create']);

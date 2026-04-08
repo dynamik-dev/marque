@@ -127,7 +127,10 @@ trait HasPermissions
             ? $assignmentStore->forSubjectInScope($this->getMorphClass(), $this->getKey(), $resolvedScope)
             : $assignmentStore->forSubjectGlobal($this->getMorphClass(), $this->getKey());
 
-        $currentRoleIds = $current->pluck('role_id')->all();
+        $currentRoleIds = array_values(array_filter(
+            $current->pluck('role_id')->all(),
+            static fn (string $roleId): bool => ! str_starts_with($roleId, '__dp.'),
+        ));
         $toRevoke = array_diff($currentRoleIds, $roleIds);
         $toAssign = array_diff($roleIds, $currentRoleIds);
 
@@ -163,6 +166,10 @@ trait HasPermissions
      */
     public function hasAllRoles(array $roles, mixed $scope = null): bool
     {
+        if ($roles === []) {
+            return false;
+        }
+
         foreach ($roles as $role) {
             if (! $this->hasRole($role, $scope)) {
                 return false;
@@ -192,10 +199,16 @@ trait HasPermissions
     /** @return Collection<int, Assignment> */
     public function assignmentsFor(mixed $scope): Collection
     {
+        $resolvedScope = app(ScopeResolver::class)->resolve($scope);
+
+        if ($resolvedScope === null) {
+            throw new \InvalidArgumentException('Scope could not be resolved.');
+        }
+
         return app(AssignmentStore::class)->forSubjectInScope(
             $this->getMorphClass(),
             $this->getKey(),
-            app(ScopeResolver::class)->resolve($scope),
+            $resolvedScope,
         );
     }
 
