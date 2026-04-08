@@ -8,7 +8,6 @@ use Closure;
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
 class RoleMiddleware
@@ -31,7 +30,7 @@ class RoleMiddleware
         $user = $request->user();
 
         if ($scopeParam !== null && $request->route($scopeParam) === null) {
-            Log::warning("RoleMiddleware: scope parameter [{$scopeParam}] not found in route.");
+            abort(403, "Scope parameter [{$scopeParam}] not found in route.");
         }
 
         $resolvedScope = $scopeParam !== null

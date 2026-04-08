@@ -5,24 +5,13 @@ declare(strict_types=1);
 use DynamikDev\PolicyEngine\Concerns\HasPermissions;
 use DynamikDev\PolicyEngine\Concerns\Scopeable;
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\Matcher;
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
-use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
-use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\SubstituteBindings;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Sanctum\HasApiTokens;
@@ -92,29 +81,9 @@ beforeEach(function (): void {
         $table->timestamps();
     });
 
-    // Bind all contracts to concrete implementations.
-    $assignmentStore = new EloquentAssignmentStore;
-    $roleStore = new EloquentRoleStore;
-    $boundaryStore = new EloquentBoundaryStore;
-    $matcher = new WildcardMatcher;
-    $scopeResolver = new ModelScopeResolver;
-    $evaluator = new DefaultEvaluator(
-        assignments: $assignmentStore,
-        roles: $roleStore,
-        boundaries: $boundaryStore,
-        matcher: $matcher,
-    );
-
-    app()->instance(AssignmentStore::class, $assignmentStore);
-    app()->instance(RoleStore::class, $roleStore);
-    app()->instance(BoundaryStore::class, $boundaryStore);
-    app()->instance(Matcher::class, $matcher);
-    app()->instance(ScopeResolver::class, $scopeResolver);
-    app()->instance(Evaluator::class, $evaluator);
-
-    $this->permissionStore = new EloquentPermissionStore;
-    $this->roleStore = $roleStore;
-    $this->assignmentStore = $assignmentStore;
+    $this->permissionStore = app(PermissionStore::class);
+    $this->roleStore = app(RoleStore::class);
+    $this->assignmentStore = app(AssignmentStore::class);
 
     $this->user = MiddlewareTestUser::query()->create(['name' => 'Alice']);
     $this->team = MiddlewareTestTeam::query()->create(['name' => 'Engineering']);
@@ -348,11 +317,9 @@ it('can middleware allows when Sanctum token includes the required ability', fun
         ->assertJson(['ok' => true]);
 });
 
-// --- RoleMiddleware: logs warning when scope parameter not found in route ---
+// --- RoleMiddleware: aborts when scope parameter not found in route ---
 
-it('role middleware logs warning when scope parameter does not match a route parameter', function (): void {
-    Log::spy();
-
+it('role middleware aborts 403 when scope parameter does not match a route parameter', function (): void {
     Route::middleware('role:editor,nonexistent_param')
         ->get('/test-warn', fn () => response()->json(['ok' => true]));
 
@@ -360,9 +327,6 @@ it('role middleware logs warning when scope parameter does not match a route par
     $this->user->assign('editor');
 
     $this->actingAs($this->user)
-        ->getJson('/test-warn');
-
-    Log::shouldHaveReceived('warning')
-        ->withArgs(fn (string $message): bool => str_contains($message, 'nonexistent_param'))
-        ->once();
+        ->getJson('/test-warn')
+        ->assertForbidden();
 });

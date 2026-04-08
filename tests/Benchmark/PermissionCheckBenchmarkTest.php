@@ -7,19 +7,11 @@ use DynamikDev\PolicyEngine\Concerns\Scopeable;
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\Matcher;
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
 use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
-use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 use DynamikDev\PolicyEngine\Models\Assignment;
-use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
-use Illuminate\Cache\CacheManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -63,37 +55,18 @@ beforeEach(function (): void {
         $table->timestamps();
     });
 
-    $assignmentStore = new EloquentAssignmentStore;
-    $roleStore = new EloquentRoleStore;
-    $boundaryStore = new EloquentBoundaryStore;
-    $matcher = new WildcardMatcher;
-    $scopeResolver = new ModelScopeResolver;
+    $this->permissionStore = app(PermissionStore::class);
+    $this->roleStore = app(RoleStore::class);
+    $this->assignmentStore = app(AssignmentStore::class);
+    $this->boundaryStore = app(BoundaryStore::class);
 
-    $defaultEvaluator = new DefaultEvaluator(
-        assignments: $assignmentStore,
-        roles: $roleStore,
-        boundaries: $boundaryStore,
-        matcher: $matcher,
-    );
+    // The container-resolved evaluator is a CachedEvaluator wrapping DefaultEvaluator.
+    $this->cachedEvaluator = app(Evaluator::class);
 
-    $cachedEvaluator = new CachedEvaluator(
-        inner: $defaultEvaluator,
-        cache: app(CacheManager::class),
-    );
-
-    app()->instance(AssignmentStore::class, $assignmentStore);
-    app()->instance(RoleStore::class, $roleStore);
-    app()->instance(BoundaryStore::class, $boundaryStore);
-    app()->instance(Matcher::class, $matcher);
-    app()->instance(ScopeResolver::class, $scopeResolver);
-    app()->instance(Evaluator::class, $cachedEvaluator);
-
-    $this->permissionStore = new EloquentPermissionStore;
-    $this->roleStore = $roleStore;
-    $this->assignmentStore = $assignmentStore;
-    $this->boundaryStore = $boundaryStore;
-    $this->defaultEvaluator = $defaultEvaluator;
-    $this->cachedEvaluator = $cachedEvaluator;
+    // Extract the inner DefaultEvaluator for direct benchmarking.
+    $reflection = new ReflectionClass($this->cachedEvaluator);
+    $innerProp = $reflection->getProperty('inner');
+    $this->defaultEvaluator = $innerProp->getValue($this->cachedEvaluator);
 
     config()->set('policy-engine.cache.enabled', true);
     config()->set('policy-engine.cache.store', 'array');

@@ -3,111 +3,20 @@
 declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\ImportResult;
-use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
-use DynamikDev\PolicyEngine\DTOs\ValidationResult;
 use DynamikDev\PolicyEngine\Facades\PolicyEngine;
-use DynamikDev\PolicyEngine\PolicyEngineManager;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use DynamikDev\PolicyEngine\Support\RoleBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $permissionStore = new EloquentPermissionStore;
-    $roleStore = new EloquentRoleStore;
-    $boundaryStore = new EloquentBoundaryStore;
-
-    app()->instance(PermissionStore::class, $permissionStore);
-    app()->instance(RoleStore::class, $roleStore);
-    app()->instance(BoundaryStore::class, $boundaryStore);
-
-    // Anonymous class mocks for document contracts (implementations don't exist yet).
-    $documentParser = new class implements DocumentParser
-    {
-        public function parse(string $content): PolicyDocument
-        {
-            $data = json_decode($content, true);
-
-            return new PolicyDocument(
-                version: $data['version'] ?? '1.0',
-                permissions: $data['permissions'] ?? [],
-                roles: $data['roles'] ?? [],
-                assignments: $data['assignments'] ?? [],
-                boundaries: $data['boundaries'] ?? [],
-            );
-        }
-
-        public function serialize(PolicyDocument $document): string
-        {
-            return json_encode([
-                'version' => $document->version,
-                'permissions' => $document->permissions,
-                'roles' => $document->roles,
-                'assignments' => $document->assignments,
-                'boundaries' => $document->boundaries,
-            ], JSON_PRETTY_PRINT);
-        }
-
-        public function validate(string $content): ValidationResult
-        {
-            return new ValidationResult(valid: true);
-        }
-    };
-
-    $documentImporter = new class implements DocumentImporter
-    {
-        public function import(PolicyDocument $document, ImportOptions $options): ImportResult
-        {
-            return new ImportResult(
-                permissionsCreated: $document->permissions,
-                rolesCreated: array_column($document->roles, 'id'),
-                rolesUpdated: [],
-                assignmentsCreated: 0,
-                warnings: [],
-            );
-        }
-    };
-
-    $documentExporter = new class implements DocumentExporter
-    {
-        public function export(?string $scope = null): PolicyDocument
-        {
-            return new PolicyDocument(
-                version: '1.0',
-                permissions: ['posts.create', 'posts.read'],
-                roles: [['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create', 'posts.read']]],
-            );
-        }
-    };
-
-    app()->instance(DocumentParser::class, $documentParser);
-    app()->instance(DocumentImporter::class, $documentImporter);
-    app()->instance(DocumentExporter::class, $documentExporter);
-
-    $manager = new PolicyEngineManager(
-        permissions: $permissionStore,
-        roles: $roleStore,
-        boundaries: $boundaryStore,
-        parser: $documentParser,
-        importer: $documentImporter,
-        exporter: $documentExporter,
-    );
-
-    app()->instance(PolicyEngineManager::class, $manager);
-
-    $this->permissionStore = $permissionStore;
-    $this->roleStore = $roleStore;
-    $this->boundaryStore = $boundaryStore;
+    $this->permissionStore = app(PermissionStore::class);
+    $this->roleStore = app(RoleStore::class);
+    $this->boundaryStore = app(BoundaryStore::class);
 });
 
 // --- permissions ---
@@ -231,15 +140,22 @@ it('imports with custom options', function (): void {
 // --- export ---
 
 it('exports the current configuration as a string', function (): void {
+    $this->permissionStore->register(['posts.create', 'posts.read']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read']);
+
     $output = PolicyEngine::export();
     $decoded = json_decode($output, true);
 
     expect($decoded)->toBeArray()
         ->and($decoded['version'])->toBe('1.0')
-        ->and($decoded['permissions'])->toBe(['posts.create', 'posts.read']);
+        ->and($decoded['permissions'])->toBe(['posts.create', 'posts.read'])
+        ->and($decoded['roles'][0]['id'])->toBe('editor');
 });
 
 it('exports the current configuration to a file', function (): void {
+    $this->permissionStore->register(['posts.create', 'posts.read']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read']);
+
     $path = tempnam(sys_get_temp_dir(), 'policy_export_');
 
     PolicyEngine::exportToFile($path);
@@ -248,7 +164,8 @@ it('exports the current configuration to a file', function (): void {
 
     expect($decoded)->toBeArray()
         ->and($decoded['version'])->toBe('1.0')
-        ->and($decoded['permissions'])->toBe(['posts.create', 'posts.read']);
+        ->and($decoded['permissions'])->toBe(['posts.create', 'posts.read'])
+        ->and($decoded['roles'][0]['id'])->toBe('editor');
 
     unlink($path);
 });

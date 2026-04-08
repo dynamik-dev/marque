@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Events\PermissionCreated;
 use DynamikDev\PolicyEngine\Events\PermissionDeleted;
 use DynamikDev\PolicyEngine\Models\Permission;
 use DynamikDev\PolicyEngine\Models\Role;
 use DynamikDev\PolicyEngine\Models\RolePermission;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->store = new EloquentPermissionStore;
+    $this->store = app(PermissionStore::class);
 });
 
 // --- register ---

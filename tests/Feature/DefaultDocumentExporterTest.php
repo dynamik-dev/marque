@@ -2,30 +2,24 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentExporter;
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
-use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
+use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
+use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
+use DynamikDev\PolicyEngine\Contracts\DocumentParser;
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->permissionStore = new EloquentPermissionStore;
-    $this->roleStore = new EloquentRoleStore;
-    $this->assignmentStore = new EloquentAssignmentStore;
-    $this->boundaryStore = new EloquentBoundaryStore;
-
-    $this->exporter = new DefaultDocumentExporter(
-        permissionStore: $this->permissionStore,
-        roleStore: $this->roleStore,
-        assignmentStore: $this->assignmentStore,
-        boundaryStore: $this->boundaryStore,
-    );
+    $this->permissionStore = app(PermissionStore::class);
+    $this->roleStore = app(RoleStore::class);
+    $this->assignmentStore = app(AssignmentStore::class);
+    $this->boundaryStore = app(BoundaryStore::class);
+    $this->exporter = app(DocumentExporter::class);
 });
 
 function seedFullState($context): void
@@ -177,17 +171,12 @@ it('produces a document that can be reimported identically', function (): void {
     $exported = $this->exporter->export();
 
     // Serialize and parse through JSON to simulate a full round-trip
-    $parser = new JsonDocumentParser;
+    $parser = app(DocumentParser::class);
     $json = $parser->serialize($exported);
     $parsed = $parser->parse($json);
 
     // Clear all data and reimport
-    $importer = new DefaultDocumentImporter(
-        permissionStore: $this->permissionStore,
-        roleStore: $this->roleStore,
-        assignmentStore: $this->assignmentStore,
-        boundaryStore: $this->boundaryStore,
-    );
+    $importer = app(DocumentImporter::class);
 
     $result = $importer->import($parsed, new ImportOptions(merge: false));
 

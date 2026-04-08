@@ -5,8 +5,7 @@ declare(strict_types=1);
 use DynamikDev\PolicyEngine\Attributes\ScopeType;
 use DynamikDev\PolicyEngine\Concerns\Scopeable;
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
+use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -77,13 +76,8 @@ beforeEach(function (): void {
         $table->timestamps();
     });
 
-    $assignmentStore = new EloquentAssignmentStore;
-    $roleStore = new EloquentRoleStore;
-
-    app()->instance(AssignmentStore::class, $assignmentStore);
-
-    $this->assignmentStore = $assignmentStore;
-    $this->roleStore = $roleStore;
+    $this->assignmentStore = app(AssignmentStore::class);
+    $this->roleStore = app(RoleStore::class);
 
     $this->group = TestGroup::query()->create(['name' => 'Engineering']);
 });

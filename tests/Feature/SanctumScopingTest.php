@@ -3,13 +3,11 @@
 declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Concerns\HasPermissions;
+use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\Enums\EvaluationResult;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
-use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -36,17 +34,10 @@ beforeEach(function (): void {
         $table->timestamps();
     });
 
-    $this->permissionStore = new EloquentPermissionStore;
-    $this->roleStore = new EloquentRoleStore;
-    $this->assignmentStore = new EloquentAssignmentStore;
-    $this->boundaryStore = new EloquentBoundaryStore;
-
-    $this->evaluator = new DefaultEvaluator(
-        assignments: $this->assignmentStore,
-        roles: $this->roleStore,
-        boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
-    );
+    $this->permissionStore = app(PermissionStore::class);
+    $this->roleStore = app(RoleStore::class);
+    $this->assignmentStore = app(AssignmentStore::class);
+    $this->evaluator = app(Evaluator::class);
 
     $this->user = SanctumTestUser::create(['name' => 'Sanctum User']);
 

@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
+use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Events\AssignmentCreated;
 use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
 use DynamikDev\PolicyEngine\Models\Assignment;
 use DynamikDev\PolicyEngine\Models\Role;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->store = new EloquentAssignmentStore;
+    $this->store = app(AssignmentStore::class);
 
     // Create a role for FK constraint satisfaction.
     Role::query()->create(['id' => 'editor', 'name' => 'Editor']);

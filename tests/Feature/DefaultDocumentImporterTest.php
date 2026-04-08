@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
+use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
@@ -14,10 +18,6 @@ use DynamikDev\PolicyEngine\Models\Assignment;
 use DynamikDev\PolicyEngine\Models\Boundary;
 use DynamikDev\PolicyEngine\Models\Permission;
 use DynamikDev\PolicyEngine\Models\Role;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
@@ -25,17 +25,11 @@ use Illuminate\Support\Facades\Event;
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->permissionStore = new EloquentPermissionStore;
-    $this->roleStore = new EloquentRoleStore;
-    $this->assignmentStore = new EloquentAssignmentStore;
-    $this->boundaryStore = new EloquentBoundaryStore;
-
-    $this->importer = new DefaultDocumentImporter(
-        permissionStore: $this->permissionStore,
-        roleStore: $this->roleStore,
-        assignmentStore: $this->assignmentStore,
-        boundaryStore: $this->boundaryStore,
-    );
+    $this->permissionStore = app(PermissionStore::class);
+    $this->roleStore = app(RoleStore::class);
+    $this->assignmentStore = app(AssignmentStore::class);
+    $this->boundaryStore = app(BoundaryStore::class);
+    $this->importer = app(DocumentImporter::class);
 });
 
 afterEach(function (): void {

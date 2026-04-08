@@ -2,7 +2,12 @@
 
 declare(strict_types=1);
 
+use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\PolicyEngine\Contracts\Matcher;
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
 use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
@@ -12,29 +17,24 @@ use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
 use DynamikDev\PolicyEngine\Events\RoleDeleted;
 use DynamikDev\PolicyEngine\Events\RoleUpdated;
 use DynamikDev\PolicyEngine\Listeners\InvalidatePermissionCache;
-use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 use DynamikDev\PolicyEngine\Models\Assignment;
 use DynamikDev\PolicyEngine\Models\Role;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->permissionStore = new EloquentPermissionStore;
-    $this->roleStore = new EloquentRoleStore;
-    $this->assignmentStore = new EloquentAssignmentStore;
-    $this->boundaryStore = new EloquentBoundaryStore;
+    $this->permissionStore = app(PermissionStore::class);
+    $this->roleStore = app(RoleStore::class);
+    $this->assignmentStore = app(AssignmentStore::class);
+    $this->boundaryStore = app(BoundaryStore::class);
 
     $this->inner = new DefaultEvaluator(
         assignments: $this->assignmentStore,
         roles: $this->roleStore,
         boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
+        matcher: app(Matcher::class),
     );
 
     $this->cacheManager = app(CacheManager::class);

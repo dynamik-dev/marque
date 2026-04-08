@@ -64,7 +64,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
         $this->app->singleton(DocumentImporter::class, DefaultDocumentImporter::class);
         $this->app->singleton(DocumentExporter::class, DefaultDocumentExporter::class);
 
-        $this->app->bind(Evaluator::class, function ($app): CachedEvaluator {
+        $this->app->singleton(Evaluator::class, function ($app): CachedEvaluator {
             return new CachedEvaluator(
                 inner: new DefaultEvaluator(
                     assignments: $app->make(AssignmentStore::class),
@@ -114,8 +114,8 @@ class PolicyEngineServiceProvider extends ServiceProvider
 
     private function registerBladeDirectives(): void
     {
-        Blade::if('hasRole', static function (string $role, mixed $scope = null): bool {
-            $user = auth()->user();
+        Blade::if('hasRole', static function (string $role, mixed $scope = null, ?string $guard = null): bool {
+            $user = auth($guard)->user();
 
             if ($user === null) {
                 return false;

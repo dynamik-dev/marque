@@ -3,18 +3,16 @@
 declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Contracts\Matcher;
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
 use DynamikDev\PolicyEngine\Enums\EvaluationResult;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Events\AuthorizationDenied;
-use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 use DynamikDev\PolicyEngine\Models\Assignment;
 use DynamikDev\PolicyEngine\Models\Role;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Foundation\Auth\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
@@ -23,16 +21,16 @@ use Illuminate\Support\Facades\Event;
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->permissionStore = new EloquentPermissionStore;
-    $this->roleStore = new EloquentRoleStore;
-    $this->assignmentStore = new EloquentAssignmentStore;
-    $this->boundaryStore = new EloquentBoundaryStore;
+    $this->permissionStore = app(PermissionStore::class);
+    $this->roleStore = app(RoleStore::class);
+    $this->assignmentStore = app(AssignmentStore::class);
+    $this->boundaryStore = app(BoundaryStore::class);
 
     $this->evaluator = new DefaultEvaluator(
         assignments: $this->assignmentStore,
         roles: $this->roleStore,
         boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
+        matcher: app(Matcher::class),
     );
 });
 
@@ -326,7 +324,7 @@ it('short-circuits before role permission lookups when boundary denies', functio
         public int $batchCalls = 0;
 
         public function __construct(
-            private readonly EloquentRoleStore $inner,
+            private readonly RoleStore $inner,
         ) {}
 
         public function save(string $id, string $name, array $permissions, bool $system = false): Role
@@ -374,7 +372,7 @@ it('short-circuits before role permission lookups when boundary denies', functio
         assignments: $this->assignmentStore,
         roles: $spyRoleStore,
         boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
+        matcher: app(Matcher::class),
     );
 
     expect($evaluator->can('App\\Models\\User', 1, 'billing.manage:org::acme'))->toBeFalse();
@@ -514,7 +512,7 @@ it('works with custom assignment store implementing forSubjectGlobal', function 
         assignments: $minimalAssignmentStore,
         roles: $this->roleStore,
         boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
+        matcher: app(Matcher::class),
     );
 
     // Unscoped check: should only use global assignments (scope === null)
@@ -591,7 +589,7 @@ it('works with custom assignment store implementing forSubjectGlobalAndScope', f
         assignments: $minimalAssignmentStore,
         roles: $this->roleStore,
         boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
+        matcher: app(Matcher::class),
     );
 
     // Scoped check: should include both global and scope-matching assignments
@@ -672,7 +670,7 @@ it('works with custom role store implementing permissionsForRoles', function ():
         assignments: $this->assignmentStore,
         roles: $minimalRoleStore,
         boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
+        matcher: app(Matcher::class),
     );
 
     expect($evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
@@ -725,7 +723,7 @@ it('uses batched role permission loading when the role store supports it', funct
         public int $batchCalls = 0;
 
         public function __construct(
-            private readonly EloquentRoleStore $inner,
+            private readonly RoleStore $inner,
         ) {}
 
         public function save(string $id, string $name, array $permissions, bool $system = false): Role
@@ -773,7 +771,7 @@ it('uses batched role permission loading when the role store supports it', funct
         assignments: $this->assignmentStore,
         roles: $spyRoleStore,
         boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
+        matcher: app(Matcher::class),
     );
 
     expect($evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();

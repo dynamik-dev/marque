@@ -89,6 +89,12 @@ class PolicyEngineManager
      */
     private function looksLikeFilePath(string $input): bool
     {
+        $trimmed = ltrim($input);
+
+        if ($trimmed !== '' && ($trimmed[0] === '{' || $trimmed[0] === '[')) {
+            return false;
+        }
+
         return str_contains($input, DIRECTORY_SEPARATOR) || str_ends_with($input, '.json');
     }
 
@@ -104,8 +110,8 @@ class PolicyEngineManager
 
     public function exportToFile(string $path, ?string $scope = null): void
     {
-        PathValidator::validate($path);
+        $safePath = PathValidator::validate($path);
 
-        file_put_contents($path, $this->export($scope));
+        file_put_contents($safePath, $this->export($scope));
     }
 }

@@ -13,9 +13,9 @@ use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\ImportResult;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 use DynamikDev\PolicyEngine\Events\DocumentImported;
+use DynamikDev\PolicyEngine\Models\Permission;
 use DynamikDev\PolicyEngine\Support\SubjectParser;
 use Illuminate\Database\Eloquent\Relations\Relation;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use InvalidArgumentException;
 
@@ -38,7 +38,8 @@ class DefaultDocumentImporter implements DocumentImporter
 
         $isReplace = ! $options->merge;
 
-        return DB::transaction(function () use ($document, $options, $warnings, $isReplace): ImportResult {
+        /** @var ImportResult */
+        return Permission::query()->getConnection()->transaction(function () use ($document, $options, $warnings, $isReplace): ImportResult {
             if ($isReplace && ! $options->dryRun) {
                 $this->clearAllData();
             }

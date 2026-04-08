@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
+use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
 use DynamikDev\PolicyEngine\Models\Boundary;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->store = new EloquentBoundaryStore;
+    $this->store = app(BoundaryStore::class);
 });
 
 // --- set ---

@@ -22,7 +22,8 @@ class CachedEvaluator implements Evaluator
             return $this->inner->can($subjectType, $subjectId, $permission);
         }
 
-        $cacheKey = self::key('can', $subjectType, $subjectId, $permission);
+        $generation = CacheStoreResolver::subjectGeneration($this->cache, $subjectType, $subjectId);
+        $cacheKey = self::key('can', $subjectType, $subjectId, $permission, $generation);
         $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
 
         // Race window (TOCTOU): Between the cache miss and the put() below,
@@ -63,20 +64,21 @@ class CachedEvaluator implements Evaluator
             return $this->inner->effectivePermissions($subjectType, $subjectId, $scope);
         }
 
-        $cacheKey = self::key('effective', $subjectType, $subjectId, $scope);
+        $generation = CacheStoreResolver::subjectGeneration($this->cache, $subjectType, $subjectId);
+        $cacheKey = self::key('effective', $subjectType, $subjectId, $scope, $generation);
         $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
 
-        /** @var array<int, string>|null $result */
         $result = $store->get($cacheKey);
 
-        if ($result !== null) {
-            return $result;
+        if (is_array($result) && array_key_exists('v', $result)) {
+            /** @var array<int, string> */
+            return $result['v'];
         }
 
-        $result = $this->inner->effectivePermissions($subjectType, $subjectId, $scope);
-        $store->put($cacheKey, $result, $this->ttl());
+        $evaluated = $this->inner->effectivePermissions($subjectType, $subjectId, $scope);
+        $store->put($cacheKey, ['v' => $evaluated], $this->ttl());
 
-        return $result;
+        return $evaluated;
     }
 
     public function hasRole(string $subjectType, string|int $subjectId, string $role, ?string $scope = null): bool
@@ -85,7 +87,8 @@ class CachedEvaluator implements Evaluator
             return $this->inner->hasRole($subjectType, $subjectId, $role, $scope);
         }
 
-        $cacheKey = self::key('role', $subjectType, $subjectId, $role.($scope !== null ? ":{$scope}" : ''));
+        $generation = CacheStoreResolver::subjectGeneration($this->cache, $subjectType, $subjectId);
+        $cacheKey = self::key('role', $subjectType, $subjectId, $role.($scope !== null ? ":{$scope}" : ''), $generation);
         $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
 
         $result = $store->get($cacheKey);
@@ -104,15 +107,23 @@ class CachedEvaluator implements Evaluator
     /**
      * Build a namespaced cache key.
      *
-     * Format: policy-engine:{type}:{subjectType}:{subjectId}:{hashedSuffix}
+     * Format: policy-engine:{type}:{subjectType}:{subjectId}[:g{generation}]:{hashedSuffix}
      * The type prefix (can, role, effective) prevents collisions between
      * different cache entry kinds. The suffix is hashed with MD5 to ensure
      * safe key lengths across all cache drivers (Memcached 250-char limit,
      * file-based drivers that use the key as a filename, etc.).
+     *
+     * The generation segment is included on non-tagged stores so that
+     * flushSubject() can invalidate all of a subject's entries by
+     * incrementing the counter, without clearing the entire store.
      */
-    public static function key(string $type, string $subjectType, string|int $subjectId, ?string $suffix = null): string
+    public static function key(string $type, string $subjectType, string|int $subjectId, ?string $suffix = null, int $generation = 0): string
     {
         $key = "policy-engine:{$type}:{$subjectType}:{$subjectId}";
+
+        if ($generation > 0) {
+            $key .= ":g{$generation}";
+        }
 
         if ($suffix !== null) {
             $key .= ':'.md5($suffix);

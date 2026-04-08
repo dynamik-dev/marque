@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
+use DynamikDev\PolicyEngine\Contracts\DocumentParser;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 
 beforeEach(function (): void {
-    $this->parser = new JsonDocumentParser;
+    $this->parser = app(DocumentParser::class);
 });
 
 // --- parse() ---

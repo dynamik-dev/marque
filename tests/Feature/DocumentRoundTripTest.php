@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentExporter;
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
-use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
+use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
+use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
+use DynamikDev\PolicyEngine\Contracts\DocumentParser;
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 use DynamikDev\PolicyEngine\Models\Assignment;
@@ -12,35 +16,18 @@ use DynamikDev\PolicyEngine\Models\Boundary;
 use DynamikDev\PolicyEngine\Models\Permission;
 use DynamikDev\PolicyEngine\Models\Role;
 use DynamikDev\PolicyEngine\Models\RolePermission;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->permissionStore = new EloquentPermissionStore;
-    $this->roleStore = new EloquentRoleStore;
-    $this->assignmentStore = new EloquentAssignmentStore;
-    $this->boundaryStore = new EloquentBoundaryStore;
-
-    $this->exporter = new DefaultDocumentExporter(
-        permissionStore: $this->permissionStore,
-        roleStore: $this->roleStore,
-        assignmentStore: $this->assignmentStore,
-        boundaryStore: $this->boundaryStore,
-    );
-
-    $this->importer = new DefaultDocumentImporter(
-        permissionStore: $this->permissionStore,
-        roleStore: $this->roleStore,
-        assignmentStore: $this->assignmentStore,
-        boundaryStore: $this->boundaryStore,
-    );
-
-    $this->parser = new JsonDocumentParser;
+    $this->permissionStore = app(PermissionStore::class);
+    $this->roleStore = app(RoleStore::class);
+    $this->assignmentStore = app(AssignmentStore::class);
+    $this->boundaryStore = app(BoundaryStore::class);
+    $this->exporter = app(DocumentExporter::class);
+    $this->importer = app(DocumentImporter::class);
+    $this->parser = app(DocumentParser::class);
 });
 
 /**

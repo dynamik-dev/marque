@@ -8,6 +8,7 @@ use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Events\AssignmentCreated;
 use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
 use DynamikDev\PolicyEngine\Models\Assignment;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 
@@ -15,27 +16,16 @@ class EloquentAssignmentStore implements AssignmentStore
 {
     public function assign(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
     {
-        $exists = Assignment::query()
-            ->where('subject_type', $subjectType)
-            ->where('subject_id', $subjectId)
-            ->where('role_id', $roleId)
-            ->when(
-                $scope === null,
-                static fn ($query) => $query->whereNull('scope'),
-                static fn ($query) => $query->where('scope', $scope),
-            )
-            ->exists();
-
-        if ($exists) {
+        try {
+            $assignment = Assignment::query()->create([
+                'subject_type' => $subjectType,
+                'subject_id' => $subjectId,
+                'role_id' => $roleId,
+                'scope' => $scope,
+            ]);
+        } catch (UniqueConstraintViolationException) {
             return;
         }
-
-        $assignment = Assignment::query()->create([
-            'subject_type' => $subjectType,
-            'subject_id' => $subjectId,
-            'role_id' => $roleId,
-            'scope' => $scope,
-        ]);
 
         Event::dispatch(new AssignmentCreated($assignment));
     }

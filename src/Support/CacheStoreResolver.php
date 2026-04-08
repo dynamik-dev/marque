@@ -49,7 +49,9 @@ class CacheStoreResolver
      * Flush cache entries for a single subject.
      *
      * On tagged stores, flushes only entries tagged with this subject.
-     * On non-tagged stores, falls back to clearing the entire store.
+     * On non-tagged stores, increments a per-subject generation counter so
+     * previously cached entries (keyed with the old generation) become
+     * unreachable and expire naturally via TTL.
      */
     public static function flushSubject(CacheManager $cache, string $subjectType, string|int $subjectId): void
     {
@@ -61,7 +63,34 @@ class CacheStoreResolver
             return;
         }
 
-        $store->clear();
+        $genKey = self::generationKey($subjectType, $subjectId);
+        /** @var int $current */
+        $current = $store->get($genKey, 0);
+        $store->forever($genKey, $current + 1);
+    }
+
+    /**
+     * Get the current cache generation for a subject.
+     *
+     * Returns 0 for tagged stores (generation is not needed).
+     * For non-tagged stores, returns the counter that gets incremented
+     * on each flushSubject() call, which callers embed in cache keys.
+     */
+    public static function subjectGeneration(CacheManager $cache, string $subjectType, string|int $subjectId): int
+    {
+        $store = self::store($cache);
+
+        if ($store instanceof Repository && $store->supportsTags()) {
+            return 0;
+        }
+
+        /** @var int */
+        return $store->get(self::generationKey($subjectType, $subjectId), 0);
+    }
+
+    private static function generationKey(string $subjectType, string|int $subjectId): string
+    {
+        return "policy-engine:gen:{$subjectType}:{$subjectId}";
     }
 
     /**

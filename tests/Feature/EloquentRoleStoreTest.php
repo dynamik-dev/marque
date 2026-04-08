@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
+use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\Events\RoleCreated;
 use DynamikDev\PolicyEngine\Events\RoleDeleted;
 use DynamikDev\PolicyEngine\Events\RoleUpdated;
 use DynamikDev\PolicyEngine\Models\Permission;
 use DynamikDev\PolicyEngine\Models\Role;
 use DynamikDev\PolicyEngine\Models\RolePermission;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->store = new EloquentRoleStore;
+    $this->store = app(RoleStore::class);
 });
 
 // --- save ---

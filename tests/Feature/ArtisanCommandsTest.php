@@ -3,63 +3,12 @@
 declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\Matcher;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentExporter;
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
-use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
-use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
-use DynamikDev\PolicyEngine\PolicyEngineManager;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 
 uses(RefreshDatabase::class);
-
-beforeEach(function (): void {
-    app()->instance(PermissionStore::class, new EloquentPermissionStore);
-    app()->instance(RoleStore::class, new EloquentRoleStore);
-    app()->instance(AssignmentStore::class, new EloquentAssignmentStore);
-    app()->instance(BoundaryStore::class, new EloquentBoundaryStore);
-    app()->instance(Matcher::class, new WildcardMatcher);
-    app()->instance(Evaluator::class, new DefaultEvaluator(
-        app(AssignmentStore::class),
-        app(RoleStore::class),
-        app(BoundaryStore::class),
-        app(Matcher::class),
-    ));
-    app()->instance(DocumentParser::class, new JsonDocumentParser);
-    app()->instance(DocumentImporter::class, new DefaultDocumentImporter(
-        app(PermissionStore::class),
-        app(RoleStore::class),
-        app(AssignmentStore::class),
-        app(BoundaryStore::class),
-    ));
-    app()->instance(DocumentExporter::class, new DefaultDocumentExporter(
-        app(PermissionStore::class),
-        app(RoleStore::class),
-        app(AssignmentStore::class),
-        app(BoundaryStore::class),
-    ));
-    app()->instance(PolicyEngineManager::class, new PolicyEngineManager(
-        app(PermissionStore::class),
-        app(RoleStore::class),
-        app(BoundaryStore::class),
-        app(DocumentParser::class),
-        app(DocumentImporter::class),
-        app(DocumentExporter::class),
-    ));
-});
 
 // --- policy-engine:permissions ---
 

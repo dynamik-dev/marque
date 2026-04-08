@@ -39,13 +39,15 @@ class EloquentPermissionStore implements PermissionStore
         $new = array_diff($permissions, $existing);
 
         if ($new !== []) {
-            Permission::query()->insert(
-                array_map(static fn (string $id): array => ['id' => $id], $new),
-            );
+            (new Permission)->getConnection()->transaction(function () use ($new): void {
+                Permission::query()->insert(
+                    array_map(static fn (string $id): array => ['id' => $id], $new),
+                );
 
-            foreach ($new as $permission) {
-                Event::dispatch(new PermissionCreated($permission));
-            }
+                foreach ($new as $permission) {
+                    Event::dispatch(new PermissionCreated($permission));
+                }
+            });
         }
     }
 
@@ -78,9 +80,11 @@ class EloquentPermissionStore implements PermissionStore
     public function remove(string $id): void
     {
         RolePermission::query()->where('permission_id', $id)->delete();
-        Permission::query()->where('id', $id)->delete();
+        $deleted = Permission::query()->where('id', $id)->delete();
 
-        Event::dispatch(new PermissionDeleted($id));
+        if ($deleted > 0) {
+            Event::dispatch(new PermissionDeleted($id));
+        }
     }
 
     /**

@@ -28,67 +28,14 @@ class DefaultEvaluator implements Evaluator
 
     public function can(string $subjectType, string|int $subjectId, string $permission): bool
     {
-        [$requiredPermission, $scope] = $this->parseScope($permission);
+        $trace = $this->evaluate($subjectType, $subjectId, $permission);
 
-        $allAssignments = $this->gatherAssignments($subjectType, $subjectId, $scope);
-
-        if ($allAssignments->isEmpty()) {
+        if ($trace->result === EvaluationResult::Deny) {
+            [$requiredPermission, $scope] = $this->parseScope($permission);
             $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
-
-            return false;
         }
 
-        if (! $this->passesBoundaryCheck($scope, $requiredPermission)) {
-            $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
-
-            return false;
-        }
-
-        $allows = [];
-        $denies = [];
-        $permissionsByRole = $this->permissionsByRole($allAssignments);
-
-        foreach ($permissionsByRole as $permissions) {
-            foreach ($permissions as $permission) {
-                if (str_starts_with($permission, '!')) {
-                    $denies[] = $permission;
-                } else {
-                    $allows[] = $permission;
-                }
-            }
-        }
-
-        foreach ($denies as $deny) {
-            if ($this->matcher->matches(substr($deny, 1), $requiredPermission)) {
-                $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
-
-                return false;
-            }
-        }
-
-        $roleAllowed = false;
-        foreach ($allows as $allow) {
-            if ($this->matcher->matches($allow, $requiredPermission)) {
-                $roleAllowed = true;
-                break;
-            }
-        }
-
-        if (! $roleAllowed) {
-            $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
-
-            return false;
-        }
-
-        // Sanctum token scoping: if the authenticated user has a Sanctum token,
-        // the permission must also be covered by the token's abilities.
-        if (! $this->sanctumTokenAllows($subjectType, $subjectId, $requiredPermission)) {
-            $this->dispatchDenialIfEnabled($subjectType, $subjectId, $requiredPermission, $scope);
-
-            return false;
-        }
-
-        return true;
+        return $trace->result === EvaluationResult::Allow;
     }
 
     /**
@@ -102,137 +49,7 @@ class DefaultEvaluator implements Evaluator
             throw new \RuntimeException('Explain mode is disabled. Set policy-engine.explain to true.');
         }
 
-        [$requiredPermission, $scope] = $this->parseScope($permission);
-
-        $allAssignments = $this->gatherAssignments($subjectType, $subjectId, $scope);
-
-        $traceAssignments = [];
-        $allows = [];
-        $denies = [];
-        $permissionsByRole = $this->permissionsByRole($allAssignments);
-
-        foreach ($allAssignments as $assignment) {
-            $permissions = $permissionsByRole[$assignment->role_id] ?? [];
-
-            $traceAssignments[] = [
-                'role' => $assignment->role_id,
-                'scope' => $assignment->scope,
-                'permissions_checked' => $permissions,
-            ];
-        }
-
-        foreach ($permissionsByRole as $permissions) {
-            foreach ($permissions as $permission) {
-                if (str_starts_with($permission, '!')) {
-                    $denies[] = $permission;
-                } else {
-                    $allows[] = $permission;
-                }
-            }
-        }
-
-        $boundaryNote = null;
-        $result = EvaluationResult::Deny;
-
-        if ($scope !== null) {
-            $boundary = $this->boundaries->find($scope);
-
-            if ($boundary !== null) {
-                if (! $this->matchesAny($boundary->max_permissions, $requiredPermission)) {
-                    $boundaryNote = "Denied by boundary on scope [{$scope}]";
-
-                    return new EvaluationTrace(
-                        subject: $subjectType.':'.$subjectId,
-                        required: $requiredPermission,
-                        result: $result,
-                        assignments: $traceAssignments,
-                        boundary: $boundaryNote,
-                        cacheHit: false,
-                    );
-                }
-
-                $boundaryNote = "Passed boundary on scope [{$scope}]";
-            }
-
-            if ($boundary === null && config('policy-engine.deny_unbounded_scopes')) {
-                $boundaryNote = "Denied by missing boundary on scope [{$scope}] (deny_unbounded_scopes enabled)";
-
-                return new EvaluationTrace(
-                    subject: $subjectType.':'.$subjectId,
-                    required: $requiredPermission,
-                    result: $result,
-                    assignments: $traceAssignments,
-                    boundary: $boundaryNote,
-                    cacheHit: false,
-                );
-            }
-        }
-
-        if ($scope === null && config('policy-engine.enforce_boundaries_on_global')) {
-            $allBoundaries = $this->boundaries->all();
-
-            if ($allBoundaries->isNotEmpty()) {
-                $passesAny = false;
-                foreach ($allBoundaries as $boundary) {
-                    if ($this->matchesAny($boundary->max_permissions, $requiredPermission)) {
-                        $passesAny = true;
-                        break;
-                    }
-                }
-
-                if (! $passesAny) {
-                    $boundaryNote = 'Denied by global boundary enforcement (enforce_boundaries_on_global enabled)';
-
-                    return new EvaluationTrace(
-                        subject: $subjectType.':'.$subjectId,
-                        required: $requiredPermission,
-                        result: $result,
-                        assignments: $traceAssignments,
-                        boundary: $boundaryNote,
-                        cacheHit: false,
-                    );
-                }
-
-                $boundaryNote = 'Passed global boundary enforcement';
-            }
-        }
-
-        foreach ($denies as $deny) {
-            if ($this->matcher->matches(substr($deny, 1), $requiredPermission)) {
-                return new EvaluationTrace(
-                    subject: $subjectType.':'.$subjectId,
-                    required: $requiredPermission,
-                    result: EvaluationResult::Deny,
-                    assignments: $traceAssignments,
-                    boundary: $boundaryNote,
-                    cacheHit: false,
-                );
-            }
-        }
-
-        foreach ($allows as $allow) {
-            if ($this->matcher->matches($allow, $requiredPermission)) {
-                $result = EvaluationResult::Allow;
-                break;
-            }
-        }
-
-        $sanctumNote = null;
-
-        if ($result === EvaluationResult::Allow && ! $this->sanctumTokenAllows($subjectType, $subjectId, $requiredPermission)) {
-            $result = EvaluationResult::Deny;
-            $sanctumNote = 'Denied by Sanctum token ability restriction';
-        }
-
-        return new EvaluationTrace(
-            subject: $subjectType.':'.$subjectId,
-            required: $requiredPermission,
-            result: $result,
-            assignments: $traceAssignments,
-            boundary: $boundaryNote,
-            cacheHit: false,
-            sanctum: $sanctumNote,
-        );
+        return $this->evaluate($subjectType, $subjectId, $permission);
     }
 
     public function hasRole(string $subjectType, string|int $subjectId, string $role, ?string $scope = null): bool
@@ -269,11 +86,13 @@ class DefaultEvaluator implements Evaluator
             }
         }
 
+        $boundaryMaxPermissions = $this->resolveBoundaryMaxPermissions($scope);
+
         // Remove any allowed permission that is matched by a deny rule or blocked by a boundary.
         return array_values(array_filter(
             array_unique($allows),
             fn (string $allow): bool => ! $this->isDenied($allow, $denies)
-                && $this->passesBoundaryCheck($scope, $allow),
+                && $this->passesResolvedBoundary($boundaryMaxPermissions, $allow),
         ));
     }
 
@@ -318,42 +137,197 @@ class DefaultEvaluator implements Evaluator
         return $this->assignments->forSubjectGlobalAndScope($subjectType, $subjectId, $scope);
     }
 
-    private function passesBoundaryCheck(?string $scope, string $requiredPermission): bool
+    /**
+     * Run the full evaluation pipeline and return a trace of the decision.
+     */
+    private function evaluate(string $subjectType, string|int $subjectId, string $permission): EvaluationTrace
+    {
+        [$requiredPermission, $scope] = $this->parseScope($permission);
+        $subject = $subjectType.':'.$subjectId;
+
+        $allAssignments = $this->gatherAssignments($subjectType, $subjectId, $scope);
+
+        if ($allAssignments->isEmpty()) {
+            return new EvaluationTrace(
+                subject: $subject,
+                required: $requiredPermission,
+                result: EvaluationResult::Deny,
+                assignments: [],
+                boundary: null,
+                cacheHit: false,
+            );
+        }
+
+        [$passesBoundary, $boundaryNote] = $this->evaluateBoundary($scope, $requiredPermission);
+
+        if (! $passesBoundary) {
+            return new EvaluationTrace(
+                subject: $subject,
+                required: $requiredPermission,
+                result: EvaluationResult::Deny,
+                assignments: [],
+                boundary: $boundaryNote,
+                cacheHit: false,
+            );
+        }
+
+        $permissionsByRole = $this->permissionsByRole($allAssignments);
+
+        $traceAssignments = [];
+        foreach ($allAssignments as $assignment) {
+            $traceAssignments[] = [
+                'role' => $assignment->role_id,
+                'scope' => $assignment->scope,
+                'permissions_checked' => $permissionsByRole[$assignment->role_id] ?? [],
+            ];
+        }
+
+        $allows = [];
+        $denies = [];
+
+        foreach ($permissionsByRole as $permissions) {
+            foreach ($permissions as $perm) {
+                if (str_starts_with($perm, '!')) {
+                    $denies[] = $perm;
+                } else {
+                    $allows[] = $perm;
+                }
+            }
+        }
+
+        foreach ($denies as $deny) {
+            if ($this->matcher->matches(substr($deny, 1), $requiredPermission)) {
+                return new EvaluationTrace(
+                    subject: $subject,
+                    required: $requiredPermission,
+                    result: EvaluationResult::Deny,
+                    assignments: $traceAssignments,
+                    boundary: $boundaryNote,
+                    cacheHit: false,
+                );
+            }
+        }
+
+        $result = EvaluationResult::Deny;
+        foreach ($allows as $allow) {
+            if ($this->matcher->matches($allow, $requiredPermission)) {
+                $result = EvaluationResult::Allow;
+                break;
+            }
+        }
+
+        $sanctumNote = null;
+
+        if ($result === EvaluationResult::Allow && ! $this->sanctumTokenAllows($subjectType, $subjectId, $requiredPermission)) {
+            $result = EvaluationResult::Deny;
+            $sanctumNote = 'Denied by Sanctum token ability restriction';
+        }
+
+        return new EvaluationTrace(
+            subject: $subject,
+            required: $requiredPermission,
+            result: $result,
+            assignments: $traceAssignments,
+            boundary: $boundaryNote,
+            cacheHit: false,
+            sanctum: $sanctumNote,
+        );
+    }
+
+    /**
+     * Evaluate boundary constraints and return [passes, note].
+     *
+     * @return array{0: bool, 1: ?string}
+     */
+    private function evaluateBoundary(?string $scope, string $requiredPermission): array
+    {
+        if ($scope !== null) {
+            $boundary = $this->boundaries->find($scope);
+
+            if ($boundary !== null) {
+                $passes = $this->matchesAny($boundary->max_permissions, $requiredPermission);
+
+                return [
+                    $passes,
+                    $passes
+                        ? "Passed boundary on scope [{$scope}]"
+                        : "Denied by boundary on scope [{$scope}]",
+                ];
+            }
+
+            if (config('policy-engine.deny_unbounded_scopes')) {
+                return [false, "Denied by missing boundary on scope [{$scope}] (deny_unbounded_scopes enabled)"];
+            }
+
+            return [true, null];
+        }
+
+        if (! config('policy-engine.enforce_boundaries_on_global')) {
+            return [true, null];
+        }
+
+        $allBoundaries = $this->boundaries->all();
+
+        if ($allBoundaries->isEmpty()) {
+            return [true, null];
+        }
+
+        foreach ($allBoundaries as $boundary) {
+            if ($this->matchesAny($boundary->max_permissions, $requiredPermission)) {
+                return [true, 'Passed global boundary enforcement'];
+            }
+        }
+
+        return [false, 'Denied by global boundary enforcement (enforce_boundaries_on_global enabled)'];
+    }
+
+    /**
+     * Pre-fetch boundary max_permissions for a scope, returning null if no boundary applies.
+     *
+     * Returns null when boundaries don't restrict (no boundary check needed),
+     * an empty array when boundaries block everything, or the max_permissions arrays to match against.
+     *
+     * @return array<int, array<int, string>>|null
+     */
+    private function resolveBoundaryMaxPermissions(?string $scope): ?array
     {
         if ($scope === null) {
             if (! config('policy-engine.enforce_boundaries_on_global')) {
-                return true;
+                return null;
             }
 
-            return $this->passesGlobalBoundaryCheck($requiredPermission);
+            $allBoundaries = $this->boundaries->all();
+
+            if ($allBoundaries->isEmpty()) {
+                return null;
+            }
+
+            return $allBoundaries->map(fn ($b): array => $b->max_permissions)->values()->all();
         }
 
         $boundary = $this->boundaries->find($scope);
 
         if ($boundary !== null) {
-            return $this->matchesAny($boundary->max_permissions, $requiredPermission);
+            return [$boundary->max_permissions];
         }
 
-        return ! config('policy-engine.deny_unbounded_scopes');
+        // No boundary defined for this scope — deny everything if deny_unbounded_scopes is enabled.
+        return config('policy-engine.deny_unbounded_scopes') ? [[]] : null;
     }
 
     /**
-     * Check whether a permission passes boundary checks across all defined boundaries.
+     * Check a permission against pre-resolved boundary max_permissions.
      *
-     * When enforce_boundaries_on_global is enabled, global (unscoped) checks must
-     * pass at least one boundary's max_permissions. If no boundaries exist at all,
-     * the check passes (no boundaries means no restrictions).
+     * @param  array<int, array<int, string>>|null  $boundaryGroups  null means no restriction.
      */
-    private function passesGlobalBoundaryCheck(string $requiredPermission): bool
+    private function passesResolvedBoundary(?array $boundaryGroups, string $permission): bool
     {
-        $allBoundaries = $this->boundaries->all();
-
-        if ($allBoundaries->isEmpty()) {
+        if ($boundaryGroups === null) {
             return true;
         }
 
-        foreach ($allBoundaries as $boundary) {
-            if ($this->matchesAny($boundary->max_permissions, $requiredPermission)) {
+        foreach ($boundaryGroups as $maxPermissions) {
+            if ($this->matchesAny($maxPermissions, $permission)) {
                 return true;
             }
         }

@@ -33,8 +33,8 @@ class EloquentRoleStore implements RoleStore
 
             $currentPermissions = $this->permissionsFor($id);
 
-            $sortedCurrent = $currentPermissions;
-            $sortedNew = $permissions;
+            $sortedCurrent = array_unique($currentPermissions);
+            $sortedNew = array_unique($permissions);
             sort($sortedCurrent);
             sort($sortedNew);
 

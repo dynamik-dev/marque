@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
+use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
 use Illuminate\Database\Eloquent\Model;
 
 beforeEach(function (): void {
-    $this->resolver = new ModelScopeResolver;
+    $this->resolver = app(ScopeResolver::class);
 });
 
 // --- Null input ---

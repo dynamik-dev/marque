@@ -18,10 +18,16 @@ use Illuminate\Support\Collection;
  * Provides permission-checking, role assignment, and evaluation
  * delegation to any Eloquent model that uses this trait.
  *
+ * @internal DIRECT_PERMISSION_PREFIX is used to create synthetic roles
+ *           for direct permission assignments. These roles are filtered
+ *           from getRoles() / getRolesFor().
+ *
  * The using model must be an Eloquent Model (provides getMorphClass() and getKey()).
  */
 trait HasPermissions
 {
+    private const DIRECT_PERMISSION_PREFIX = '__dp.';
+
     /**
      * Evaluate whether this subject holds a permission, optionally within a scope.
      *
@@ -129,7 +135,7 @@ trait HasPermissions
 
         $currentRoleIds = array_values(array_filter(
             $current->pluck('role_id')->all(),
-            static fn (string $roleId): bool => ! str_starts_with($roleId, '__dp.'),
+            static fn (string $roleId): bool => ! str_starts_with($roleId, self::DIRECT_PERMISSION_PREFIX),
         ));
         $toRevoke = array_diff($currentRoleIds, $roleIds);
         $toAssign = array_diff($roleIds, $currentRoleIds);
@@ -184,7 +190,7 @@ trait HasPermissions
      */
     private static function directPermissionRoleId(string $permission): string
     {
-        return "__dp.{$permission}";
+        return self::DIRECT_PERMISSION_PREFIX.$permission;
     }
 
     /** @return Collection<int, Assignment> */
@@ -230,7 +236,7 @@ trait HasPermissions
         return $this->assignments()
             ->pluck('role_id')
             ->unique()
-            ->reject(static fn (string $roleId): bool => str_starts_with($roleId, '__dp.'))
+            ->reject(static fn (string $roleId): bool => str_starts_with($roleId, self::DIRECT_PERMISSION_PREFIX))
             ->map(static fn (string $roleId): ?Role => $roleStore->find($roleId))
             ->filter()
             ->values();
@@ -244,7 +250,7 @@ trait HasPermissions
         return $this->assignmentsFor($scope)
             ->pluck('role_id')
             ->unique()
-            ->reject(static fn (string $roleId): bool => str_starts_with($roleId, '__dp.'))
+            ->reject(static fn (string $roleId): bool => str_starts_with($roleId, self::DIRECT_PERMISSION_PREFIX))
             ->map(static fn (string $roleId): ?Role => $roleStore->find($roleId))
             ->filter()
             ->values();

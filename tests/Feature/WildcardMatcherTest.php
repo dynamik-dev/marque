@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
+use DynamikDev\PolicyEngine\Contracts\Matcher;
 
 beforeEach(function (): void {
-    $this->matcher = new WildcardMatcher;
+    $this->matcher = app(Matcher::class);
 });
 
 // --- Exact match ---

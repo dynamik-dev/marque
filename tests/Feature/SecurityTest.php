@@ -2,25 +2,24 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
+use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
+use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
-use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 use DynamikDev\PolicyEngine\PolicyEngineManager;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
-    $this->permissionStore = new EloquentPermissionStore;
-    $this->roleStore = new EloquentRoleStore;
-    $this->assignmentStore = new EloquentAssignmentStore;
-    $this->boundaryStore = new EloquentBoundaryStore;
+    $this->permissionStore = app(PermissionStore::class);
+    $this->roleStore = app(RoleStore::class);
+    $this->assignmentStore = app(AssignmentStore::class);
+    $this->boundaryStore = app(BoundaryStore::class);
 });
 
 // --- Finding 1: System role protection in save() ---
@@ -82,12 +81,7 @@ it('skips protected system roles during import', function (): void {
         ],
     );
 
-    $importer = new DefaultDocumentImporter(
-        permissionStore: $this->permissionStore,
-        roleStore: $this->roleStore,
-        assignmentStore: $this->assignmentStore,
-        boundaryStore: $this->boundaryStore,
-    );
+    $importer = app(DocumentImporter::class);
 
     $result = $importer->import($document, new ImportOptions(merge: true));
 
@@ -202,12 +196,7 @@ it('denies scoped permission when no boundary exists and deny_unbounded_scopes i
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
     $this->assignmentStore->assign('App\\Models\\User', 1, 'editor', 'company::99');
 
-    $evaluator = new DefaultEvaluator(
-        assignments: $this->assignmentStore,
-        roles: $this->roleStore,
-        boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
-    );
+    $evaluator = app(Evaluator::class);
 
     expect($evaluator->can('App\\Models\\User', 1, 'posts.create:company::99'))->toBeFalse();
 });
@@ -219,12 +208,7 @@ it('allows scoped permission when no boundary exists and deny_unbounded_scopes i
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
     $this->assignmentStore->assign('App\\Models\\User', 1, 'editor', 'company::99');
 
-    $evaluator = new DefaultEvaluator(
-        assignments: $this->assignmentStore,
-        roles: $this->roleStore,
-        boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
-    );
+    $evaluator = app(Evaluator::class);
 
     expect($evaluator->can('App\\Models\\User', 1, 'posts.create:company::99'))->toBeTrue();
 });
@@ -238,12 +222,7 @@ it('denies wildcard-denied permission even when another role grants it in scoped
     $this->assignmentStore->assign('App\\Models\\User', 1, 'billing-admin', 'org::1');
     $this->assignmentStore->assign('App\\Models\\User', 1, 'refund-restricted', 'org::1');
 
-    $evaluator = new DefaultEvaluator(
-        assignments: $this->assignmentStore,
-        roles: $this->roleStore,
-        boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
-    );
+    $evaluator = app(Evaluator::class);
 
     expect($evaluator->can('App\\Models\\User', 1, 'billing.refund:org::1'))->toBeFalse()
         ->and($evaluator->can('App\\Models\\User', 1, 'billing.view:org::1'))->toBeTrue();
@@ -258,12 +237,7 @@ it('denies posts.* when full wildcard grant exists but posts deny rule present',
     $this->assignmentStore->assign('App\\Models\\User', 1, 'superadmin');
     $this->assignmentStore->assign('App\\Models\\User', 1, 'no-posts');
 
-    $evaluator = new DefaultEvaluator(
-        assignments: $this->assignmentStore,
-        roles: $this->roleStore,
-        boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
-    );
+    $evaluator = app(Evaluator::class);
 
     expect($evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeFalse()
         ->and($evaluator->can('App\\Models\\User', 1, 'billing.manage'))->toBeTrue();
@@ -277,12 +251,7 @@ it('enforces boundary on scoped check even when user has global wildcard assignm
     $this->assignmentStore->assign('App\\Models\\User', 1, 'admin');
     $this->boundaryStore->set('org::acme', ['posts.*']);
 
-    $evaluator = new DefaultEvaluator(
-        assignments: $this->assignmentStore,
-        roles: $this->roleStore,
-        boundaries: $this->boundaryStore,
-        matcher: new WildcardMatcher,
-    );
+    $evaluator = app(Evaluator::class);
 
     expect($evaluator->can('App\\Models\\User', 1, 'billing.manage:org::acme'))->toBeFalse()
         ->and($evaluator->can('App\\Models\\User', 1, 'posts.create:org::acme'))->toBeTrue();
