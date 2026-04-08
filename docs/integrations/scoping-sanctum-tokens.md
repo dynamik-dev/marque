@@ -47,4 +47,4 @@ When a user authenticates via session (not a token), token scoping is skipped en
 
 If `laravel/sanctum` is not installed, token scoping is silently skipped. The evaluator only checks role-based permissions. No configuration needed to opt out.
 
-> Token scoping is a final gate, not a replacement for roles. Design your token abilities to match the specific API actions the token should perform. Use specific permissions (`posts.read`, `posts.create`) rather than broad wildcards when possible.
+> Token scoping is a final gate, not a replacement for roles. Prefer specific abilities (`posts.read`, `posts.create`) over broad wildcards.

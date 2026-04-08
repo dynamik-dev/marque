@@ -47,19 +47,14 @@ PolicyEngine::role('admin', 'Admin', system: true)
     ->grant(['*.*']);
 ```
 
-`PolicyEngine::role()` takes an ID, a display name, and an optional `system` flag. It returns a `RoleBuilder` that lets you chain `grant()` calls. The `system: true` flag protects the role from being deleted at runtime.
+The `system: true` flag protects the role from being deleted at runtime.
 
 ### Adding deny rules to a role
 
-Prefix a permission with `!` to explicitly deny it, even if another permission would allow it.
-
 ```php
 PolicyEngine::role('moderator', 'Moderator', system: true)
-    ->grant([
-        'posts.*',
-        'comments.*',
-        '!members.remove',
-    ]);
+    ->grant(['posts.*', 'comments.*'])
+    ->deny(['members.remove']);
 ```
 
 This moderator can do anything with posts and comments, but is explicitly denied the ability to remove members. See [using deny rules](../authorization/using-deny-rules.md) for more on how deny resolution works.
@@ -95,4 +90,4 @@ php artisan policy-engine:permissions
 php artisan policy-engine:roles
 ```
 
-You're ready to start [checking permissions](../authorization/checking-permissions.md).
+Next: [checking permissions](../authorization/checking-permissions.md).

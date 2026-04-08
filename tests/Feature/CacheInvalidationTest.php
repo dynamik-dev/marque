@@ -59,8 +59,10 @@ it('invalidates cache when a role is assigned so canDo reflects the new state', 
     // User has no role — canDo should be false (and the result gets cached).
     expect($this->user->canDo('posts.create'))->toBeFalse();
 
-    // Assign the role. The store dispatches AssignmentCreated,
-    // which the service provider's listener handles to flush the cache.
+    /*
+     * Assign the role. The store dispatches AssignmentCreated,
+     * which the service provider's listener handles to flush the cache.
+     */
     $this->user->assign('editor');
 
     // Subsequent canDo should reflect the new assignment.
@@ -77,8 +79,10 @@ it('invalidates cache when a role is revoked so canDo reflects the removal', fun
     // User has the role — canDo should be true (result cached).
     expect($this->user->canDo('posts.create'))->toBeTrue();
 
-    // Revoke the role. The store dispatches AssignmentRevoked,
-    // which triggers cache invalidation via the event listener.
+    /*
+     * Revoke the role. The store dispatches AssignmentRevoked,
+     * which triggers cache invalidation via the event listener.
+     */
     $this->user->revoke('editor');
 
     // Subsequent canDo should reflect the revoked assignment.
@@ -96,8 +100,10 @@ it('invalidates cache when role permissions are updated so canDo reflects the ch
     expect($this->user->canDo('posts.create'))->toBeTrue()
         ->and($this->user->canDo('posts.delete'))->toBeFalse();
 
-    // Update the role to include posts.delete. The store dispatches RoleUpdated,
-    // which triggers cache invalidation via the event listener.
+    /*
+     * Update the role to include posts.delete. The store dispatches RoleUpdated,
+     * which triggers cache invalidation via the event listener.
+     */
     $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.delete']);
 
     // Subsequent canDo should reflect the updated role permissions.
@@ -114,9 +120,11 @@ it('invalidates cache when a permission is deleted so canDo reflects the removal
     // User can delete (result cached).
     expect($this->user->canDo('posts.delete'))->toBeTrue();
 
-    // Delete the permission. The store dispatches PermissionDeleted,
-    // which triggers cache invalidation via the event listener.
-    // This also removes the role_permissions row for posts.delete.
+    /*
+     * Delete the permission. The store dispatches PermissionDeleted,
+     * which triggers cache invalidation via the event listener.
+     * This also removes the role_permissions row for posts.delete.
+     */
     $this->permissionStore->remove('posts.delete');
 
     // Subsequent canDo should reflect the deleted permission.
@@ -202,11 +210,13 @@ it('invalidates cache when a new permission is created', function (): void {
     // Register a new permission — PermissionCreated fires, full cache flush.
     $this->permissionStore->register(['posts.delete']);
 
-    // Verify the flush happened: the previously-cached canDo result
-    // is gone, forcing re-evaluation. Since the role still grants
-    // posts.create, canDo still returns true — but from a fresh eval.
-    // We verify flush indirectly: canDo('posts.delete') should be false
-    // (not granted), proving the evaluator ran fresh (not from stale cache).
+    /*
+     * Verify the flush happened: the previously-cached canDo result
+     * is gone, forcing re-evaluation. Since the role still grants
+     * posts.create, canDo still returns true — but from a fresh eval.
+     * We verify flush indirectly: canDo('posts.delete') should be false
+     * (not granted), proving the evaluator ran fresh (not from stale cache).
+     */
     expect($this->user->canDo('posts.delete'))->toBeFalse();
     expect($this->user->canDo('posts.create'))->toBeTrue();
 });
@@ -221,8 +231,10 @@ it('invalidates cache when a document is imported so canDo reflects the imported
     // User cannot create (result cached as false).
     expect($this->user->canDo('posts.create'))->toBeFalse();
 
-    // Import a document that upgrades the viewer role to include posts.create.
-    // The importer dispatches DocumentImported, which triggers a full cache flush.
+    /*
+     * Import a document that upgrades the viewer role to include posts.create.
+     * The importer dispatches DocumentImported, which triggers a full cache flush.
+     */
     app(DocumentImporter::class)->import(
         new PolicyDocument(
             version: '1.0',

@@ -12,7 +12,7 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: '8.4'
 
       - run: composer install --no-interaction
 
@@ -27,24 +27,62 @@ jobs:
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: '8.4'
 
       - run: composer install --no-interaction
 
       - run: vendor/bin/phpstan analyse
 
   test:
-    name: Tests
+    name: Tests (SQLite / PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }})
     needs: static
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        php: ['8.4', '8.5']
+        laravel: ['12', '13']
     steps:
       - uses: actions/checkout@v4
 
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.5'
+          php-version: ${{ matrix.php }}
           coverage: pcov
+          extensions: redis
 
-      - run: composer install --no-interaction
+      - run: composer require illuminate/support:^${{ matrix.laravel }}.0 --no-update
+      - run: composer update --no-interaction
+
+      - run: docker compose -f docker-compose.test.yml up -d --wait valkey
 
       - run: vendor/bin/pest --coverage --min=90
+
+      - run: docker compose -f docker-compose.test.yml down -v
+
+  test-database:
+    name: Tests (${{ matrix.database }} / PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }})
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        php: ['8.4', '8.5']
+        laravel: ['12', '13']
+        database: [pgsql, mysql]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: redis, pdo_pgsql, pdo_mysql
+
+      - run: composer require illuminate/support:^${{ matrix.laravel }}.0 --no-update
+      - run: composer update --no-interaction
+
+      - run: docker compose -f docker-compose.test.yml up -d --wait ${{ matrix.database }} valkey
+
+      - run: DB_CONNECTION=${{ matrix.database }} vendor/bin/pest
+
+      - run: docker compose -f docker-compose.test.yml down -v

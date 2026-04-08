@@ -391,6 +391,76 @@ it('rejects boundary max_permissions containing non-string items', function (): 
     expect($result->errors)->toContain('boundaries[0].max_permissions[0] must be a string');
 });
 
+it('rejects non-string role id', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'roles' => [
+            ['id' => 42, 'name' => 'Admin', 'permissions' => ['posts.create']],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('roles[0].id must be a string');
+});
+
+it('rejects non-string role name', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'roles' => [
+            ['id' => 'admin', 'name' => true, 'permissions' => ['posts.create']],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('roles[0].name must be a string');
+});
+
+it('rejects non-string assignment subject', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'assignments' => [
+            ['subject' => 123, 'role' => 'editor'],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('assignments[0].subject must be a string');
+});
+
+it('rejects non-string assignment role', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'assignments' => [
+            ['subject' => 'user::1', 'role' => ['editor']],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('assignments[0].role must be a string');
+});
+
+it('rejects non-string boundary scope', function (): void {
+    $json = json_encode([
+        'version' => '1.0',
+        'boundaries' => [
+            ['scope' => 42, 'max_permissions' => ['posts.create']],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('boundaries[0].scope must be a string');
+});
+
 it('collects multiple validation errors', function (): void {
     $json = json_encode([
         'permissions' => [123],

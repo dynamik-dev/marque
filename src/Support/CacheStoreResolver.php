@@ -96,7 +96,9 @@ class CacheStoreResolver
     /**
      * Flush all policy-engine cache entries.
      *
-     * Uses tag-scoped flush when available, otherwise clears the entire store.
+     * Uses tag-scoped flush when available. On non-tagged stores, increments
+     * a global generation counter so all previously cached entries (keyed with
+     * the old generation) become unreachable and expire naturally via TTL.
      */
     public static function flush(CacheManager $cache): void
     {
@@ -108,7 +110,29 @@ class CacheStoreResolver
             return;
         }
 
-        $store->clear();
+        $genKey = 'policy-engine:gen:global';
+        /** @var int $current */
+        $current = $store->get($genKey, 0);
+        $store->forever($genKey, $current + 1);
+    }
+
+    /**
+     * Get the current global cache generation.
+     *
+     * Returns 0 for tagged stores (generation is not needed).
+     * For non-tagged stores, returns the counter that gets incremented
+     * on each flush() call, which callers embed in cache keys.
+     */
+    public static function globalGeneration(CacheManager $cache): int
+    {
+        $store = self::store($cache);
+
+        if ($store instanceof Repository && $store->supportsTags()) {
+            return 0;
+        }
+
+        /** @var int */
+        return $store->get('policy-engine:gen:global', 0);
     }
 
     /**

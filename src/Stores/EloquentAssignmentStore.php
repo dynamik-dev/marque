@@ -8,7 +8,6 @@ use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Events\AssignmentCreated;
 use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
 use DynamikDev\PolicyEngine\Models\Assignment;
-use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 
@@ -16,18 +15,27 @@ class EloquentAssignmentStore implements AssignmentStore
 {
     public function assign(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
     {
-        try {
-            $assignment = Assignment::query()->create([
-                'subject_type' => $subjectType,
-                'subject_id' => $subjectId,
-                'role_id' => $roleId,
-                'scope' => $scope,
-            ]);
-        } catch (UniqueConstraintViolationException) {
+        $existing = Assignment::query()
+            ->where('subject_type', $subjectType)
+            ->where('subject_id', $subjectId)
+            ->where('role_id', $roleId)
+            ->where(fn ($q) => $scope === null ? $q->whereNull('scope') : $q->where('scope', $scope))
+            ->exists();
+
+        if ($existing) {
             return;
         }
 
-        Event::dispatch(new AssignmentCreated($assignment));
+        $assignment = Assignment::query()->create([
+            'subject_type' => $subjectType,
+            'subject_id' => $subjectId,
+            'role_id' => $roleId,
+            'scope' => $scope,
+        ]);
+
+        $assignment->getConnection()->afterCommit(function () use ($assignment): void {
+            Event::dispatch(new AssignmentCreated($assignment));
+        });
     }
 
     public function revoke(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void
@@ -45,7 +53,9 @@ class EloquentAssignmentStore implements AssignmentStore
 
         if ($assignment) {
             $assignment->delete();
-            Event::dispatch(new AssignmentRevoked($assignment));
+            $assignment->getConnection()->afterCommit(function () use ($assignment): void {
+                Event::dispatch(new AssignmentRevoked($assignment));
+            });
         }
     }
 
@@ -135,9 +145,11 @@ class EloquentAssignmentStore implements AssignmentStore
      */
     public function removeAll(): void
     {
-        Assignment::query()->get()->each(function (Assignment $assignment): void {
-            $assignment->delete();
-            Event::dispatch(new AssignmentRevoked($assignment));
+        Assignment::query()->chunkById(200, function (Collection $assignments): void {
+            $assignments->each(function (Assignment $assignment): void {
+                $assignment->delete();
+                Event::dispatch(new AssignmentRevoked($assignment));
+            });
         });
     }
 }

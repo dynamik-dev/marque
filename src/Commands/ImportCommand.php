@@ -48,8 +48,8 @@ class ImportCommand extends Command
 
         try {
             $result = $manager->import($pathArg, $options);
-        } catch (\InvalidArgumentException $e) {
-            $this->error("Failed to parse document: {$e->getMessage()}");
+        } catch (\InvalidArgumentException|\RuntimeException $e) {
+            $this->error("Import failed: {$e->getMessage()}");
 
             return self::FAILURE;
         }

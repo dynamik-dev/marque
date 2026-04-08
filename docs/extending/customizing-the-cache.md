@@ -21,7 +21,7 @@ The cached value is a boolean. On cache hit, the evaluator skips all database qu
 'cache' => [
     'enabled' => true,
     'store' => env('POLICY_ENGINE_CACHE_STORE', 'default'),
-    'ttl' => 60 * 60,
+    'ttl' => 60 * 5,
 ],
 ```
 
@@ -45,21 +45,32 @@ The TTL is in seconds. Cached results expire after this duration even if no inva
 ],
 ```
 
-When disabled, every permission check queries the database directly. The `CachedEvaluator` delegates straight to the `DefaultEvaluator` with no caching layer.
+Every permission check queries the database directly.
 
 ## How cache invalidation works
 
-The package registers an `InvalidatePermissionCache` listener that flushes the entire cache store when any of these events fire:
+The package registers an `InvalidatePermissionCache` listener that responds to authorization events with two invalidation strategies:
+
+**Per-subject invalidation** — assignment events flush only the affected subject's cache:
 
 - `AssignmentCreated` — a role was assigned
 - `AssignmentRevoked` — a role was revoked
+
+These are the high-frequency events (users joining and leaving groups). The listener calls `CacheStoreResolver::flushSubject()`, which on tagged stores flushes only entries tagged with that subject. On non-tagged stores, it increments a per-subject generation counter so previously cached entries become unreachable.
+
+**Global invalidation** — all other events flush the entire policy-engine cache:
+
 - `RoleUpdated` — a role's permissions changed
 - `RoleDeleted` — a role was deleted
+- `PermissionCreated` — a new permission was registered
 - `PermissionDeleted` — a permission was removed
 - `BoundarySet` — a scope boundary was created or changed
 - `BoundaryRemoved` — a scope boundary was removed
+- `DocumentImported` — a policy document was imported
 
-The flush is store-wide, not targeted per-subject. This is simple and correct — any authorization change could affect any subject's cached results.
+These are rare admin operations that can affect any subject. The listener calls `CacheStoreResolver::flush()`, which on tagged stores flushes the `policy-engine` tag. On non-tagged stores, it increments a global generation counter so all previously cached entries become unreachable and expire via TTL.
+
+> On tagged stores (Redis, Memcached), flushes are scoped to policy-engine tags — no collateral damage to unrelated cache entries. On non-tagged stores (file, database), generation counter increments make old entries unreachable without clearing unrelated cache data.
 
 ## Clearing the cache manually
 
@@ -76,7 +87,7 @@ use Illuminate\Cache\CacheManager;
 CacheStoreResolver::flush(app(CacheManager::class));
 ```
 
-This handles tag-scoped flushing when the driver supports it, and falls back to a full store clear otherwise.
+On tagged stores, this flushes only the `policy-engine` tag. On non-tagged stores, it increments a generation counter so old entries expire naturally via TTL without clearing unrelated cache data.
 
 ## Understanding the cache race window
 
@@ -89,7 +100,19 @@ Here is the scenario step by step:
 3. Request B revokes the user's `editor` role and fires `AssignmentRevoked`, which flushes the cache.
 4. Request A finishes its evaluation with the now-stale role data, writes `true` to the cache, and the stale result persists for the full TTL.
 
-This is inherent to the cache-aside pattern, not a bug. The race window is small (milliseconds) and requires exact timing to trigger. For most applications, the default 1-hour TTL with event-based invalidation is sufficient. The sections below describe mitigations for security-critical workloads.
+This is inherent to the cache-aside pattern, not a bug. The race window is small (milliseconds) and requires exact timing to trigger. For most applications, the default 5-minute TTL with event-based invalidation is sufficient. The sections below describe mitigations for security-critical workloads.
+
+### Understanding non-tagged store behavior
+
+When your cache driver does not support tags (file, database), the package uses generation counters instead of tag-scoped flushes. Each flush increments a counter, and all cached entries keyed with the previous generation become unreachable. They expire naturally via TTL rather than being deleted immediately.
+
+This means:
+
+- Flushing does not clear unrelated cache keys (sessions, rate limits, query cache)
+- Stale entries consume storage until their TTL expires
+- For best results, use a short TTL (the default 5 minutes works well) and consider a dedicated cache store
+
+If your application uses a non-tagged store and you need immediate deletion, use a dedicated cache store so stale entries do not consume space alongside application cache. See [Using a dedicated cache store](#using-a-dedicated-cache-store).
 
 ### Reducing the TTL
 
@@ -186,7 +209,7 @@ For most applications, no mitigation is needed. The race requires all of the fol
 - A revocation event firing during the milliseconds between the miss and the cache write
 - The stale write completing after the flush
 
-The default 1-hour TTL with event-based invalidation covers the vast majority of use cases. If a revocation must take effect instantly across all in-flight requests, consider disabling the cache entirely for that operation using [the `enabled` config flag](#disabling-the-cache-entirely) or binding the `DefaultEvaluator` directly.
+The default 5-minute TTL with event-based invalidation covers the vast majority of use cases. If a revocation must take effect instantly across all in-flight requests, consider disabling the cache entirely for that operation using [the `enabled` config flag](#disabling-the-cache-entirely) or binding the `DefaultEvaluator` directly.
 
 ## Replacing the caching strategy
 

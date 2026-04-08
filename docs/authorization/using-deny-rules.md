@@ -8,14 +8,13 @@ Deny rules let you explicitly block specific permissions within a role, even whe
 use DynamikDev\PolicyEngine\Facades\PolicyEngine;
 
 PolicyEngine::role('moderator', 'Moderator')
-    ->grant([
-        'posts.*',
-        'comments.*',
-        '!members.remove',
-    ]);
+    ->grant(['posts.*', 'comments.*'])
+    ->deny(['members.remove']);
 ```
 
-The `!` prefix marks `members.remove` as denied. This moderator can do anything with posts and comments, but cannot remove members — even if another role were to grant `members.*`.
+This moderator can do anything with posts and comments, but cannot remove members — even if another role were to grant `members.*`.
+
+Under the hood, `deny()` stores permissions with a `!` prefix (`!members.remove`). You can also pass deny rules directly to `grant()` with the `!` prefix if you prefer — `deny()` is syntactic sugar.
 
 ## How deny resolution works
 
@@ -37,13 +36,13 @@ PolicyEngine::role('content-creator', 'Content Creator')
     ->grant(['posts.*']);
 
 PolicyEngine::role('restricted', 'Restricted')
-    ->grant(['!posts.delete.any']);
+    ->deny(['posts.delete.any']);
 
 $user->assign('content-creator');
 $user->assign('restricted');
 ```
 
-The user has `posts.*` from one role and `!posts.delete.any` from another. The deny rule from the `restricted` role blocks `posts.delete.any`, even though `content-creator` would allow it.
+The user has `posts.*` from one role and a deny on `posts.delete.any` from another. The deny rule blocks `posts.delete.any`, even though `content-creator` would allow it.
 
 ```php
 $user->can('posts.create');      // true
@@ -54,16 +53,11 @@ $user->can('posts.delete.any');  // false — denied
 
 ```php
 PolicyEngine::role('read-only', 'Read Only')
-    ->grant([
-        'posts.read',
-        'comments.read',
-        '!*.create',
-        '!*.update.*',
-        '!*.delete.*',
-    ]);
+    ->grant(['posts.read', 'comments.read'])
+    ->deny(['*.create', '*.update.*', '*.delete.*']);
 ```
 
-The wildcard `!*.create` denies any creation permission across all resources.
+The wildcard `*.create` in `deny()` blocks any creation permission across all resources.
 
 ## Viewing effective permissions after deny rules
 
@@ -81,4 +75,4 @@ $trace = $user->explain('posts.delete.any', scope: $group);
 
 The evaluation trace shows which deny rule matched and which role it came from. See [checking permissions](checking-permissions.md#debugging-a-permission-decision) for trace details.
 
-> Deny rules are a powerful tool for building restrictive roles, but they make permission logic harder to reason about. Prefer specific grants (list exactly what a role can do) over broad grants with deny carve-outs. Reserve deny rules for cases where you need to override a wildcard.
+> Prefer specific grants over broad grants with deny carve-outs. Deny rules make permission logic harder to reason about — reserve them for cases where you need to override a wildcard.

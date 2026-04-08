@@ -36,18 +36,18 @@ class EloquentPermissionStore implements PermissionStore
             ->pluck('id')
             ->all();
 
-        $new = array_diff($permissions, $existing);
+        $new = array_values(array_unique(array_diff($permissions, $existing)));
 
         if ($new !== []) {
             (new Permission)->getConnection()->transaction(function () use ($new): void {
                 Permission::query()->insert(
                     array_map(static fn (string $id): array => ['id' => $id], $new),
                 );
-
-                foreach ($new as $permission) {
-                    Event::dispatch(new PermissionCreated($permission));
-                }
             });
+
+            foreach ($new as $permission) {
+                Event::dispatch(new PermissionCreated($permission));
+            }
         }
     }
 
@@ -83,7 +83,9 @@ class EloquentPermissionStore implements PermissionStore
         $deleted = Permission::query()->where('id', $id)->delete();
 
         if ($deleted > 0) {
-            Event::dispatch(new PermissionDeleted($id));
+            Permission::query()->getConnection()->afterCommit(function () use ($id): void {
+                Event::dispatch(new PermissionDeleted($id));
+            });
         }
     }
 
@@ -98,13 +100,17 @@ class EloquentPermissionStore implements PermissionStore
             return Permission::query()->get();
         }
 
-        $escaped = str_replace(['%', '_'], ['\\%', '\\_'], $prefix);
+        $escaped = str_replace(['#', '%', '_'], ['##', '#%', '#_'], $prefix);
 
-        // whereRaw is necessary here because Laravel's ->where('like') does not
-        // support the ESCAPE clause, which is required for correct handling of
-        // user-supplied prefixes containing '%' or '_' characters.
+        /*
+         * whereRaw is necessary here because Laravel's ->where('like') does not
+         * support the ESCAPE clause, which is required for correct handling of
+         * user-supplied prefixes containing '%' or '_' characters.
+         * Uses '#' as escape char for cross-database compatibility (backslash
+         * is a special character in MySQL string literals).
+         */
         return Permission::query()
-            ->whereRaw("id like ? escape '\\'", [$escaped.'.%'])
+            ->whereRaw("id like ? escape '#'", [$escaped.'.%'])
             ->get();
     }
 

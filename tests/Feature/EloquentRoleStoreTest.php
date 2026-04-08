@@ -105,6 +105,10 @@ it('rejects role ID exceeding 255 characters', function (): void {
     $this->store->save(str_repeat('a', 256), 'Too Long', []);
 })->throws(InvalidArgumentException::class, 'IDs must not exceed 255 characters');
 
+it('rejects role ID with reserved __dp. prefix', function (): void {
+    $this->store->save('__dp.posts.create', 'Direct: posts.create', []);
+})->throws(InvalidArgumentException::class, "The '__dp.' prefix is reserved for internal use.");
+
 it('accepts valid role IDs', function (): void {
     $role = $this->store->save('team-editor', 'Team Editor', []);
 
@@ -239,4 +243,40 @@ it('returns permission ids for multiple roles in one mapping', function (): void
     expect($permissionsByRole['editor'])->toContain('posts.create', 'posts.update');
     expect($permissionsByRole['viewer'])->toContain('comments.read');
     expect($permissionsByRole['missing'])->toBe([]);
+});
+
+// --- saveDirectPermissionRole ---
+
+it('creates a synthetic role with __dp. prefix via saveDirectPermissionRole', function (): void {
+    Permission::query()->create(['id' => 'posts.create']);
+
+    $role = $this->store->saveDirectPermissionRole('posts.create', ['posts.create']);
+
+    expect($role->id)->toBe('__dp.posts.create')
+        ->and($role->name)->toBe('Direct: posts.create')
+        ->and($role->is_system)->toBeFalse()
+        ->and($this->store->permissionsFor('__dp.posts.create'))->toBe(['posts.create']);
+});
+
+it('updates an existing synthetic role via saveDirectPermissionRole', function (): void {
+    Permission::query()->create(['id' => 'posts.create']);
+    Permission::query()->create(['id' => 'posts.update']);
+
+    $this->store->saveDirectPermissionRole('posts.create', ['posts.create']);
+    $role = $this->store->saveDirectPermissionRole('posts.create', ['posts.create', 'posts.update']);
+
+    expect($role->id)->toBe('__dp.posts.create')
+        ->and($this->store->permissionsFor('__dp.posts.create'))
+        ->toContain('posts.create', 'posts.update')
+        ->toHaveCount(2);
+});
+
+it('dispatches RoleCreated when saveDirectPermissionRole creates a new role', function (): void {
+    Event::fake([RoleCreated::class]);
+
+    $this->store->saveDirectPermissionRole('posts.create', ['posts.create']);
+
+    Event::assertDispatched(RoleCreated::class, function (RoleCreated $event): bool {
+        return $event->role->id === '__dp.posts.create';
+    });
 });

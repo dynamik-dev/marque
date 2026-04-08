@@ -33,7 +33,9 @@ class EloquentBoundaryStore implements BoundaryStore
             ['max_permissions' => $maxPermissions],
         );
 
-        Event::dispatch(new BoundarySet($boundary));
+        $boundary->getConnection()->afterCommit(function () use ($boundary): void {
+            Event::dispatch(new BoundarySet($boundary));
+        });
     }
 
     /**
@@ -46,7 +48,9 @@ class EloquentBoundaryStore implements BoundaryStore
         $deleted = Boundary::query()->where('scope', $scope)->delete();
 
         if ($deleted > 0) {
-            Event::dispatch(new BoundaryRemoved($scope));
+            Boundary::query()->getConnection()->afterCommit(function () use ($scope): void {
+                Event::dispatch(new BoundaryRemoved($scope));
+            });
         }
     }
 

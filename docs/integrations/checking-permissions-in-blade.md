@@ -1,6 +1,6 @@
 # Checking Permissions in Blade Templates
 
-Use `@can` to conditionally render UI based on the authenticated user's permissions. The package's Gate hook intercepts dot-notated abilities, so `@can('posts.create')` routes through the Policy Engine evaluation pipeline automatically.
+`@can` works with dot-notated permissions out of the box — the Gate hook routes them through Policy Engine automatically.
 
 ## Showing content when a permission is held
 
@@ -10,7 +10,6 @@ Use `@can` to conditionally render UI based on the authenticated user's permissi
 @endcan
 ```
 
-The button renders only if the authenticated user holds the `posts.create` permission.
 
 ## Checking a scoped permission
 
@@ -102,8 +101,8 @@ The first argument is the role ID, the second is an optional scope.
 @endcan
 ```
 
-You can mix both styles in the same template. The Gate hook only intercepts abilities that contain a dot; everything else is handled by Laravel's standard Gate and Policy resolution.
+The Gate hook only intercepts abilities containing a dot; everything else goes through standard Gate and Policy resolution.
 
 ## Behavior for unauthenticated users
 
-All directives return `false` when no user is authenticated. Content inside the directive is hidden, and `@else` content is shown.
+All directives return `false` when no user is authenticated.

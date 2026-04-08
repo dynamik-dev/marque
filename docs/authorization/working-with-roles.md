@@ -11,7 +11,7 @@ PolicyEngine::role('editor', 'Editor')
     ->grant(['posts.create', 'posts.update.any', 'posts.delete.own']);
 ```
 
-The first argument is the role ID (stored as a string primary key), the second is a human-readable name. `grant()` returns the `RoleBuilder`, so you can chain calls.
+Role IDs are string primary keys. `grant()` returns the builder, so you can chain calls.
 
 ## Creating a system-locked role
 

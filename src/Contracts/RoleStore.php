@@ -27,6 +27,14 @@ interface RoleStore
     public function find(string $id): ?Role;
 
     /**
+     * Find multiple roles by their identifiers in a single query.
+     *
+     * @param  array<int, string>  $ids
+     * @return Collection<string, Role>
+     */
+    public function findMany(array $ids): Collection;
+
+    /**
      * Retrieve all roles.
      *
      * @return Collection<int, Role>
@@ -52,4 +60,16 @@ interface RoleStore
      * Remove all roles, dispatching events for each.
      */
     public function removeAll(): void;
+
+    /**
+     * Create the internal synthetic role for a direct permission assignment.
+     *
+     * Implementations MUST build the role ID using the reserved `__dp.` prefix
+     * internally. The `save()` method MUST reject IDs starting with `__dp.`
+     * so that external callers cannot create or overwrite these roles.
+     *
+     * @param  string  $permission  The permission identifier to wrap in a synthetic role.
+     * @param  array<int, string>  $permissions  The permission set for the role (typically just [$permission]).
+     */
+    public function saveDirectPermissionRole(string $permission, array $permissions): Role;
 }

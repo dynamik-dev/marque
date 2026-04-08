@@ -98,8 +98,10 @@ it('infers scope type from class basename when scopeType is not set', function (
     };
     $model->id = 1;
 
-    // Anonymous classes get an empty basename, but named classes infer correctly.
-    // Test with the real TestGroup model by verifying getScopeType() uses the property.
+    /*
+     * Anonymous classes get an empty basename, but named classes infer correctly.
+     * Test with the real TestGroup model by verifying getScopeType() uses the property.
+     */
     expect($this->group->getScopeType())->toBe('group');
 });
 
@@ -126,8 +128,10 @@ it('resolves scope type from #[ScopeType] attribute', function (): void {
 });
 
 it('prefers #[ScopeType] attribute over $scopeType property', function (): void {
-    // TestOrganization has the attribute but no property — attribute wins.
-    // Verify by also testing a model with both (attribute should take priority).
+    /*
+     * TestOrganization has the attribute but no property — attribute wins.
+     * Verify by also testing a model with both (attribute should take priority).
+     */
     $org = new TestOrganization;
     $org->id = 1;
 

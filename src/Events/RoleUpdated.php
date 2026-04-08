@@ -6,7 +6,7 @@ namespace DynamikDev\PolicyEngine\Events;
 
 use DynamikDev\PolicyEngine\Models\Role;
 
-class RoleUpdated
+readonly class RoleUpdated
 {
     /**
      * @param  array<string, mixed>  $changes

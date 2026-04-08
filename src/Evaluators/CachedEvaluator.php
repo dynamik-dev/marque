@@ -23,20 +23,23 @@ class CachedEvaluator implements Evaluator
         }
 
         $generation = CacheStoreResolver::subjectGeneration($this->cache, $subjectType, $subjectId);
-        $cacheKey = self::key('can', $subjectType, $subjectId, $permission, $generation);
+        $globalGen = CacheStoreResolver::globalGeneration($this->cache);
+        $cacheKey = self::key('can', $subjectType, $subjectId, $permission, $generation, $globalGen);
         $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
 
-        // Race window (TOCTOU): Between the cache miss and the put() below,
-        // another request may revoke a role and clear the cache. This request
-        // would then write a stale "allowed" result that persists for the full
-        // TTL. This is inherent to cache-aside patterns. Mitigations:
-        // - Use a shorter TTL for security-critical applications
-        // - Use a dedicated cache store to isolate invalidation
-        // - See "Customizing the Cache" docs for advanced strategies
-        //
-        // Values are wrapped in an array (['v' => bool]) so that a stored
-        // `false` is never confused with a cache miss (`null`). Some cache
-        // drivers cannot distinguish stored `false` from a miss.
+        /*
+         * Race window (TOCTOU): Between the cache miss and the put() below,
+         * another request may revoke a role and clear the cache. This request
+         * would then write a stale "allowed" result that persists for the full
+         * TTL. This is inherent to cache-aside patterns. Mitigations:
+         * - Use a shorter TTL for security-critical applications
+         * - Use a dedicated cache store to isolate invalidation
+         * - See "Customizing the Cache" docs for advanced strategies
+         *
+         * Values are wrapped in an array (['v' => bool]) so that a stored
+         * `false` is never confused with a cache miss (`null`). Some cache
+         * drivers cannot distinguish stored `false` from a miss.
+         */
         $result = $store->get($cacheKey);
 
         if (is_array($result)) {
@@ -65,7 +68,8 @@ class CachedEvaluator implements Evaluator
         }
 
         $generation = CacheStoreResolver::subjectGeneration($this->cache, $subjectType, $subjectId);
-        $cacheKey = self::key('effective', $subjectType, $subjectId, $scope, $generation);
+        $globalGen = CacheStoreResolver::globalGeneration($this->cache);
+        $cacheKey = self::key('effective', $subjectType, $subjectId, $scope, $generation, $globalGen);
         $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
 
         $result = $store->get($cacheKey);
@@ -88,7 +92,8 @@ class CachedEvaluator implements Evaluator
         }
 
         $generation = CacheStoreResolver::subjectGeneration($this->cache, $subjectType, $subjectId);
-        $cacheKey = self::key('role', $subjectType, $subjectId, $role.($scope !== null ? ":{$scope}" : ''), $generation);
+        $globalGen = CacheStoreResolver::globalGeneration($this->cache);
+        $cacheKey = self::key('role', $subjectType, $subjectId, $role.($scope !== null ? ":{$scope}" : ''), $generation, $globalGen);
         $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
 
         $result = $store->get($cacheKey);
@@ -113,16 +118,20 @@ class CachedEvaluator implements Evaluator
      * safe key lengths across all cache drivers (Memcached 250-char limit,
      * file-based drivers that use the key as a filename, etc.).
      *
-     * The generation segment is included on non-tagged stores so that
-     * flushSubject() can invalidate all of a subject's entries by
-     * incrementing the counter, without clearing the entire store.
+     * The generation segment combines global and per-subject generations on
+     * non-tagged stores. Global generation is incremented by flush() (role/
+     * permission/boundary changes). Subject generation is incremented by
+     * flushSubject() (assignment changes). Both must be embedded so either
+     * invalidation path renders old keys unreachable.
      */
-    public static function key(string $type, string $subjectType, string|int $subjectId, ?string $suffix = null, int $generation = 0): string
+    public static function key(string $type, string $subjectType, string|int $subjectId, ?string $suffix = null, int $generation = 0, int $globalGeneration = 0): string
     {
         $key = "policy-engine:{$type}:{$subjectType}:{$subjectId}";
 
-        if ($generation > 0) {
-            $key .= ":g{$generation}";
+        $combinedGeneration = $globalGeneration + $generation;
+
+        if ($combinedGeneration > 0) {
+            $key .= ":g{$combinedGeneration}";
         }
 
         if ($suffix !== null) {

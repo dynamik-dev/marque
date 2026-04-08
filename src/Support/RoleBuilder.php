@@ -35,6 +35,19 @@ class RoleBuilder
     }
 
     /**
+     * Add deny rules to the role.
+     *
+     * @param  array<int, string>  $permissions
+     */
+    public function deny(array $permissions): self
+    {
+        return $this->grant(array_map(
+            static fn (string $p): string => str_starts_with($p, '!') ? $p : "!{$p}",
+            $permissions,
+        ));
+    }
+
+    /**
      * Remove permissions from the role.
      *
      * @param  array<int, string>  $permissions

@@ -28,8 +28,10 @@ class InvalidatePermissionCache
             return;
         }
 
-        // Assignment events affect a single subject — invalidate only their cache.
-        // This is the high-frequency path (users joining/leaving groups).
+        /*
+         * Assignment events affect a single subject — invalidate only their cache.
+         * This is the high-frequency path (users joining/leaving groups).
+         */
         if ($event instanceof AssignmentCreated || $event instanceof AssignmentRevoked) {
             CacheStoreResolver::flushSubject(
                 $this->cache,
@@ -40,8 +42,10 @@ class InvalidatePermissionCache
             return;
         }
 
-        // Role, permission, and boundary changes are rare admin operations
-        // that can affect any subject. Full flush is acceptable here.
+        /*
+         * Role, permission, and boundary changes are rare admin operations
+         * that can affect any subject. Full flush is acceptable here.
+         */
         CacheStoreResolver::flush($this->cache);
     }
 }

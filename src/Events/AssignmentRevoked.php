@@ -6,7 +6,7 @@ namespace DynamikDev\PolicyEngine\Events;
 
 use DynamikDev\PolicyEngine\Models\Assignment;
 
-class AssignmentRevoked
+readonly class AssignmentRevoked
 {
     public function __construct(
         public readonly Assignment $assignment,

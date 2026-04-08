@@ -347,6 +347,11 @@ it('short-circuits before role permission lookups when boundary denies', functio
             return $this->inner->find($id);
         }
 
+        public function findMany(array $ids): Collection
+        {
+            return $this->inner->findMany($ids);
+        }
+
         public function all(): Collection
         {
             return $this->inner->all();
@@ -365,6 +370,11 @@ it('short-circuits before role permission lookups when boundary denies', functio
             $this->batchCalls++;
 
             return $this->inner->permissionsForRoles($roleIds);
+        }
+
+        public function saveDirectPermissionRole(string $permission, array $permissions): Role
+        {
+            return $this->inner->saveDirectPermissionRole($permission, $permissions);
         }
     };
 
@@ -635,6 +645,14 @@ it('works with custom role store implementing permissionsForRoles', function ():
             return $role;
         }
 
+        public function findMany(array $ids): Collection
+        {
+            return collect($ids)
+                ->map(fn (string $id): ?Role => $this->find($id))
+                ->filter()
+                ->keyBy('id');
+        }
+
         public function all(): Collection
         {
             return collect();
@@ -660,10 +678,17 @@ it('works with custom role store implementing permissionsForRoles', function ():
         {
             $this->roles = [];
         }
+
+        public function saveDirectPermissionRole(string $permission, array $permissions): Role
+        {
+            return $this->save('__dp.'.$permission, "Direct: {$permission}", $permissions);
+        }
     };
 
     $minimalRoleStore->save('editor', 'Editor', ['posts.create']);
 
+    // Create role in DB so the Eloquent assignment store FK is satisfied.
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
     $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
 
     $evaluator = new DefaultEvaluator(
@@ -679,14 +704,18 @@ it('works with custom role store implementing permissionsForRoles', function ():
 // --- sanctumTokenAllows fallback paths ---
 
 it('allows when Sanctum class does not exist and permission is otherwise granted', function (): void {
-    // Sanctum IS installed in dev, so this path (line 384) is not reachable
-    // in the test environment. Instead, test the user-mismatch path (line 398).
+    /*
+     * Sanctum IS installed in dev, so this path (line 384) is not reachable
+     * in the test environment. Instead, test the user-mismatch path (line 398).
+     */
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
     $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
 
-    // Evaluating for a subject that doesn't match the authenticated user
-    // (no user authenticated at all — sanctumTokenAllows returns true at line 390)
+    /*
+     * Evaluating for a subject that doesn't match the authenticated user
+     * (no user authenticated at all — sanctumTokenAllows returns true at line 390)
+     */
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 });
 
@@ -704,8 +733,10 @@ it('allows when authenticated user does not match evaluated subject', function (
 
     $this->actingAs($fakeUser);
 
-    // Evaluating subject User:1 while authenticated as User:999
-    // This hits line 398 (user doesn't match subject) and returns true
+    /*
+     * Evaluating subject User:1 while authenticated as User:999
+     * This hits line 398 (user doesn't match subject) and returns true
+     */
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 });
 
@@ -758,12 +789,22 @@ it('uses batched role permission loading when the role store supports it', funct
             return $this->inner->permissionsFor($roleId);
         }
 
+        public function findMany(array $ids): Collection
+        {
+            return $this->inner->findMany($ids);
+        }
+
         /** @param  array<int, string>  $roleIds */
         public function permissionsForRoles(array $roleIds): array
         {
             $this->batchCalls++;
 
             return $this->inner->permissionsForRoles($roleIds);
+        }
+
+        public function saveDirectPermissionRole(string $permission, array $permissions): Role
+        {
+            return $this->inner->saveDirectPermissionRole($permission, $permissions);
         }
     };
 
@@ -880,4 +921,27 @@ it('denies all permissions when boundary has empty max_permissions array', funct
     $this->boundaryStore->set('org::acme', []);
 
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create:org::acme'))->toBeFalse();
+});
+
+// --- explain: early deny when no assignments ---
+
+it('explain returns deny trace immediately when subject has no assignments', function (): void {
+    config()->set('policy-engine.explain', true);
+
+    $trace = $this->evaluator->explain('App\\Models\\User', 99, 'posts.create');
+
+    expect($trace->result)->toBe(EvaluationResult::Deny)
+        ->and($trace->assignments)->toBeEmpty();
+});
+
+// --- sanctumTokenAllows: no authenticated user ---
+
+it('allows when no user is authenticated and permission is otherwise granted', function (): void {
+    auth()->logout();
+
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor');
+
+    expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 });

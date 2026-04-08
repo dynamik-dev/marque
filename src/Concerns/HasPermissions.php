@@ -95,20 +95,17 @@ trait HasPermissions
      */
     public function givePermission(string $permission, mixed $scope = null): void
     {
-        $permissionStore = app(PermissionStore::class);
-
-        if (! $permissionStore->exists($permission)) {
+        if (! app(PermissionStore::class)->exists($permission)) {
             throw new \InvalidArgumentException("Permission [{$permission}] is not registered.");
         }
 
-        $roleId = self::directPermissionRoleId($permission);
         $roleStore = app(RoleStore::class);
 
-        if ($roleStore->find($roleId) === null) {
-            $roleStore->save($roleId, "Direct: {$permission}", [$permission]);
+        if ($roleStore->find(self::directPermissionRoleId($permission)) === null) {
+            $roleStore->saveDirectPermissionRole($permission, [$permission]);
         }
 
-        $this->assign($roleId, $scope);
+        $this->assign(self::directPermissionRoleId($permission), $scope);
     }
 
     /**
@@ -140,13 +137,15 @@ trait HasPermissions
         $toRevoke = array_diff($currentRoleIds, $roleIds);
         $toAssign = array_diff($roleIds, $currentRoleIds);
 
-        foreach ($toRevoke as $roleId) {
-            $assignmentStore->revoke($this->getMorphClass(), $this->getKey(), $roleId, $resolvedScope);
-        }
+        Assignment::query()->getConnection()->transaction(function () use ($assignmentStore, $toRevoke, $toAssign, $resolvedScope): void {
+            foreach ($toRevoke as $roleId) {
+                $assignmentStore->revoke($this->getMorphClass(), $this->getKey(), $roleId, $resolvedScope);
+            }
 
-        foreach ($toAssign as $roleId) {
-            $assignmentStore->assign($this->getMorphClass(), $this->getKey(), $roleId, $resolvedScope);
-        }
+            foreach ($toAssign as $roleId) {
+                $assignmentStore->assign($this->getMorphClass(), $this->getKey(), $roleId, $resolvedScope);
+            }
+        });
     }
 
     /**
@@ -231,29 +230,27 @@ trait HasPermissions
     /** @return Collection<int, Role> */
     public function getRoles(): Collection
     {
-        $roleStore = app(RoleStore::class);
-
-        return $this->assignments()
+        $roleIds = $this->assignments()
             ->pluck('role_id')
             ->unique()
             ->reject(static fn (string $roleId): bool => str_starts_with($roleId, self::DIRECT_PERMISSION_PREFIX))
-            ->map(static fn (string $roleId): ?Role => $roleStore->find($roleId))
-            ->filter()
-            ->values();
+            ->values()
+            ->all();
+
+        return app(RoleStore::class)->findMany($roleIds)->values();
     }
 
     /** @return Collection<int, Role> */
     public function getRolesFor(mixed $scope): Collection
     {
-        $roleStore = app(RoleStore::class);
-
-        return $this->assignmentsFor($scope)
+        $roleIds = $this->assignmentsFor($scope)
             ->pluck('role_id')
             ->unique()
             ->reject(static fn (string $roleId): bool => str_starts_with($roleId, self::DIRECT_PERMISSION_PREFIX))
-            ->map(static fn (string $roleId): ?Role => $roleStore->find($roleId))
-            ->filter()
-            ->values();
+            ->values()
+            ->all();
+
+        return app(RoleStore::class)->findMany($roleIds)->values();
     }
 
     /**

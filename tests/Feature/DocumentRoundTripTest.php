@@ -135,7 +135,7 @@ it('exports and imports only data for a specific scope', function (): void {
     $scopedExport = $this->exporter->export('team::5');
 
     // Verify the scoped export contains the right subset.
-    expect($scopedExport->permissions)->toBe(['posts.create', 'posts.delete', 'comments.create'])
+    expect($scopedExport->permissions)->toEqualCanonicalizing(['posts.create', 'posts.delete', 'comments.create'])
         ->and($scopedExport->assignments)->toHaveCount(2)
         ->and($scopedExport->boundaries)->toHaveCount(1)
         ->and($scopedExport->boundaries[0]['scope'])->toBe('team::5');

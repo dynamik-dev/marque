@@ -37,9 +37,9 @@ Maps to a store defined in `config/cache.php`. The value `'default'` uses your a
 How long cached evaluation results are stored, in seconds.
 
 - **Type:** `int`
-- **Default:** `3600` (1 hour)
+- **Default:** `300` (5 minutes)
 
-Cached results are also invalidated by events (assignment changes, role updates, permission deletions, boundary changes), so this TTL is a safety net, not the primary invalidation mechanism.
+Cached results are also invalidated by events (assignment changes, role updates, permission deletions, boundary changes), so this TTL is a safety net, not the primary invalidation mechanism. A shorter TTL reduces the window for stale cached permissions after revocation.
 
 ---
 
@@ -73,6 +73,8 @@ Enable the `explain()` evaluation trace.
 - **Default:** `env('POLICY_ENGINE_EXPLAIN', false)`
 
 When disabled, calling `explain()` throws a `RuntimeException`. Enable in development and staging for debugging. Disable in production — the trace adds overhead and may expose internal authorization structure.
+
+> **Security:** When enabled, `explain()` exposes the full authorization decision tree — roles, permissions, boundaries, and scope context. Never enable this in production unless access is restricted. The `policy-engine:explain` Artisan command reads this config at runtime; lock down Artisan access in production environments.
 
 ---
 
@@ -177,7 +179,7 @@ return [
     'cache' => [
         'enabled' => true,
         'store' => env('POLICY_ENGINE_CACHE_STORE', 'default'),
-        'ttl' => 60 * 60,
+        'ttl' => 60 * 5,
     ],
     'protect_system_roles' => true,
     'log_denials' => true,

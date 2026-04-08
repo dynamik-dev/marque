@@ -205,8 +205,10 @@ it('invalidates cache when a role is deleted', function (): void {
     // Populate cache.
     expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
 
-    // Revoke assignment first, then delete the role.
-    // (SQLite does not enforce FK cascades by default.)
+    /*
+     * Revoke assignment first, then delete the role.
+     * (SQLite does not enforce FK cascades by default.)
+     */
     $this->assignmentStore->revoke('App\\Models\\User', 1, 'editor');
     $role = Role::query()->find('editor');
     $this->roleStore->remove('editor');

@@ -119,6 +119,14 @@ class JsonDocumentParser implements DocumentParser
                 }
             }
 
+            if (array_key_exists('id', $role) && ! is_string($role['id'])) {
+                $errors[] = "roles[{$index}].id must be a string";
+            }
+
+            if (array_key_exists('name', $role) && ! is_string($role['name'])) {
+                $errors[] = "roles[{$index}].name must be a string";
+            }
+
             if (array_key_exists('permissions', $role)) {
                 if (! is_array($role['permissions'])) {
                     $errors[] = "roles[{$index}].permissions must be an array";
@@ -156,6 +164,14 @@ class JsonDocumentParser implements DocumentParser
                     $errors[] = "assignments[{$index}] is missing required key: {$key}";
                 }
             }
+
+            if (array_key_exists('subject', $assignment) && ! is_string($assignment['subject'])) {
+                $errors[] = "assignments[{$index}].subject must be a string";
+            }
+
+            if (array_key_exists('role', $assignment) && ! is_string($assignment['role'])) {
+                $errors[] = "assignments[{$index}].role must be a string";
+            }
         }
     }
 
@@ -181,6 +197,10 @@ class JsonDocumentParser implements DocumentParser
                 if (! array_key_exists($key, $boundary)) {
                     $errors[] = "boundaries[{$index}] is missing required key: {$key}";
                 }
+            }
+
+            if (array_key_exists('scope', $boundary) && ! is_string($boundary['scope'])) {
+                $errors[] = "boundaries[{$index}].scope must be a string";
             }
 
             if (array_key_exists('max_permissions', $boundary)) {

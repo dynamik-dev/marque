@@ -6,7 +6,7 @@ namespace DynamikDev\PolicyEngine\Events;
 
 use DynamikDev\PolicyEngine\Models\Role;
 
-class RoleCreated
+readonly class RoleCreated
 {
     public function __construct(
         public readonly Role $role,

@@ -1,6 +1,6 @@
 # Swapping Implementations
 
-Every behavior in Policy Engine is behind a contract (interface). The package ships default Eloquent-based implementations, but you can replace any of them by rebinding in the service container. The DX layer — traits, middleware, Blade directives, commands — doesn't change.
+Every component is behind a contract. Replace any implementation by rebinding in the service container — traits, middleware, Blade directives, and commands all keep working.
 
 ## Replacing a store
 
@@ -12,7 +12,7 @@ use App\Auth\RedisPermissionStore;
 $this->app->bind(PermissionStore::class, RedisPermissionStore::class);
 ```
 
-Every trait method, middleware check, and Artisan command that touches permissions now uses your Redis implementation.
+Everything that touches permissions now uses your Redis store.
 
 ## What you can replace
 
@@ -132,4 +132,4 @@ class YamlDocumentParser implements DocumentParser
 $this->app->bind(DocumentParser::class, YamlDocumentParser::class);
 ```
 
-Import, export, and Artisan commands all use the parser contract — your YAML format works everywhere.
+Your YAML format works everywhere the parser contract is used.

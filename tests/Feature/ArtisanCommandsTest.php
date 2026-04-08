@@ -65,6 +65,7 @@ it('shows info message when no roles exist', function (): void {
 // --- policy-engine:assignments ---
 
 it('lists assignments for a subject', function (): void {
+    app(RoleStore::class)->save('editor', 'Editor', []);
     $store = app(AssignmentStore::class);
     $store->assign('user', '42', 'editor');
 
@@ -76,6 +77,9 @@ it('lists assignments for a subject', function (): void {
 });
 
 it('lists scoped assignments for a subject', function (): void {
+    $roleStore = app(RoleStore::class);
+    $roleStore->save('editor', 'Editor', []);
+    $roleStore->save('viewer', 'Viewer', []);
     $store = app(AssignmentStore::class);
     $store->assign('user', '42', 'editor', 'group::5');
     $store->assign('user', '42', 'viewer');
@@ -88,6 +92,9 @@ it('lists scoped assignments for a subject', function (): void {
 });
 
 it('lists all assignments in a scope', function (): void {
+    $roleStore = app(RoleStore::class);
+    $roleStore->save('editor', 'Editor', []);
+    $roleStore->save('viewer', 'Viewer', []);
     $store = app(AssignmentStore::class);
     $store->assign('user', '42', 'editor', 'group::5');
     $store->assign('user', '99', 'viewer', 'group::5');
@@ -114,6 +121,12 @@ it('shows info message when no assignments found for subject', function (): void
 
 it('shows error for invalid subject format', function (): void {
     $this->artisan('policy-engine:assignments', ['subject' => 'invalid-format'])
+        ->expectsOutputToContain('Invalid subject format')
+        ->assertExitCode(1);
+});
+
+it('shows error for subject with empty ID after separator', function (): void {
+    $this->artisan('policy-engine:assignments', ['subject' => 'user::'])
         ->expectsOutputToContain('Invalid subject format')
         ->assertExitCode(1);
 });
@@ -266,6 +279,52 @@ it('shows error when import file not found', function (): void {
         ->assertExitCode(1);
 });
 
+it('rejects structurally invalid document during import', function (): void {
+    $document = [
+        'permissions' => [123],
+        'roles' => 'not-an-array',
+    ];
+
+    $path = tempnam(sys_get_temp_dir(), 'policy_');
+    file_put_contents($path, json_encode($document));
+
+    $this->artisan('policy-engine:import', ['path' => $path])
+        ->expectsOutputToContain('Document validation failed')
+        ->assertExitCode(1);
+
+    unlink($path);
+});
+
+it('catches RuntimeException during import', function (): void {
+    $roleStore = app(RoleStore::class);
+    $roleStore->save('protected', 'Protected Role', ['posts.create'], system: true);
+
+    config()->set('policy-engine.protect_system_roles', false);
+
+    $document = [
+        'version' => '1.0',
+        'permissions' => ['posts.create'],
+        'roles' => [
+            ['id' => 'protected', 'name' => 'Hacked', 'permissions' => ['posts.create']],
+        ],
+    ];
+
+    $path = tempnam(sys_get_temp_dir(), 'policy_');
+    file_put_contents($path, json_encode($document));
+
+    // Mock the RoleStore to throw RuntimeException (simulating system role protection at store level)
+    $mockRoleStore = Mockery::mock(RoleStore::class);
+    $mockRoleStore->shouldReceive('find')->andReturn($roleStore->find('protected'));
+    $mockRoleStore->shouldReceive('save')->andThrow(new RuntimeException('Cannot modify system role'));
+    app()->instance(RoleStore::class, $mockRoleStore);
+
+    $this->artisan('policy-engine:import', ['path' => $path])
+        ->expectsOutputToContain('Import failed:')
+        ->assertExitCode(1);
+
+    unlink($path);
+});
+
 // --- policy-engine:export ---
 
 it('exports authorization state to stdout', function (): void {
@@ -392,24 +451,15 @@ it('clears the policy engine cache using tags when supported', function (): void
     config()->set('policy-engine.cache.store', 'array');
 
     $this->artisan('policy-engine:cache-clear')
-        ->expectsOutputToContain('cache cleared (tagged)')
+        ->expectsOutputToContain('tagged flush')
         ->assertSuccessful();
 });
 
-it('clears the policy engine cache with --force on untaggable store', function (): void {
-    config()->set('policy-engine.cache.store', 'file');
-
-    $this->artisan('policy-engine:cache-clear', ['--force' => true])
-        ->expectsOutputToContain('full store flush')
-        ->assertSuccessful();
-});
-
-it('aborts cache clear when user declines confirmation on untaggable store', function (): void {
+it('clears the policy engine cache via generation counter on untaggable store', function (): void {
     config()->set('policy-engine.cache.store', 'file');
 
     $this->artisan('policy-engine:cache-clear')
-        ->expectsConfirmation('Cache driver does not support tags. This will clear the entire cache store. Continue?', 'no')
-        ->expectsOutput('Aborted.')
+        ->expectsOutputToContain('generation counter incremented')
         ->assertSuccessful();
 });
 

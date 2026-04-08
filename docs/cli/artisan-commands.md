@@ -1,6 +1,5 @@
 # Using the Artisan Commands
 
-The package registers nine Artisan commands for inspecting, managing, and troubleshooting your authorization config from the terminal.
 
 ## Listing permissions
 
@@ -175,17 +174,19 @@ Prints "Policy document is valid." on success, or lists validation errors.
 Flush the permission evaluation cache.
 
 ```bash
-php artisan policy-engine:cache-clear {--force}
+php artisan policy-engine:cache-clear
 ```
 
-| Option | Description |
-| --- | --- |
-| `--force` | Skip confirmation when the cache store does not support tags |
+On tagged stores (Redis, Memcached), flushes only the `policy-engine` tag. On non-tagged stores (file, database), increments the global generation counter so all previously cached entries become unreachable and expire via TTL.
 
-When the cache store supports tags (Redis, Memcached), only the `policy-engine` tag is flushed. When the store does not support tags, the command prompts for confirmation before flushing the entire store. Use `--force` to skip the prompt.
+The command reports which mechanism was used:
 
-```bash
-php artisan policy-engine:cache-clear --force
+```
+# Tagged store
+Policy engine cache cleared (tagged flush).
+
+# Non-tagged store
+Policy engine cache cleared (generation counter incremented — stale entries expire via TTL).
 ```
 
 ## Syncing permissions from your seeder

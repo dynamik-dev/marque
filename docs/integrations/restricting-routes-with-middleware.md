@@ -1,6 +1,6 @@
 # Restricting Routes with Middleware
 
-Policy Engine hooks into Laravel's Gate, so the built-in `can` middleware works out of the box for permission checks. The package also ships a `role` middleware for role membership checks. Both support route model binding and scopes.
+The built-in `can` middleware works out of the box. The package also ships a `role` middleware for role membership checks.
 
 ## Requiring a permission on a route
 
@@ -11,7 +11,7 @@ Route::middleware('can:posts.create')
 
 The Gate hook intercepts `posts.create` (a dot-notated ability) and routes it through Policy Engine. Returns 403 if denied, 401 if unauthenticated.
 
-If the user model does not have the `HasPermissions` trait, the Gate hook passes through and Laravel denies by default — fail-closed behavior with no custom middleware required.
+If the user model lacks the `HasPermissions` trait, the Gate hook passes through and Laravel denies by default — fail-closed.
 
 ## Requiring a scoped permission
 

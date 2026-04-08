@@ -5,6 +5,11 @@ declare(strict_types=1);
 return [
     'cache' => [
         'enabled' => true,
+
+        // WARNING: If your cache driver does not support tags (file, database),
+        // policy-engine uses generation counters for invalidation. Entries expire
+        // naturally via TTL rather than being deleted immediately. For instant
+        // invalidation, use a tagged driver (Redis, Memcached).
         'store' => env('POLICY_ENGINE_CACHE_STORE', 'default'),
 
         // TTL in seconds.

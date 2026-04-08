@@ -14,15 +14,15 @@
     ],
     "require": {
         "php": "^8.4",
-        "illuminate/contracts": "^11.0|^12.0",
-        "illuminate/database": "^11.0|^12.0",
-        "illuminate/support": "^11.0|^12.0"
+        "illuminate/contracts": "^12.0|^13.0",
+        "illuminate/database": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0"
     },
     "require-dev": {
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.27",
         "laravel/sanctum": "^4.3",
-        "orchestra/testbench": "^9.0|^10.0",
+        "orchestra/testbench": "^10.0|^11.0",
         "pestphp/pest": "^3.0",
         "pestphp/pest-plugin-laravel": "^3.0",
         "pestphp/pest-plugin-mutate": "^3.0"
@@ -50,6 +50,19 @@
             "dealerdirect/phpcodesniffer-composer-installer": true,
             "pestphp/pest-plugin": true
         }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "test:pgsql": "DB_CONNECTION=pgsql vendor/bin/pest",
+        "test:mysql": "DB_CONNECTION=mysql vendor/bin/pest",
+        "test:all": [
+            "@test",
+            "@test:pgsql",
+            "@test:mysql"
+        ],
+        "test:coverage": "vendor/bin/pest --coverage",
+        "test:services": "docker compose -f docker-compose.test.yml up -d --wait",
+        "test:down": "docker compose -f docker-compose.test.yml down -v"
     },
     "minimum-stability": "dev",
     "prefer-stable": true

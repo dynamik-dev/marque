@@ -1,7 +1,5 @@
 # Installing the Package
 
-Policy Engine is a Laravel package for scoped, composable permissions. Install it with Composer and publish the config and migrations.
-
 ## Requiring the package
 
 ```bash
@@ -43,7 +41,7 @@ class User extends Authenticatable
 }
 ```
 
-This gives the model methods like `assign()`, `revoke()`, `hasRole()`, and `getRoles()`. The trait also powers `$user->can()` for dot-notated permissions via the Gate hook. No configuration needed — the trait delegates everything to the service container.
+This gives the model `assign()`, `revoke()`, `hasRole()`, `getRoles()`, and powers `$user->can()` for dot-notated permissions via the Gate hook.
 
 ## Making a model act as a scope
 

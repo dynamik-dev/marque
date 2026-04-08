@@ -8,7 +8,7 @@ Use `$user->can()` to check whether a subject holds a specific permission. The p
 $user->can('posts.create');
 ```
 
-Returns `true` if any of the user's assigned roles grant `posts.create` (or a wildcard that covers it). Returns `false` otherwise.
+Returns `true` if any of the user's assigned roles grant `posts.create` (or a wildcard that covers it).
 
 ## Checking a scoped permission
 
@@ -57,7 +57,7 @@ class PostController extends Controller
 }
 ```
 
-`$this->authorize()` and `Gate::allows()` both route through the Gate hook for dot-notated permissions. For pure permission checks with no business logic, this is the simplest approach. When authorization depends on the state of a specific resource (ownership, flags, timestamps), use a [model policy](../integrations/integrating-with-model-policies.md) instead.
+`$this->authorize()` and `Gate::allows()` both route through the Gate hook for dot-notated permissions. When authorization depends on resource state (ownership, flags, timestamps), use a [model policy](../integrations/integrating-with-model-policies.md) instead.
 
 ## Using canDo and cannotDo directly
 
@@ -66,11 +66,9 @@ $user->canDo('posts.create', scope: $group);
 $user->cannotDo('posts.delete');
 ```
 
-`canDo()` and `cannotDo()` on the `HasPermissions` trait are the engine methods that power the Gate hook, middleware, and Blade directives. They work directly without going through the Gate.
+`canDo()` and `cannotDo()` bypass the Gate and call the evaluator directly. Prefer `$user->can()` in application code — it integrates with `@can`, `$this->authorize()`, and middleware.
 
-Prefer `$user->can()` and `$user->cannot()` in application code. They go through the Gate and behave identically for dot-notated permissions, but they also integrate with `@can`, `$this->authorize()`, and `Gate::allows()` without any package-specific method calls.
-
-`canDo()` is the correct choice inside [model policies](../integrations/integrating-with-model-policies.md#writing-a-policy-that-uses-cando), where the policy method receives a raw user and needs to check permissions without re-entering the Gate.
+Use `canDo()` inside [model policies](../integrations/integrating-with-model-policies.md#writing-a-policy-that-uses-cando), where the policy method needs to check permissions without re-entering the Gate.
 
 ## Listing a user's effective permissions
 

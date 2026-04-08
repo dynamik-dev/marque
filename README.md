@@ -1,17 +1,57 @@
 # Policy Engine for Laravel
 
-Scoped, composable permissions for Laravel. Hooks into the Gate so `$user->can()`, `@can`, `$this->authorize()`, and middleware all work out of the box.
+An IAM-style policy engine for Laravel. Define your authorization as declarative JSON documents and import them the way you'd manage AWS IAM policies.
+
+```json
+{
+  "version": "1.0",
+  "permissions": [
+    "posts.read",
+    "posts.create",
+    "posts.update.own",
+    "posts.delete.any"
+  ],
+  "roles": [
+    {
+      "id": "editor",
+      "name": "Editor",
+      "permissions": [
+        "posts.read",
+        "posts.create",
+        "posts.update.own",
+        "!posts.delete.any"
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "scope": "plan::free",
+      "max_permissions": ["posts.read", "comments.read"]
+    },
+    {
+      "scope": "plan::pro",
+      "max_permissions": ["posts.*", "comments.*", "analytics.*"]
+    }
+  ]
+}
+```
+
+```bash
+php artisan policy-engine:import policies/production.json
+php artisan policy-engine:export --path=policies/backup.json
+```
+
+### Wired into the Gate
+
+Policy Engine hooks into Laravel's Gate, so `$user->can()`, `@can`, `$this->authorize()`, and `can:` middleware all work without learning a custom API.
 
 ```php
-// assign a role — globally or within a scope
-$user->assign('editor');
-$user->assign('moderator', $team);
+$user->assign('editor', $acmeOrg);
+$user->assign('viewer', $personalOrg);
 
-// check permissions — standard Laravel, nothing custom
-$user->can('posts.create');
-$user->can('posts.create', $team);
+$user->can('posts.create', $acmeOrg);     // true
+$user->can('posts.create', $personalOrg); // false
 
-// works everywhere Laravel authorization works
 Route::middleware('can:posts.create')->post('/posts', [PostController::class, 'store']);
 ```
 
@@ -21,62 +61,61 @@ Route::middleware('can:posts.create')->post('/posts', [PostController::class, 's
 @endcan
 ```
 
+### Deny rules
+
+Prefix any permission with `!` and the denial wins, no matter how many other roles allow it.
+
 ```php
-// roles are just named permission sets — deny rules, wildcards, scoping built in
 PolicyEngine::role('editor', 'Editor')
-    ->grant(['posts.create', 'posts.update.own', 'comments.*', '!posts.delete']);
+    ->grant(['posts.*', 'comments.*'])
+    ->deny(['posts.delete']);
+
+$editor->can('posts.create');  // true
+$editor->can('posts.delete');  // false -- deny wins
 ```
 
-Permissions are as granular as you need. Use dot-notation to model resource, action, and ownership — like IAM policies.
+### Permission boundaries
+
+Boundaries cap what's possible in a scope. Even if a user holds `admin`, the boundary has final say.
 
 ```php
-// fine-grained: resource.action.ownership
-'posts.create'
-'posts.update.own'
-'posts.update.any'
-'posts.delete.pinned'
-
-// wildcards at any level
-'posts.*'           // all post actions
-'*.read'            // read anything
-'*.*'               // superadmin
-```
-
-Boundaries cap what's possible in a scope — even if a role grants it, the boundary has final say.
-
-```php
-// free plan can only read, pro plan gets everything
 PolicyEngine::boundary('plan::free', ['posts.read', 'comments.read']);
 PolicyEngine::boundary('plan::pro', ['posts.*', 'comments.*', 'analytics.*']);
 
 $user->assign('admin', $freeOrg);
-$user->can('analytics.view', $freeOrg);  // false — boundary blocks it
+$user->can('analytics.view', $freeOrg);  // false -- boundary blocks it
 $user->can('analytics.view', $proOrg);   // true
 ```
 
-Version-control your entire authorization config as portable JSON documents.
+### Wildcards
 
-```json
-{
-    "version": "1.0",
-    "permissions": ["posts.read", "posts.create", "posts.update.own", "posts.delete.any"],
-    "roles": [
-        {
-            "id": "editor",
-            "name": "Editor",
-            "permissions": ["posts.read", "posts.create", "posts.update.own", "!posts.delete.any"]
-        }
-    ],
-    "boundaries": [
-        { "scope": "org::acme", "max_permissions": ["posts.*", "comments.*"] }
-    ]
-}
+```php
+'posts.*'           // all post actions
+'*.read'            // read anything
+'*.*'               // superadmin
+'posts.update.own'  // fine-grained ownership
 ```
 
-```bash
-php artisan policy-engine:import policies/production.json
-php artisan policy-engine:export --path=policies/backup.json
-```
+### Contract-driven
+
+Every component is coded to a PHP interface. Swap any implementation via the service container. See [Swapping implementations](docs/extending/swapping-implementations.md).
+
+### Why not Spatie?
+
+[Spatie laravel-permission](https://github.com/spatie/laravel-permission) is a good package for flat RBAC. Policy Engine covers the cases where Spatie runs out of road: polymorphic scoping, deny rules, permission boundaries, and declarative policy documents. See [Comparison with Spatie](docs/comparison-with-spatie.md).
+
+## Requirements
+
+| Dependency | Supported Versions |
+|---|---|
+| PHP | 8.4, 8.5 |
+| Laravel | 12, 13 |
+| PostgreSQL | 17+ |
+| MySQL | 8.4+ |
+| SQLite | 3.35+ |
+| Valkey / Redis | 8+ |
+
+SQLite works out of the box for development. PostgreSQL, MySQL, and Valkey are optional — the package tests against all of them in CI.
 
 ## Documentation
 
@@ -120,3 +159,4 @@ php artisan policy-engine:export --path=policies/backup.json
 - [Configuration](docs/reference/configuration.md)
 - [Contracts](docs/reference/contracts.md)
 - [Events](docs/reference/events.md)
+- [Comparison with Spatie](docs/comparison-with-spatie.md)

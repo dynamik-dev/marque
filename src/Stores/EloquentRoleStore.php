@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Event;
 
 class EloquentRoleStore implements RoleStore
 {
+    private const DIRECT_PERMISSION_PREFIX = '__dp.';
+
     /**
      * Create or update a role with the given permissions.
      *
@@ -51,11 +53,13 @@ class EloquentRoleStore implements RoleStore
 
             RolePermission::query()->where('role_id', $id)->delete();
 
-            if ($permissions !== []) {
+            $uniquePermissions = array_values(array_unique($permissions));
+
+            if ($uniquePermissions !== []) {
                 RolePermission::query()->insert(
                     array_map(
                         static fn (string $perm): array => ['role_id' => $id, 'permission_id' => $perm],
-                        $permissions,
+                        $uniquePermissions,
                     ),
                 );
             }
@@ -88,7 +92,9 @@ class EloquentRoleStore implements RoleStore
 
         $role->delete();
 
-        Event::dispatch(new RoleDeleted($role));
+        $role->getConnection()->afterCommit(function () use ($role): void {
+            Event::dispatch(new RoleDeleted($role));
+        });
     }
 
     /**
@@ -101,15 +107,37 @@ class EloquentRoleStore implements RoleStore
     {
         RolePermission::query()->delete();
 
-        Role::query()->get()->each(function (Role $role): void {
-            $role->delete();
-            Event::dispatch(new RoleDeleted($role));
+        Role::query()->chunkById(200, function (Collection $roles): void {
+            $roles->each(function (Role $role): void {
+                $role->delete();
+                Event::dispatch(new RoleDeleted($role));
+            });
         });
     }
 
     public function find(string $id): ?Role
     {
         return Role::query()->find($id);
+    }
+
+    /**
+     * Find multiple roles by their identifiers in a single query.
+     *
+     * @param  array<int, string>  $ids
+     * @return Collection<string, Role>
+     */
+    public function findMany(array $ids): Collection
+    {
+        $uniqueIds = array_values(array_unique($ids));
+
+        if ($uniqueIds === []) {
+            return collect();
+        }
+
+        return Role::query()
+            ->whereIn('id', $uniqueIds)
+            ->get()
+            ->keyBy('id');
     }
 
     /** @return Collection<int, Role> */
@@ -166,6 +194,51 @@ class EloquentRoleStore implements RoleStore
     }
 
     /**
+     * Create the internal synthetic role for a direct permission assignment.
+     *
+     * Bypasses `validateIdentifier()` since the `__dp.` prefix is reserved
+     * and rejected by `save()`. The role ID is built internally from the
+     * permission name.
+     *
+     * @param  array<int, string>  $permissions
+     */
+    public function saveDirectPermissionRole(string $permission, array $permissions): Role
+    {
+        $roleId = self::DIRECT_PERMISSION_PREFIX.$permission;
+
+        $role = Role::query()->getConnection()->transaction(function () use ($roleId, $permission, $permissions): Role {
+            $role = Role::query()->updateOrCreate(
+                ['id' => $roleId],
+                ['name' => "Direct: {$permission}", 'is_system' => false],
+            );
+
+            RolePermission::query()->where('role_id', $roleId)->delete();
+
+            $uniquePermissions = array_values(array_unique($permissions));
+
+            if ($uniquePermissions !== []) {
+                RolePermission::query()->insert(
+                    array_map(
+                        static fn (string $perm): array => ['role_id' => $roleId, 'permission_id' => $perm],
+                        $uniquePermissions,
+                    ),
+                );
+            }
+
+            return $role;
+        });
+
+        /** @var Role $role */
+        Event::dispatch(
+            $role->wasRecentlyCreated
+                ? new RoleCreated($role)
+                : new RoleUpdated($role, $role->getChanges()),
+        );
+
+        return $role;
+    }
+
+    /**
      * Validate that a role identifier string is safe for use as a role ID.
      *
      * @throws \InvalidArgumentException
@@ -175,6 +248,12 @@ class EloquentRoleStore implements RoleStore
         if ($id === '' || preg_match('/[\s:]/', $id) || str_starts_with($id, '!')) {
             throw new \InvalidArgumentException(
                 "Invalid role ID [{$id}]. IDs must not be empty, contain whitespace or colons, or start with '!'.",
+            );
+        }
+
+        if (str_starts_with($id, self::DIRECT_PERMISSION_PREFIX)) {
+            throw new \InvalidArgumentException(
+                "Invalid role ID [{$id}]. The '__dp.' prefix is reserved for internal use.",
             );
         }
 

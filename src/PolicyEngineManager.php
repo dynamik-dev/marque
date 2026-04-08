@@ -12,6 +12,7 @@ use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\ImportResult;
+use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 use DynamikDev\PolicyEngine\Support\PathValidator;
 use DynamikDev\PolicyEngine\Support\RoleBuilder;
 
@@ -61,6 +62,8 @@ class PolicyEngineManager
      */
     public function import(string $pathOrContent, ?ImportOptions $options = null): ImportResult
     {
+        $resolvedOptions = $options ?? new ImportOptions;
+
         if ($this->looksLikeFilePath($pathOrContent)) {
             $validatedPath = PathValidator::validate($pathOrContent);
 
@@ -72,16 +75,34 @@ class PolicyEngineManager
                 }
 
                 return $this->importer->import(
-                    $this->parser->parse($fileContent),
-                    $options ?? new ImportOptions,
+                    $this->parseAndValidate($fileContent, $resolvedOptions),
+                    $resolvedOptions,
                 );
             }
         }
 
         return $this->importer->import(
-            $this->parser->parse($pathOrContent),
-            $options ?? new ImportOptions,
+            $this->parseAndValidate($pathOrContent, $resolvedOptions),
+            $resolvedOptions,
         );
+    }
+
+    /**
+     * Validate raw content structurally (when enabled) then parse into a PolicyDocument.
+     */
+    private function parseAndValidate(string $content, ImportOptions $options): PolicyDocument
+    {
+        if ($options->validate) {
+            $result = $this->parser->validate($content);
+
+            if (! $result->valid) {
+                throw new \InvalidArgumentException(
+                    'Document validation failed: '.implode('; ', $result->errors),
+                );
+            }
+        }
+
+        return $this->parser->parse($content);
     }
 
     /**

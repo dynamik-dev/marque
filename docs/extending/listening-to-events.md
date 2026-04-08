@@ -1,6 +1,6 @@
 # Listening to Events
 
-The default store implementations dispatch Laravel events on every mutation. Use these for audit logging, webhook dispatch, cache invalidation, or any side effect that should follow an authorization change.
+The default stores dispatch events on every mutation — use them for audit logging, webhooks, or cache invalidation.
 
 ## Events dispatched by the package
 
@@ -93,7 +93,7 @@ The package registers an `InvalidatePermissionCache` listener that responds to:
 - `BoundarySet`
 - `BoundaryRemoved`
 
-When any of these fire, the permission cache is flushed. This happens automatically — you don't need to configure it.
+Cache is flushed automatically when any of these fire.
 
 > `PermissionCreated`, `RoleCreated`, `AuthorizationDenied`, and `DocumentImported` do not trigger cache invalidation. Creating new permissions or roles doesn't affect existing cached evaluations.
 

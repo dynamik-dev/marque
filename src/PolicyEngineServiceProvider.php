@@ -32,6 +32,7 @@ use DynamikDev\PolicyEngine\Listeners\InvalidatePermissionCache;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 use DynamikDev\PolicyEngine\Middleware\RoleMiddleware;
 use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
+use DynamikDev\PolicyEngine\Stores\CachingBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
@@ -44,6 +45,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Octane\Events\RequestTerminated;
 
 class PolicyEngineServiceProvider extends ServiceProvider
 {
@@ -69,7 +71,10 @@ class PolicyEngineServiceProvider extends ServiceProvider
                 inner: new DefaultEvaluator(
                     assignments: $app->make(AssignmentStore::class),
                     roles: $app->make(RoleStore::class),
-                    boundaries: $app->make(BoundaryStore::class),
+                    boundaries: new CachingBoundaryStore(
+                        inner: $app->make(BoundaryStore::class),
+                        cache: $app->make(CacheManager::class),
+                    ),
                     matcher: $app->make(Matcher::class),
                 ),
                 cache: $app->make(CacheManager::class),
@@ -128,9 +133,11 @@ class PolicyEngineServiceProvider extends ServiceProvider
     private function registerGateHook(): void
     {
         Gate::before(static function (Authenticatable $user, string $ability, array $arguments): ?bool {
-            // Non-dot abilities (update, delete, view) are left to Laravel's
-            // standard Gate and Policy resolution. Policies can call canDo()
-            // internally when they need the engine.
+            /*
+             * Non-dot abilities (update, delete, view) are left to Laravel's
+             * standard Gate and Policy resolution. Policies can call canDo()
+             * internally when they need the engine.
+             */
             if (! str_contains($ability, '.')) {
                 return null;
             }
@@ -164,5 +171,13 @@ class PolicyEngineServiceProvider extends ServiceProvider
         Event::listen(BoundaryRemoved::class, InvalidatePermissionCache::class);
         Event::listen(PermissionCreated::class, InvalidatePermissionCache::class);
         Event::listen(DocumentImported::class, InvalidatePermissionCache::class);
+
+        // Octane: reset memoized cache store between requests to prevent stale state.
+        if (class_exists(RequestTerminated::class)) {
+            Event::listen(
+                RequestTerminated::class,
+                static fn () => CacheStoreResolver::reset(),
+            );
+        }
     }
 }

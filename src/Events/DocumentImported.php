@@ -6,7 +6,7 @@ namespace DynamikDev\PolicyEngine\Events;
 
 use DynamikDev\PolicyEngine\DTOs\ImportResult;
 
-class DocumentImported
+readonly class DocumentImported
 {
     public function __construct(
         public readonly ImportResult $result,

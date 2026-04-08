@@ -1,6 +1,6 @@
 # Events Reference
 
-All events live in `DynamikDev\PolicyEngine\Events\` and use readonly constructor properties. The default store implementations dispatch these events — custom stores should dispatch them too for cache invalidation and observability.
+All events live in `DynamikDev\PolicyEngine\Events\` and use readonly constructor properties. Custom stores should dispatch them too for cache invalidation.
 
 ---
 
@@ -153,4 +153,4 @@ Does not trigger cache invalidation directly. The individual store operations (p
 | `AuthorizationDenied` | No |
 | `DocumentImported` | No |
 
-The `InvalidatePermissionCache` listener flushes the entire configured cache store when triggered. See [customizing the cache](../extending/customizing-the-cache.md) for details.
+See [customizing the cache](../extending/customizing-the-cache.md) for details on the invalidation strategy.

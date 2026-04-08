@@ -6,7 +6,7 @@ namespace DynamikDev\PolicyEngine\Events;
 
 use DynamikDev\PolicyEngine\Models\Boundary;
 
-class BoundarySet
+readonly class BoundarySet
 {
     public function __construct(
         public readonly Boundary $boundary,

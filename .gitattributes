@@ -1,0 +1,13 @@
+/.github            export-ignore
+/.gitattributes     export-ignore
+/.gitignore         export-ignore
+/.dockerignore      export-ignore
+/.phpunit.cache     export-ignore
+/backlog            export-ignore
+/docker-compose.test.yml export-ignore
+/docs               export-ignore
+/tests              export-ignore
+/phpstan.neon       export-ignore
+/phpunit.xml        export-ignore
+/AGENTS.md          export-ignore
+/CLAUDE.md          export-ignore

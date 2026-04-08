@@ -500,6 +500,40 @@ it('hasAllRoles returns false for an empty array', function (): void {
     expect($this->user->hasAllRoles([]))->toBeFalse();
 });
 
+// --- getRoles query efficiency ---
+
+it('fetches multiple roles with a single batch query instead of N+1', function (): void {
+    $permissions = ['posts.create', 'posts.read', 'posts.update', 'posts.delete', 'comments.create'];
+    $this->permissionStore->register($permissions);
+
+    $this->roleStore->save('role-a', 'Role A', ['posts.create']);
+    $this->roleStore->save('role-b', 'Role B', ['posts.read']);
+    $this->roleStore->save('role-c', 'Role C', ['posts.update']);
+    $this->roleStore->save('role-d', 'Role D', ['posts.delete']);
+    $this->roleStore->save('role-e', 'Role E', ['comments.create']);
+
+    $this->user->assign('role-a');
+    $this->user->assign('role-b');
+    $this->user->assign('role-c');
+    $this->user->assign('role-d');
+    $this->user->assign('role-e');
+
+    // Reset query log to only capture getRoles() queries.
+    $connection = TestUser::query()->getConnection();
+    $connection->enableQueryLog();
+    $connection->flushQueryLog();
+
+    $roles = $this->user->getRoles();
+
+    $queries = $connection->getQueryLog();
+    $connection->disableQueryLog();
+
+    expect($roles)->toHaveCount(5)
+        ->and($roles->pluck('id')->sort()->values()->all())
+        ->toBe(['role-a', 'role-b', 'role-c', 'role-d', 'role-e'])
+        ->and($queries)->toHaveCount(2); // 1 for assignments, 1 for roles (whereIn)
+});
+
 // --- assignmentsFor null scope ---
 
 it('throws InvalidArgumentException when assignmentsFor receives a null scope', function (): void {

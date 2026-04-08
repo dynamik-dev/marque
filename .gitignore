@@ -12,4 +12,5 @@ composer.lock
 .chief/
 .claude/
 CLAUDE.md
-/filament
+/backlog
+/docs/superpowers

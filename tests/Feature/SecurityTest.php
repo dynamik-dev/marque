@@ -256,3 +256,13 @@ it('enforces boundary on scoped check even when user has global wildcard assignm
     expect($evaluator->can('App\\Models\\User', 1, 'billing.manage:org::acme'))->toBeFalse()
         ->and($evaluator->can('App\\Models\\User', 1, 'posts.create:org::acme'))->toBeTrue();
 });
+
+// --- Finding 11: PathValidator rejects paths with non-existent parent directories ---
+
+it('rejects import from a path whose parent directory does not exist', function (): void {
+    config()->set('policy-engine.document_path', storage_path());
+
+    $manager = app(PolicyEngineManager::class);
+
+    $manager->import(storage_path('nonexistent-dir/policy.json'));
+})->throws(InvalidArgumentException::class, 'Path must be within the allowed directory');

@@ -2,7 +2,7 @@
 
 **Package:** `dynamik-dev/laravel-policy-engine`
 **Spec:** See [spec.md](./spec.md) for the full specification.
-**Requires:** Laravel 11+, PHP 8.4+
+**Requires:** Laravel 12+, PHP 8.4+
 
 ## What This Is
 
@@ -61,6 +61,7 @@ Assignments → Roles → Permissions → Boundary check → Deny wins → Allow
 - API Resources for all responses, Form Requests for all validation
 - Inline single-use variables; extract complex logic to helper methods
 - Full PHP 8.4+ type hints and return types on every method
+- No orchestration details in source code — no sprint/wave/task/phase numbering in class names, file names, or comments
 - Run `vendor/bin/pint --dirty` after modifying PHP files
 
 <!-- BACKLOG.MD MCP GUIDELINES START -->

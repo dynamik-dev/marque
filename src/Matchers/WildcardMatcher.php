@@ -119,8 +119,10 @@ class WildcardMatcher implements Matcher
                     return true;
                 }
 
-                // Try consuming 1, 2, 3... required segments for the wildcard,
-                // then recursively match the rest of the pattern.
+                /*
+                 * Try consuming 1, 2, 3... required segments for the wildcard,
+                 * then recursively match the rest of the pattern.
+                 */
                 $gi++;
                 for ($skip = $ri + 1; $skip <= $requiredCount; $skip++) {
                     if ($this->doSegmentsMatch($granted, $gi, $required, $skip)) {
