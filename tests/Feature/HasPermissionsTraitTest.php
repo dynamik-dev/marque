@@ -373,3 +373,140 @@ it('denies when an explicit deny rule overrides an allow', function (): void {
     expect($this->user->canDo('posts.create'))->toBeTrue()
         ->and($this->user->canDo('posts.delete'))->toBeFalse();
 });
+
+// --- givePermission / revokePermission ---
+
+it('gives a permission directly without an explicit role', function (): void {
+    $this->permissionStore->register(['posts.create']);
+
+    $this->user->givePermission('posts.create');
+
+    expect($this->user->canDo('posts.create'))->toBeTrue();
+});
+
+it('revokes a directly given permission', function (): void {
+    $this->permissionStore->register(['posts.create']);
+
+    $this->user->givePermission('posts.create');
+    expect($this->user->canDo('posts.create'))->toBeTrue();
+
+    $this->user->revokePermission('posts.create');
+    expect($this->user->canDo('posts.create'))->toBeFalse();
+});
+
+it('throws when giving an unregistered permission', function (): void {
+    $this->user->givePermission('nonexistent.perm');
+})->throws(InvalidArgumentException::class, 'not registered');
+
+it('hides direct permission roles from getRoles', function (): void {
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+
+    $this->user->assign('editor');
+    $this->user->givePermission('posts.create');
+
+    $roles = $this->user->getRoles();
+
+    expect($roles)->toHaveCount(1)
+        ->and($roles->first()->id)->toBe('editor');
+});
+
+it('gives a scoped direct permission', function (): void {
+    $this->permissionStore->register(['posts.create']);
+
+    $this->user->givePermission('posts.create', 'team::5');
+
+    expect($this->user->canDo('posts.create', 'team::5'))->toBeTrue()
+        ->and($this->user->canDo('posts.create'))->toBeFalse();
+});
+
+// --- syncRoles ---
+
+it('syncs roles by revoking removed and assigning new', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
+    $this->roleStore->save('admin', 'Admin', ['*.*']);
+
+    $this->user->assign('editor');
+    $this->user->assign('viewer');
+
+    $this->user->syncRoles(['viewer', 'admin']);
+
+    expect($this->user->hasRole('editor'))->toBeFalse()
+        ->and($this->user->hasRole('viewer'))->toBeTrue()
+        ->and($this->user->hasRole('admin'))->toBeTrue();
+});
+
+it('syncs scoped roles without affecting global assignments', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
+    $this->roleStore->save('admin', 'Admin', ['*.*']);
+
+    $this->user->assign('admin');
+    $this->user->assign('editor', 'team::5');
+
+    $this->user->syncRoles(['viewer'], 'team::5');
+
+    // Global admin untouched.
+    expect($this->user->hasRole('admin'))->toBeTrue();
+    // Scoped editor replaced with viewer.
+    expect($this->user->hasRole('editor', 'team::5'))->toBeFalse()
+        ->and($this->user->hasRole('viewer', 'team::5'))->toBeTrue();
+});
+
+it('syncs to empty array revokes all roles in scope', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+
+    $this->user->assign('editor');
+
+    $this->user->syncRoles([]);
+
+    expect($this->user->hasRole('editor'))->toBeFalse();
+});
+
+// --- hasAnyRole / hasAllRoles ---
+
+it('hasAnyRole returns true when user has at least one role', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->roleStore->save('admin', 'Admin', ['*.*']);
+
+    $this->user->assign('editor');
+
+    expect($this->user->hasAnyRole(['admin', 'editor']))->toBeTrue();
+});
+
+it('hasAnyRole returns false when user has none of the roles', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+
+    $this->user->assign('editor');
+
+    expect($this->user->hasAnyRole(['admin', 'super']))->toBeFalse();
+});
+
+it('hasAllRoles returns true when user has every role', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
+
+    $this->user->assign('editor');
+    $this->user->assign('viewer');
+
+    expect($this->user->hasAllRoles(['editor', 'viewer']))->toBeTrue();
+});
+
+it('hasAllRoles returns false when user is missing one role', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
+
+    $this->user->assign('editor');
+
+    expect($this->user->hasAllRoles(['editor', 'viewer']))->toBeFalse();
+});
+
+it('hasAnyRole works with scope', function (): void {
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+
+    $this->user->assign('editor', 'team::5');
+
+    expect($this->user->hasAnyRole(['editor'], 'team::5'))->toBeTrue()
+        ->and($this->user->hasAnyRole(['editor'], 'team::99'))->toBeFalse();
+});

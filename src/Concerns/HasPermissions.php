@@ -6,6 +6,7 @@ namespace DynamikDev\PolicyEngine\Concerns;
 
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
 use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
@@ -80,6 +81,105 @@ trait HasPermissions
         );
     }
 
+    /**
+     * Give a permission directly to this subject without creating an explicit role.
+     *
+     * Creates a hidden internal role and assigns it. The role is prefixed
+     * with __dp. and is filtered from getRoles() / getRolesFor().
+     */
+    public function givePermission(string $permission, mixed $scope = null): void
+    {
+        $permissionStore = app(PermissionStore::class);
+
+        if (! $permissionStore->exists($permission)) {
+            throw new \InvalidArgumentException("Permission [{$permission}] is not registered.");
+        }
+
+        $roleId = self::directPermissionRoleId($permission);
+        $roleStore = app(RoleStore::class);
+
+        if ($roleStore->find($roleId) === null) {
+            $roleStore->save($roleId, "Direct: {$permission}", [$permission]);
+        }
+
+        $this->assign($roleId, $scope);
+    }
+
+    /**
+     * Revoke a directly-given permission from this subject.
+     */
+    public function revokePermission(string $permission, mixed $scope = null): void
+    {
+        $this->revoke(self::directPermissionRoleId($permission), $scope);
+    }
+
+    /**
+     * Replace all role assignments with the given set, optionally within a scope.
+     *
+     * @param  array<int, string>  $roleIds
+     */
+    public function syncRoles(array $roleIds, mixed $scope = null): void
+    {
+        $resolvedScope = app(ScopeResolver::class)->resolve($scope);
+        $assignmentStore = app(AssignmentStore::class);
+
+        $current = $resolvedScope !== null
+            ? $assignmentStore->forSubjectInScope($this->getMorphClass(), $this->getKey(), $resolvedScope)
+            : $assignmentStore->forSubjectGlobal($this->getMorphClass(), $this->getKey());
+
+        $currentRoleIds = $current->pluck('role_id')->all();
+        $toRevoke = array_diff($currentRoleIds, $roleIds);
+        $toAssign = array_diff($roleIds, $currentRoleIds);
+
+        foreach ($toRevoke as $roleId) {
+            $assignmentStore->revoke($this->getMorphClass(), $this->getKey(), $roleId, $resolvedScope);
+        }
+
+        foreach ($toAssign as $roleId) {
+            $assignmentStore->assign($this->getMorphClass(), $this->getKey(), $roleId, $resolvedScope);
+        }
+    }
+
+    /**
+     * Check whether this subject has any of the given roles.
+     *
+     * @param  array<int, string>  $roles
+     */
+    public function hasAnyRole(array $roles, mixed $scope = null): bool
+    {
+        foreach ($roles as $role) {
+            if ($this->hasRole($role, $scope)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Check whether this subject has all of the given roles.
+     *
+     * @param  array<int, string>  $roles
+     */
+    public function hasAllRoles(array $roles, mixed $scope = null): bool
+    {
+        foreach ($roles as $role) {
+            if (! $this->hasRole($role, $scope)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Build the internal role ID for a direct permission assignment.
+     */
+    private static function directPermissionRoleId(string $permission): string
+    {
+        return "__dp.{$permission}";
+    }
+
     /** @return Collection<int, Assignment> */
     public function assignments(): Collection
     {
@@ -117,6 +217,7 @@ trait HasPermissions
         return $this->assignments()
             ->pluck('role_id')
             ->unique()
+            ->reject(static fn (string $roleId): bool => str_starts_with($roleId, '__dp.'))
             ->map(static fn (string $roleId): ?Role => $roleStore->find($roleId))
             ->filter()
             ->values();
@@ -130,6 +231,7 @@ trait HasPermissions
         return $this->assignmentsFor($scope)
             ->pluck('role_id')
             ->unique()
+            ->reject(static fn (string $roleId): bool => str_starts_with($roleId, '__dp.'))
             ->map(static fn (string $roleId): ?Role => $roleStore->find($roleId))
             ->filter()
             ->values();
