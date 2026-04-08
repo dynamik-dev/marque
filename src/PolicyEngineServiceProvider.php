@@ -74,7 +74,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
             );
         });
 
-        $this->app->singleton(PrimitivesManager::class);
+        $this->app->singleton(PolicyEngineManager::class);
     }
 
     public function boot(Router $router): void

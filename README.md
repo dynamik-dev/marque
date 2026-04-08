@@ -23,7 +23,7 @@ Route::middleware('can:posts.create')->post('/posts', [PostController::class, 's
 
 ```php
 // roles are just named permission sets — deny rules, wildcards, scoping built in
-Primitives::role('editor', 'Editor')
+PolicyEngine::role('editor', 'Editor')
     ->grant(['posts.create', 'posts.update.own', 'comments.*', '!posts.delete']);
 ```
 
@@ -46,8 +46,8 @@ Boundaries cap what's possible in a scope — even if a role grants it, the boun
 
 ```php
 // free plan can only read, pro plan gets everything
-Primitives::boundary('plan::free', ['posts.read', 'comments.read']);
-Primitives::boundary('plan::pro', ['posts.*', 'comments.*', 'analytics.*']);
+PolicyEngine::boundary('plan::free', ['posts.read', 'comments.read']);
+PolicyEngine::boundary('plan::pro', ['posts.*', 'comments.*', 'analytics.*']);
 
 $user->assign('admin', $freeOrg);
 $user->can('analytics.view', $freeOrg);  // false — boundary blocks it
@@ -74,8 +74,8 @@ Version-control your entire authorization config as portable JSON documents.
 ```
 
 ```bash
-php artisan primitives:import policies/production.json
-php artisan primitives:export --path=policies/backup.json
+php artisan policy-engine:import policies/production.json
+php artisan policy-engine:export --path=policies/backup.json
 ```
 
 ## Documentation

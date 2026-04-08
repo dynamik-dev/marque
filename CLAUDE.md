@@ -26,7 +26,7 @@ A Laravel-native scoped permissions package. Composable, contract-driven authori
 
 ## Architecture (3 Layers)
 
-1. **DX Layer** — traits (`HasPermissions`, `Scopeable`), middleware (`can_do`, `role`), Blade directives (`@canDo`, `@hasRole`), Artisan commands, `Primitives` facade. Contains no logic — delegates to contracts.
+1. **DX Layer** — traits (`HasPermissions`, `Scopeable`), middleware (`can_do`, `role`), Blade directives (`@canDo`, `@hasRole`), Artisan commands, `PolicyEngine` facade. Contains no logic — delegates to contracts.
 2. **Contracts** — `PermissionStore`, `RoleStore`, `AssignmentStore`, `BoundaryStore`, `Evaluator`, `Matcher`, `ScopeResolver`, `DocumentParser`, `DocumentImporter`, `DocumentExporter`.
 3. **Default Implementations** — Eloquent stores, `CachedEvaluator`, `WildcardMatcher`, `ModelScopeResolver`, `JsonDocumentParser`. All swappable via service container bindings.
 

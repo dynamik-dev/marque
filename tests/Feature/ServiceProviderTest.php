@@ -17,7 +17,8 @@ use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
 use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
 use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
-use DynamikDev\PolicyEngine\PrimitivesManager;
+use DynamikDev\PolicyEngine\PolicyEngineManager;
+use DynamikDev\PolicyEngine\PolicyEngineServiceProvider;
 use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
@@ -25,7 +26,7 @@ use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
 use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 
 it('boots without errors', function (): void {
-    expect(app()->getProviders(\DynamikDev\PolicyEngine\PolicyEngineServiceProvider::class))
+    expect(app()->getProviders(PolicyEngineServiceProvider::class))
         ->not->toBeEmpty();
 });
 
@@ -69,9 +70,9 @@ it('resolves Evaluator to CachedEvaluator', function (): void {
     expect(app(Evaluator::class))->toBeInstanceOf(CachedEvaluator::class);
 });
 
-it('resolves PrimitivesManager as singleton', function (): void {
-    $first = app(PrimitivesManager::class);
-    $second = app(PrimitivesManager::class);
+it('resolves PolicyEngineManager as singleton', function (): void {
+    $first = app(PolicyEngineManager::class);
+    $second = app(PolicyEngineManager::class);
 
     expect($first)->toBe($second);
 });

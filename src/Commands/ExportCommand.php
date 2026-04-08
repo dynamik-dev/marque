@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine\Commands;
 
-use DynamikDev\PolicyEngine\PrimitivesManager;
+use DynamikDev\PolicyEngine\PolicyEngineManager;
 use Illuminate\Console\Command;
 
 class ExportCommand extends Command
 {
-    protected $signature = 'primitives:export {--scope=} {--path=} {--stdout}';
+    protected $signature = 'policy-engine:export {--scope=} {--path=} {--stdout}';
 
     protected $description = 'Export the current authorization state to JSON';
 
-    public function handle(PrimitivesManager $manager): int
+    public function handle(PolicyEngineManager $manager): int
     {
         $scopeOption = $this->option('scope');
         $scope = is_string($scopeOption) ? $scopeOption : null;

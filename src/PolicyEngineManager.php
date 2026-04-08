@@ -15,7 +15,7 @@ use DynamikDev\PolicyEngine\DTOs\ImportResult;
 use DynamikDev\PolicyEngine\Support\PathValidator;
 use DynamikDev\PolicyEngine\Support\RoleBuilder;
 
-class PrimitivesManager
+class PolicyEngineManager
 {
     public function __construct(
         private readonly PermissionStore $permissions,

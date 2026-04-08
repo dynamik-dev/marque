@@ -101,7 +101,7 @@ Spatie has no deny concept. To restrict a permission, you must remove it from ev
 Policy Engine lets you set maximum permission ceilings per scope:
 
 ```php
-Primitives::boundaries()->set('group::5', ['posts.read', 'posts.comment']);
+PolicyEngine::boundaries()->set('group::5', ['posts.read', 'posts.comment']);
 ```
 
 Even if a user holds a role that grants `posts.delete`, the boundary on `group::5` caps their effective permissions to `posts.read` and `posts.comment` within that scope.

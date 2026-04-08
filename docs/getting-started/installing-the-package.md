@@ -67,7 +67,7 @@ The scope type defines the prefix used in scope strings. A Group with ID 5 resol
 Run the permissions list command to confirm everything is wired up:
 
 ```bash
-php artisan primitives:permissions
+php artisan policy-engine:permissions
 ```
 
 If the table is empty, that's expected — you haven't seeded any permissions yet. Head to [seeding permissions and roles](seeding-permissions-and-roles.md) to set up your initial authorization config.

@@ -14,7 +14,7 @@ use RuntimeException;
 
 class ExplainCommand extends Command
 {
-    protected $signature = 'primitives:explain {subject} {permission} {--scope=}';
+    protected $signature = 'policy-engine:explain {subject} {permission} {--scope=}';
 
     protected $description = 'Explain the evaluation trace for a permission check';
 

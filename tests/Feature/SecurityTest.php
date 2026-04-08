@@ -7,7 +7,7 @@ use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
-use DynamikDev\PolicyEngine\PrimitivesManager;
+use DynamikDev\PolicyEngine\PolicyEngineManager;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
@@ -123,12 +123,12 @@ it('escapes underscore wildcard in permission prefix filter', function (): void 
         ->and($filtered->first()->id)->toBe('p_sts.create');
 });
 
-// --- Finding 5: Path validation in PrimitivesManager ---
+// --- Finding 5: Path validation in PolicyEngineManager ---
 
 it('rejects import from a path outside the allowed directory', function (): void {
     config()->set('policy-engine.document_path', storage_path());
 
-    $manager = app(PrimitivesManager::class);
+    $manager = app(PolicyEngineManager::class);
 
     $manager->import('/etc/passwd');
 })->throws(InvalidArgumentException::class, 'Path must be within the allowed directory');
@@ -136,7 +136,7 @@ it('rejects import from a path outside the allowed directory', function (): void
 it('rejects export to a path outside the allowed directory', function (): void {
     config()->set('policy-engine.document_path', storage_path());
 
-    $manager = app(PrimitivesManager::class);
+    $manager = app(PolicyEngineManager::class);
 
     $manager->exportToFile('/tmp/evil.json');
 })->throws(InvalidArgumentException::class, 'Path must be within the allowed directory');
@@ -154,7 +154,7 @@ it('rejects export to a sibling directory that shares the allowed path prefix', 
 
     mkdir($sibling, 0755, true);
 
-    $manager = app(PrimitivesManager::class);
+    $manager = app(PolicyEngineManager::class);
 
     try {
         $manager->exportToFile($sibling.'/evil.json');
@@ -185,7 +185,7 @@ it('allows import from a path within the allowed directory', function (): void {
         'roles' => [],
     ]));
 
-    $manager = app(PrimitivesManager::class);
+    $manager = app(PolicyEngineManager::class);
     $result = $manager->import($path);
 
     expect($result->permissionsCreated)->toBe(['posts.create']);

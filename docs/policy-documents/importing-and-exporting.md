@@ -5,9 +5,9 @@ Import JSON documents to apply authorization config. Export your current state t
 ## Importing a document from a file
 
 ```php
-use DynamikDev\PolicyEngine\Facades\Primitives;
+use DynamikDev\PolicyEngine\Facades\PolicyEngine;
 
-$result = Primitives::import(storage_path('policies/community.json'));
+$result = PolicyEngine::import(storage_path('policies/community.json'));
 ```
 
 If the argument is a file path that exists on disk, the content is read from the file. Otherwise it's treated as a raw JSON string.
@@ -15,7 +15,7 @@ If the argument is a file path that exists on disk, the content is read from the
 ## Importing from a JSON string
 
 ```php
-$result = Primitives::import($jsonString);
+$result = PolicyEngine::import($jsonString);
 ```
 
 Returns an `ImportResult` with details on what was created or changed.
@@ -33,7 +33,7 @@ $result->warnings;             // ['Permission "posts.archive" not registered']
 ```php
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 
-$result = Primitives::import($jsonString, new ImportOptions(
+$result = PolicyEngine::import($jsonString, new ImportOptions(
     validate: true,
     merge: true,
     dryRun: false,
@@ -51,7 +51,7 @@ $result = Primitives::import($jsonString, new ImportOptions(
 ## Previewing changes with a dry run
 
 ```php
-$result = Primitives::import($jsonString, new ImportOptions(dryRun: true));
+$result = PolicyEngine::import($jsonString, new ImportOptions(dryRun: true));
 
 $result->permissionsCreated;   // what would be created
 $result->rolesCreated;         // what would be created
@@ -63,7 +63,7 @@ No data is written. Use this to preview the impact before a real import.
 ## Replacing all existing data
 
 ```php
-$result = Primitives::import($jsonString, new ImportOptions(merge: false));
+$result = PolicyEngine::import($jsonString, new ImportOptions(merge: false));
 ```
 
 When `merge` is `false`, the importer deletes all existing assignments, role permissions, boundaries, roles, and permissions before importing the document. This is destructive — use `dryRun: true` first.
@@ -71,7 +71,7 @@ When `merge` is `false`, the importer deletes all existing assignments, role per
 ## Skipping assignments
 
 ```php
-$result = Primitives::import($jsonString, new ImportOptions(skipAssignments: true));
+$result = PolicyEngine::import($jsonString, new ImportOptions(skipAssignments: true));
 ```
 
 Imports permissions, roles, and boundaries but ignores the `assignments` section. Useful when sharing role templates between environments where the users differ.
@@ -79,7 +79,7 @@ Imports permissions, roles, and boundaries but ignores the `assignments` section
 ## Exporting the full state
 
 ```php
-$json = Primitives::export();
+$json = PolicyEngine::export();
 ```
 
 Returns a JSON string containing all permissions, roles, assignments, and boundaries.
@@ -87,13 +87,13 @@ Returns a JSON string containing all permissions, roles, assignments, and bounda
 ## Exporting to a file
 
 ```php
-Primitives::exportToFile(storage_path('policies/backup.json'));
+PolicyEngine::exportToFile(storage_path('policies/backup.json'));
 ```
 
 ## Exporting a specific scope
 
 ```php
-$json = Primitives::export(scope: 'group::5');
+$json = PolicyEngine::export(scope: 'group::5');
 ```
 
 Scoped export includes:
@@ -103,7 +103,7 @@ Scoped export includes:
 - **Boundaries** — only the boundary for that exact scope
 
 ```php
-Primitives::exportToFile(
+PolicyEngine::exportToFile(
     storage_path('policies/group-alpha.json'),
     scope: 'group::alpha',
 );
@@ -113,28 +113,28 @@ Primitives::exportToFile(
 
 ```bash
 # Import
-php artisan primitives:import policies/community.json
+php artisan policy-engine:import policies/community.json
 
 # Dry run
-php artisan primitives:import policies/community.json --dry-run
+php artisan policy-engine:import policies/community.json --dry-run
 
 # Import roles/permissions only
-php artisan primitives:import policies/community.json --skip-assignments
+php artisan policy-engine:import policies/community.json --skip-assignments
 
 # Replace mode (destructive — requires --force)
-php artisan primitives:import policies/community.json --replace --force
+php artisan policy-engine:import policies/community.json --replace --force
 
 # Export to file
-php artisan primitives:export --path=policies/backup.json
+php artisan policy-engine:export --path=policies/backup.json
 
 # Export scoped
-php artisan primitives:export --scope="group::alpha" --path=policies/group-alpha.json
+php artisan policy-engine:export --scope="group::alpha" --path=policies/group-alpha.json
 
 # Export to stdout
-php artisan primitives:export
+php artisan policy-engine:export
 
 # Validate without importing
-php artisan primitives:validate policies/community.json
+php artisan policy-engine:validate policies/community.json
 ```
 
 See [Artisan commands](../cli/artisan-commands.md) for the full command reference.
@@ -144,7 +144,7 @@ See [Artisan commands](../cli/artisan-commands.md) for the full command referenc
 | Workflow | How |
 | --- | --- |
 | Version control | Commit JSON documents to git alongside code |
-| CI/CD deploy | `php artisan primitives:import` in your deploy pipeline |
+| CI/CD deploy | `php artisan policy-engine:import` in your deploy pipeline |
 | Environment sync | Export from staging, import to production |
 | Tenant onboarding | Per-plan JSON templates applied on org creation |
 | Role sharing | Share a role document as a gist or in docs |

@@ -12,11 +12,12 @@ use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\ImportResult;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 use DynamikDev\PolicyEngine\DTOs\ValidationResult;
-use DynamikDev\PolicyEngine\Facades\Primitives;
-use DynamikDev\PolicyEngine\PrimitivesManager;
+use DynamikDev\PolicyEngine\Facades\PolicyEngine;
+use DynamikDev\PolicyEngine\PolicyEngineManager;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
 use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
+use DynamikDev\PolicyEngine\Support\RoleBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -93,7 +94,7 @@ beforeEach(function (): void {
     app()->instance(DocumentImporter::class, $documentImporter);
     app()->instance(DocumentExporter::class, $documentExporter);
 
-    $manager = new PrimitivesManager(
+    $manager = new PolicyEngineManager(
         permissions: $permissionStore,
         roles: $roleStore,
         boundaries: $boundaryStore,
@@ -102,7 +103,7 @@ beforeEach(function (): void {
         exporter: $documentExporter,
     );
 
-    app()->instance(PrimitivesManager::class, $manager);
+    app()->instance(PolicyEngineManager::class, $manager);
 
     $this->permissionStore = $permissionStore;
     $this->roleStore = $roleStore;
@@ -112,7 +113,7 @@ beforeEach(function (): void {
 // --- permissions ---
 
 it('registers permissions through the facade', function (): void {
-    Primitives::permissions(['posts.create', 'posts.read', 'posts.delete']);
+    PolicyEngine::permissions(['posts.create', 'posts.read', 'posts.delete']);
 
     expect($this->permissionStore->exists('posts.create'))->toBeTrue()
         ->and($this->permissionStore->exists('posts.read'))->toBeTrue()
@@ -122,9 +123,9 @@ it('registers permissions through the facade', function (): void {
 // --- role ---
 
 it('creates a role and returns a RoleBuilder', function (): void {
-    $builder = Primitives::role('editor', 'Editor');
+    $builder = PolicyEngine::role('editor', 'Editor');
 
-    expect($builder)->toBeInstanceOf(\DynamikDev\PolicyEngine\Support\RoleBuilder::class)
+    expect($builder)->toBeInstanceOf(RoleBuilder::class)
         ->and($this->roleStore->find('editor'))->not->toBeNull()
         ->and($this->roleStore->find('editor')->name)->toBe('Editor');
 });
@@ -132,7 +133,7 @@ it('creates a role and returns a RoleBuilder', function (): void {
 it('creates a role with grant chaining', function (): void {
     $this->permissionStore->register(['posts.create', 'posts.read', 'posts.delete']);
 
-    Primitives::role('editor', 'Editor')
+    PolicyEngine::role('editor', 'Editor')
         ->grant(['posts.create', 'posts.read'])
         ->grant(['posts.delete']);
 
@@ -144,7 +145,7 @@ it('creates a role with grant chaining', function (): void {
 it('creates a role with grant and ungrant chaining', function (): void {
     $this->permissionStore->register(['posts.create', 'posts.read', 'posts.delete']);
 
-    Primitives::role('editor', 'Editor')
+    PolicyEngine::role('editor', 'Editor')
         ->grant(['posts.create', 'posts.read', 'posts.delete'])
         ->ungrant(['posts.delete']);
 
@@ -156,7 +157,7 @@ it('creates a role with grant and ungrant chaining', function (): void {
 });
 
 it('creates a system role', function (): void {
-    Primitives::role('super-admin', 'Super Admin', system: true);
+    PolicyEngine::role('super-admin', 'Super Admin', system: true);
 
     $role = $this->roleStore->find('super-admin');
 
@@ -164,11 +165,11 @@ it('creates a system role', function (): void {
 });
 
 it('removes a role via the builder', function (): void {
-    Primitives::role('editor', 'Editor');
+    PolicyEngine::role('editor', 'Editor');
 
     expect($this->roleStore->find('editor'))->not->toBeNull();
 
-    Primitives::role('editor', 'Editor')->remove();
+    PolicyEngine::role('editor', 'Editor')->remove();
 
     expect($this->roleStore->find('editor'))->toBeNull();
 });
@@ -176,7 +177,7 @@ it('removes a role via the builder', function (): void {
 // --- boundary ---
 
 it('sets a boundary through the facade', function (): void {
-    Primitives::boundary('team::5', ['posts.create', 'posts.read']);
+    PolicyEngine::boundary('team::5', ['posts.create', 'posts.read']);
 
     $boundary = $this->boundaryStore->find('team::5');
 
@@ -193,7 +194,7 @@ it('imports a policy document from a raw string', function (): void {
         'roles' => [['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create']]],
     ]);
 
-    $result = Primitives::import($json);
+    $result = PolicyEngine::import($json);
 
     expect($result)->toBeInstanceOf(ImportResult::class)
         ->and($result->permissionsCreated)->toBe(['posts.create', 'posts.read'])
@@ -208,7 +209,7 @@ it('imports a policy document from a file path', function (): void {
         'roles' => [],
     ]));
 
-    $result = Primitives::import($path);
+    $result = PolicyEngine::import($path);
 
     expect($result->permissionsCreated)->toBe(['comments.create']);
 
@@ -222,7 +223,7 @@ it('imports with custom options', function (): void {
     ]);
 
     $options = new ImportOptions(validate: false, dryRun: true);
-    $result = Primitives::import($json, $options);
+    $result = PolicyEngine::import($json, $options);
 
     expect($result)->toBeInstanceOf(ImportResult::class);
 });
@@ -230,7 +231,7 @@ it('imports with custom options', function (): void {
 // --- export ---
 
 it('exports the current configuration as a string', function (): void {
-    $output = Primitives::export();
+    $output = PolicyEngine::export();
     $decoded = json_decode($output, true);
 
     expect($decoded)->toBeArray()
@@ -241,7 +242,7 @@ it('exports the current configuration as a string', function (): void {
 it('exports the current configuration to a file', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'policy_export_');
 
-    Primitives::exportToFile($path);
+    PolicyEngine::exportToFile($path);
 
     $decoded = json_decode(file_get_contents($path), true);
 

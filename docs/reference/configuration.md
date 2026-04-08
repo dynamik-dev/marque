@@ -124,7 +124,7 @@ Restrict import/export file paths to a specific directory.
 - **Type:** `?string`
 - **Default:** `null`
 
-When set, paths used by `PrimitivesManager::import()`, `PrimitivesManager::exportToFile()`, and `php artisan primitives:export --path=...` must resolve inside this directory. Paths outside it throw `InvalidArgumentException`.
+When set, paths used by `PolicyEngineManager::import()`, `PolicyEngineManager::exportToFile()`, and `php artisan policy-engine:export --path=...` must resolve inside this directory. Paths outside it throw `InvalidArgumentException`.
 
 ---
 

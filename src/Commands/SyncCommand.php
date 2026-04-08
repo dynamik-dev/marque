@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 
 class SyncCommand extends Command
 {
-    protected $signature = 'primitives:sync';
+    protected $signature = 'policy-engine:sync';
 
     protected $description = 'Re-run the permission seeder to sync permissions';
 

@@ -5,9 +5,9 @@ Boundaries define the maximum permissions available within a scope. They act as 
 ## Setting a boundary on a scope
 
 ```php
-use DynamikDev\PolicyEngine\Facades\Primitives;
+use DynamikDev\PolicyEngine\Facades\PolicyEngine;
 
-Primitives::boundary('org::acme', [
+PolicyEngine::boundary('org::acme', [
     'posts.*',
     'comments.*',
 ]);
@@ -25,9 +25,9 @@ The evaluator checks boundaries before processing allow/deny rules. The order is
 4. If the boundary passes, proceed to normal deny/allow evaluation
 
 ```php
-Primitives::boundary('org::acme', ['posts.*', 'comments.*']);
+PolicyEngine::boundary('org::acme', ['posts.*', 'comments.*']);
 
-Primitives::role('admin', 'Admin')->grant(['*.*']);
+PolicyEngine::role('admin', 'Admin')->grant(['*.*']);
 $user->assign('admin', scope: 'org::acme');
 
 $user->can('posts.create', 'org::acme');    // true — within boundary
@@ -48,7 +48,7 @@ $user->can('members.remove', 'org::acme');          // false — blocked by boun
 ## Updating a boundary
 
 ```php
-Primitives::boundary('org::acme', [
+PolicyEngine::boundary('org::acme', [
     'posts.*',
     'comments.*',
     'members.invite',
@@ -106,7 +106,7 @@ By default, if a scope has no boundary defined, permissions are unrestricted in 
 ```
 
 ```php
-Primitives::boundary('team::5', ['posts.*']);
+PolicyEngine::boundary('team::5', ['posts.*']);
 
 $user->can('posts.create', 'team::5');  // true — boundary exists and allows it
 $user->can('posts.create', 'team::99'); // false — no boundary for team::99
@@ -128,10 +128,10 @@ The `enforce_boundaries_on_global` config option changes this behavior. When ena
 With this enabled:
 
 ```php
-Primitives::boundary('team::5', ['posts.*']);
-Primitives::boundary('org::acme', ['billing.*']);
+PolicyEngine::boundary('team::5', ['posts.*']);
+PolicyEngine::boundary('org::acme', ['billing.*']);
 
-Primitives::role('admin', 'Admin')->grant(['*.*']);
+PolicyEngine::role('admin', 'Admin')->grant(['*.*']);
 $user->assign('admin'); // global assignment, no scope
 
 $user->can('posts.create');     // true — matches team::5 boundary

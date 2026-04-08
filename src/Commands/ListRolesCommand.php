@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 
 class ListRolesCommand extends Command
 {
-    protected $signature = 'primitives:roles';
+    protected $signature = 'policy-engine:roles';
 
     protected $description = 'List all roles and their permissions';
 

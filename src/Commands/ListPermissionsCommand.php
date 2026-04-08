@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 
 class ListPermissionsCommand extends Command
 {
-    protected $signature = 'primitives:permissions';
+    protected $signature = 'policy-engine:permissions';
 
     protected $description = 'List all registered permissions';
 

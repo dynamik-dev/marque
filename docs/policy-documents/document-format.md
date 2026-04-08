@@ -134,7 +134,7 @@ A document containing only `roles` is valid — useful for sharing role template
 Use the Artisan command to check a document before importing:
 
 ```bash
-php artisan primitives:validate policies/community.json
+php artisan policy-engine:validate policies/community.json
 ```
 
 Or validate programmatically:

@@ -1,13 +1,13 @@
 # Working with Roles
 
-Roles are named collections of permissions. Assign them to users globally or within a scope, and manage their permissions through the `Primitives` facade or directly through the `RoleStore` contract.
+Roles are named collections of permissions. Assign them to users globally or within a scope, and manage their permissions through the `PolicyEngine` facade or directly through the `RoleStore` contract.
 
 ## Creating a role
 
 ```php
-use DynamikDev\PolicyEngine\Facades\Primitives;
+use DynamikDev\PolicyEngine\Facades\PolicyEngine;
 
-Primitives::role('editor', 'Editor')
+PolicyEngine::role('editor', 'Editor')
     ->grant(['posts.create', 'posts.update.any', 'posts.delete.own']);
 ```
 
@@ -16,7 +16,7 @@ The first argument is the role ID (stored as a string primary key), the second i
 ## Creating a system-locked role
 
 ```php
-Primitives::role('admin', 'Admin', system: true)
+PolicyEngine::role('admin', 'Admin', system: true)
     ->grant(['*.*']);
 ```
 
@@ -25,7 +25,7 @@ System roles cannot be deleted at runtime when `protect_system_roles` is enabled
 ## Adding permissions to an existing role
 
 ```php
-Primitives::role('editor', 'Editor')
+PolicyEngine::role('editor', 'Editor')
     ->grant(['comments.create', 'comments.delete.own']);
 ```
 
@@ -34,7 +34,7 @@ Primitives::role('editor', 'Editor')
 ## Removing permissions from a role
 
 ```php
-Primitives::role('editor', 'Editor')
+PolicyEngine::role('editor', 'Editor')
     ->ungrant(['posts.delete.own']);
 ```
 
@@ -43,7 +43,7 @@ Primitives::role('editor', 'Editor')
 ## Deleting a role
 
 ```php
-Primitives::role('editor', 'Editor')->remove();
+PolicyEngine::role('editor', 'Editor')->remove();
 ```
 
 This deletes the role and cascades to all assignments. Users who held this role lose it immediately.

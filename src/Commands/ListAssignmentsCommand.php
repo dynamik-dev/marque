@@ -13,7 +13,7 @@ use InvalidArgumentException;
 
 class ListAssignmentsCommand extends Command
 {
-    protected $signature = 'primitives:assignments {subject?} {--scope=}';
+    protected $signature = 'policy-engine:assignments {subject?} {--scope=}';
 
     protected $description = 'List role assignments for a subject or scope';
 
@@ -84,8 +84,8 @@ class ListAssignmentsCommand extends Command
     private function showUsage(): void
     {
         $this->line('Usage:');
-        $this->line('  primitives:assignments user::42          List assignments for a subject');
-        $this->line('  primitives:assignments user::42 --scope=group::5  List scoped assignments');
-        $this->line('  primitives:assignments --scope=group::5  List all assignments in a scope');
+        $this->line('  policy-engine:assignments user::42          List assignments for a subject');
+        $this->line('  policy-engine:assignments user::42 --scope=group::5  List scoped assignments');
+        $this->line('  policy-engine:assignments --scope=group::5  List all assignments in a scope');
     }
 }

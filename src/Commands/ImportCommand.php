@@ -6,16 +6,16 @@ namespace DynamikDev\PolicyEngine\Commands;
 
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\ImportResult;
-use DynamikDev\PolicyEngine\PrimitivesManager;
+use DynamikDev\PolicyEngine\PolicyEngineManager;
 use Illuminate\Console\Command;
 
 class ImportCommand extends Command
 {
-    protected $signature = 'primitives:import {path} {--dry-run} {--skip-assignments} {--replace} {--force}';
+    protected $signature = 'policy-engine:import {path} {--dry-run} {--skip-assignments} {--replace} {--force}';
 
     protected $description = 'Import a policy document from a JSON file';
 
-    public function handle(PrimitivesManager $manager): int
+    public function handle(PolicyEngineManager $manager): int
     {
         $pathArg = $this->argument('path');
 

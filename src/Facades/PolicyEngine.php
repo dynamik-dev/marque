@@ -6,7 +6,7 @@ namespace DynamikDev\PolicyEngine\Facades;
 
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\ImportResult;
-use DynamikDev\PolicyEngine\PrimitivesManager;
+use DynamikDev\PolicyEngine\PolicyEngineManager;
 use DynamikDev\PolicyEngine\Support\RoleBuilder;
 use Illuminate\Support\Facades\Facade;
 
@@ -18,12 +18,12 @@ use Illuminate\Support\Facades\Facade;
  * @method static string export(?string $scope = null)
  * @method static void exportToFile(string $path, ?string $scope = null)
  *
- * @see PrimitivesManager
+ * @see PolicyEngineManager
  */
-class Primitives extends Facade
+class PolicyEngine extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return PrimitivesManager::class;
+        return PolicyEngineManager::class;
     }
 }

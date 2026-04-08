@@ -4,18 +4,18 @@ The package registers nine Artisan commands for inspecting, managing, and troubl
 
 ## Listing permissions
 
-### `primitives:permissions`
+### `policy-engine:permissions`
 
 Display all registered permissions.
 
 ```bash
-php artisan primitives:permissions
+php artisan policy-engine:permissions
 ```
 
 Outputs a table with `ID` and `Description` columns.
 
 ```bash
-php artisan primitives:permissions
+php artisan policy-engine:permissions
 ```
 
 ```
@@ -31,24 +31,24 @@ php artisan primitives:permissions
 
 ## Listing roles
 
-### `primitives:roles`
+### `policy-engine:roles`
 
 Display all roles and their permissions.
 
 ```bash
-php artisan primitives:roles
+php artisan policy-engine:roles
 ```
 
 Outputs a table with `ID`, `Name`, `System`, and `Permissions` columns.
 
 ## Listing assignments
 
-### `primitives:assignments`
+### `policy-engine:assignments`
 
 Display role assignments for a subject or scope.
 
 ```bash
-php artisan primitives:assignments {subject?} {--scope=}
+php artisan policy-engine:assignments {subject?} {--scope=}
 ```
 
 | Argument/Option | Description |
@@ -58,25 +58,25 @@ php artisan primitives:assignments {subject?} {--scope=}
 
 ```bash
 # All assignments for a user
-php artisan primitives:assignments user::42
+php artisan policy-engine:assignments user::42
 
 # Scoped assignments for a user
-php artisan primitives:assignments user::42 --scope="group::5"
+php artisan policy-engine:assignments user::42 --scope="group::5"
 
 # All assignments in a scope (no subject)
-php artisan primitives:assignments --scope="group::5"
+php artisan policy-engine:assignments --scope="group::5"
 ```
 
 Outputs a table with `Subject Type`, `Subject ID`, `Role`, and `Scope` columns.
 
 ## Debugging a permission decision
 
-### `primitives:explain`
+### `policy-engine:explain`
 
 Show the full evaluation trace for a specific permission check.
 
 ```bash
-php artisan primitives:explain {subject} {permission} {--scope=}
+php artisan policy-engine:explain {subject} {permission} {--scope=}
 ```
 
 | Argument/Option | Description |
@@ -86,7 +86,7 @@ php artisan primitives:explain {subject} {permission} {--scope=}
 | `--scope` | Optional scope string |
 
 ```bash
-php artisan primitives:explain user::42 "posts.delete" --scope="group::5"
+php artisan policy-engine:explain user::42 "posts.delete" --scope="group::5"
 ```
 
 Displays the evaluation trace: assignments found, permissions checked per role, boundary status, and the final `ALLOW` or `DENY` result.
@@ -95,12 +95,12 @@ Displays the evaluation trace: assignments found, permissions checked per role, 
 
 ## Importing a policy document
 
-### `primitives:import`
+### `policy-engine:import`
 
 Import a policy document from a JSON file.
 
 ```bash
-php artisan primitives:import {path} [options]
+php artisan policy-engine:import {path} [options]
 ```
 
 | Option | Description |
@@ -112,26 +112,26 @@ php artisan primitives:import {path} [options]
 
 ```bash
 # Standard import (merge)
-php artisan primitives:import policies/community.json
+php artisan policy-engine:import policies/community.json
 
 # Preview changes
-php artisan primitives:import policies/community.json --dry-run
+php artisan policy-engine:import policies/community.json --dry-run
 
 # Roles and permissions only
-php artisan primitives:import policies/community.json --skip-assignments
+php artisan policy-engine:import policies/community.json --skip-assignments
 
 # Full replace (destructive)
-php artisan primitives:import policies/community.json --replace --force
+php artisan policy-engine:import policies/community.json --replace --force
 ```
 
 ## Exporting the current state
 
-### `primitives:export`
+### `policy-engine:export`
 
 Export the current authorization config as JSON.
 
 ```bash
-php artisan primitives:export {--scope=} {--path=} {--stdout}
+php artisan policy-engine:export {--scope=} {--path=} {--stdout}
 ```
 
 | Option | Description |
@@ -143,39 +143,39 @@ When `--path` is omitted, the command prints JSON to stdout. If `policy-engine.d
 
 ```bash
 # Export to file
-php artisan primitives:export --path=policies/backup.json
+php artisan policy-engine:export --path=policies/backup.json
 
 # Export scoped
-php artisan primitives:export --scope="group::5" --path=policies/group-5.json
+php artisan policy-engine:export --scope="group::5" --path=policies/group-5.json
 
 # Export to stdout (pipe to jq, diff, etc.)
-php artisan primitives:export | jq '.roles[] | .id'
+php artisan policy-engine:export | jq '.roles[] | .id'
 ```
 
 ## Validating a document
 
-### `primitives:validate`
+### `policy-engine:validate`
 
 Check a policy document for errors without importing it.
 
 ```bash
-php artisan primitives:validate {path}
+php artisan policy-engine:validate {path}
 ```
 
 ```bash
-php artisan primitives:validate policies/community.json
+php artisan policy-engine:validate policies/community.json
 ```
 
 Prints "Policy document is valid." on success, or lists validation errors.
 
 ## Clearing the permission cache
 
-### `primitives:cache-clear`
+### `policy-engine:cache-clear`
 
 Flush the permission evaluation cache.
 
 ```bash
-php artisan primitives:cache-clear {--force}
+php artisan policy-engine:cache-clear {--force}
 ```
 
 | Option | Description |
@@ -185,17 +185,17 @@ php artisan primitives:cache-clear {--force}
 When the cache store supports tags (Redis, Memcached), only the `policy-engine` tag is flushed. When the store does not support tags, the command prompts for confirmation before flushing the entire store. Use `--force` to skip the prompt.
 
 ```bash
-php artisan primitives:cache-clear --force
+php artisan policy-engine:cache-clear --force
 ```
 
 ## Syncing permissions from your seeder
 
-### `primitives:sync`
+### `policy-engine:sync`
 
 Re-run your `PermissionSeeder` idempotently.
 
 ```bash
-php artisan primitives:sync
+php artisan policy-engine:sync
 ```
 
 Calls `db:seed --class=PermissionSeeder`. Use this after modifying your seeder to apply changes without a full database refresh.

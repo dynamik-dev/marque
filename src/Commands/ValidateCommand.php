@@ -11,7 +11,7 @@ use InvalidArgumentException;
 
 class ValidateCommand extends Command
 {
-    protected $signature = 'primitives:validate {path}';
+    protected $signature = 'policy-engine:validate {path}';
 
     protected $description = 'Validate a policy document without importing it';
 

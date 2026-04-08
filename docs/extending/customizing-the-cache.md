@@ -64,7 +64,7 @@ The flush is store-wide, not targeted per-subject. This is simple and correct â€
 ## Clearing the cache manually
 
 ```bash
-php artisan primitives:cache-clear
+php artisan policy-engine:cache-clear
 ```
 
 Or programmatically:

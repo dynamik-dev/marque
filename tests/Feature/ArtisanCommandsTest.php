@@ -16,7 +16,7 @@ use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
 use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
-use DynamikDev\PolicyEngine\PrimitivesManager;
+use DynamikDev\PolicyEngine\PolicyEngineManager;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
@@ -51,7 +51,7 @@ beforeEach(function (): void {
         app(AssignmentStore::class),
         app(BoundaryStore::class),
     ));
-    app()->instance(PrimitivesManager::class, new PrimitivesManager(
+    app()->instance(PolicyEngineManager::class, new PolicyEngineManager(
         app(PermissionStore::class),
         app(RoleStore::class),
         app(BoundaryStore::class),
@@ -61,13 +61,13 @@ beforeEach(function (): void {
     ));
 });
 
-// --- primitives:permissions ---
+// --- policy-engine:permissions ---
 
 it('lists permissions in a table', function (): void {
     $store = app(PermissionStore::class);
     $store->register(['posts.create', 'posts.delete']);
 
-    $this->artisan('primitives:permissions')
+    $this->artisan('policy-engine:permissions')
         ->expectsTable(['ID', 'Description'], [
             ['posts.create', ''],
             ['posts.delete', ''],
@@ -76,18 +76,18 @@ it('lists permissions in a table', function (): void {
 });
 
 it('shows info message when no permissions exist', function (): void {
-    $this->artisan('primitives:permissions')
+    $this->artisan('policy-engine:permissions')
         ->expectsOutput('No permissions registered.')
         ->assertSuccessful();
 });
 
-// --- primitives:roles ---
+// --- policy-engine:roles ---
 
 it('lists roles with their permissions', function (): void {
     $store = app(RoleStore::class);
     $store->save('editor', 'Editor', ['posts.create', 'posts.update']);
 
-    $this->artisan('primitives:roles')
+    $this->artisan('policy-engine:roles')
         ->expectsTable(['ID', 'Name', 'System', 'Permissions'], [
             ['editor', 'Editor', 'No', 2],
         ])
@@ -100,7 +100,7 @@ it('shows system flag for system roles', function (): void {
     $store = app(RoleStore::class);
     $store->save('admin', 'Administrator', ['*.*'], system: true);
 
-    $this->artisan('primitives:roles')
+    $this->artisan('policy-engine:roles')
         ->expectsTable(['ID', 'Name', 'System', 'Permissions'], [
             ['admin', 'Administrator', 'Yes', 1],
         ])
@@ -108,18 +108,18 @@ it('shows system flag for system roles', function (): void {
 });
 
 it('shows info message when no roles exist', function (): void {
-    $this->artisan('primitives:roles')
+    $this->artisan('policy-engine:roles')
         ->expectsOutput('No roles registered.')
         ->assertSuccessful();
 });
 
-// --- primitives:assignments ---
+// --- policy-engine:assignments ---
 
 it('lists assignments for a subject', function (): void {
     $store = app(AssignmentStore::class);
     $store->assign('user', '42', 'editor');
 
-    $this->artisan('primitives:assignments', ['subject' => 'user::42'])
+    $this->artisan('policy-engine:assignments', ['subject' => 'user::42'])
         ->expectsTable(['Subject Type', 'Subject ID', 'Role', 'Scope'], [
             ['user', '42', 'editor', '(global)'],
         ])
@@ -131,7 +131,7 @@ it('lists scoped assignments for a subject', function (): void {
     $store->assign('user', '42', 'editor', 'group::5');
     $store->assign('user', '42', 'viewer');
 
-    $this->artisan('primitives:assignments', ['subject' => 'user::42', '--scope' => 'group::5'])
+    $this->artisan('policy-engine:assignments', ['subject' => 'user::42', '--scope' => 'group::5'])
         ->expectsTable(['Subject Type', 'Subject ID', 'Role', 'Scope'], [
             ['user', '42', 'editor', 'group::5'],
         ])
@@ -143,7 +143,7 @@ it('lists all assignments in a scope', function (): void {
     $store->assign('user', '42', 'editor', 'group::5');
     $store->assign('user', '99', 'viewer', 'group::5');
 
-    $this->artisan('primitives:assignments', ['--scope' => 'group::5'])
+    $this->artisan('policy-engine:assignments', ['--scope' => 'group::5'])
         ->expectsTable(['Subject Type', 'Subject ID', 'Role', 'Scope'], [
             ['user', '42', 'editor', 'group::5'],
             ['user', '99', 'viewer', 'group::5'],
@@ -152,24 +152,24 @@ it('lists all assignments in a scope', function (): void {
 });
 
 it('shows usage help when no arguments provided', function (): void {
-    $this->artisan('primitives:assignments')
+    $this->artisan('policy-engine:assignments')
         ->expectsOutputToContain('Usage:')
         ->assertSuccessful();
 });
 
 it('shows info message when no assignments found for subject', function (): void {
-    $this->artisan('primitives:assignments', ['subject' => 'user::999'])
+    $this->artisan('policy-engine:assignments', ['subject' => 'user::999'])
         ->expectsOutput('No assignments found.')
         ->assertSuccessful();
 });
 
 it('shows error for invalid subject format', function (): void {
-    $this->artisan('primitives:assignments', ['subject' => 'invalid-format'])
+    $this->artisan('policy-engine:assignments', ['subject' => 'invalid-format'])
         ->expectsOutputToContain('Invalid subject format')
         ->assertExitCode(1);
 });
 
-// --- primitives:explain ---
+// --- policy-engine:explain ---
 
 it('explains an allowed permission check', function (): void {
     config()->set('policy-engine.explain', true);
@@ -180,7 +180,7 @@ it('explains an allowed permission check', function (): void {
     $assignmentStore = app(AssignmentStore::class);
     $assignmentStore->assign('user', '42', 'editor');
 
-    $this->artisan('primitives:explain', ['subject' => 'user::42', 'permission' => 'posts.create'])
+    $this->artisan('policy-engine:explain', ['subject' => 'user::42', 'permission' => 'posts.create'])
         ->expectsOutputToContain('user:42')
         ->expectsOutputToContain('ALLOW')
         ->expectsOutputToContain('editor')
@@ -196,7 +196,7 @@ it('explains a denied permission check', function (): void {
     $assignmentStore = app(AssignmentStore::class);
     $assignmentStore->assign('user', '42', 'viewer');
 
-    $this->artisan('primitives:explain', ['subject' => 'user::42', 'permission' => 'posts.delete'])
+    $this->artisan('policy-engine:explain', ['subject' => 'user::42', 'permission' => 'posts.delete'])
         ->expectsOutputToContain('user:42')
         ->expectsOutputToContain('posts.delete')
         ->expectsOutputToContain('DENY')
@@ -207,7 +207,7 @@ it('explains a denied permission check', function (): void {
 it('shows error when explain mode is disabled', function (): void {
     config()->set('policy-engine.explain', false);
 
-    $this->artisan('primitives:explain', ['subject' => 'user::42', 'permission' => 'posts.create'])
+    $this->artisan('policy-engine:explain', ['subject' => 'user::42', 'permission' => 'posts.create'])
         ->expectsOutputToContain('Explain mode is disabled')
         ->assertExitCode(1);
 });
@@ -215,7 +215,7 @@ it('shows error when explain mode is disabled', function (): void {
 it('shows error for invalid subject format in explain', function (): void {
     config()->set('policy-engine.explain', true);
 
-    $this->artisan('primitives:explain', ['subject' => 'bad-format', 'permission' => 'posts.create'])
+    $this->artisan('policy-engine:explain', ['subject' => 'bad-format', 'permission' => 'posts.create'])
         ->expectsOutputToContain('Invalid subject format')
         ->assertExitCode(1);
 });
@@ -229,7 +229,7 @@ it('explains a scoped permission check', function (): void {
     $assignmentStore = app(AssignmentStore::class);
     $assignmentStore->assign('user', '42', 'editor', 'group::5');
 
-    $this->artisan('primitives:explain', [
+    $this->artisan('policy-engine:explain', [
         'subject' => 'user::42',
         'permission' => 'posts.create',
         '--scope' => 'group::5',
@@ -249,12 +249,12 @@ it('shows cache hit status in explain output', function (): void {
     $assignmentStore = app(AssignmentStore::class);
     $assignmentStore->assign('user', '42', 'viewer');
 
-    $this->artisan('primitives:explain', ['subject' => 'user::42', 'permission' => 'posts.read'])
+    $this->artisan('policy-engine:explain', ['subject' => 'user::42', 'permission' => 'posts.read'])
         ->expectsOutputToContain('Cache hit')
         ->assertSuccessful();
 });
 
-// --- primitives:import ---
+// --- policy-engine:import ---
 
 it('imports a policy document from a file', function (): void {
     $document = [
@@ -272,7 +272,7 @@ it('imports a policy document from a file', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'policy_');
     file_put_contents($path, json_encode($document));
 
-    $this->artisan('primitives:import', ['path' => $path])
+    $this->artisan('policy-engine:import', ['path' => $path])
         ->expectsOutputToContain('Permissions created: 2')
         ->expectsOutputToContain('Roles created: 1')
         ->expectsOutputToContain('Assignments created: 1')
@@ -299,7 +299,7 @@ it('shows dry run output without applying changes', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'policy_');
     file_put_contents($path, json_encode($document));
 
-    $this->artisan('primitives:import', ['path' => $path, '--dry-run' => true])
+    $this->artisan('policy-engine:import', ['path' => $path, '--dry-run' => true])
         ->expectsOutputToContain('Dry run')
         ->expectsOutputToContain('Permissions created: 2')
         ->expectsOutputToContain('Roles created: 1')
@@ -312,12 +312,12 @@ it('shows dry run output without applying changes', function (): void {
 });
 
 it('shows error when import file not found', function (): void {
-    $this->artisan('primitives:import', ['path' => '/tmp/nonexistent-policy-file.json'])
+    $this->artisan('policy-engine:import', ['path' => '/tmp/nonexistent-policy-file.json'])
         ->expectsOutputToContain('File not found')
         ->assertExitCode(1);
 });
 
-// --- primitives:export ---
+// --- policy-engine:export ---
 
 it('exports authorization state to stdout', function (): void {
     $permissionStore = app(PermissionStore::class);
@@ -326,7 +326,7 @@ it('exports authorization state to stdout', function (): void {
     $roleStore = app(RoleStore::class);
     $roleStore->save('editor', 'Editor', ['posts.create', 'posts.delete']);
 
-    $exitCode = Artisan::call('primitives:export');
+    $exitCode = Artisan::call('policy-engine:export');
     $output = Artisan::output();
 
     expect($exitCode)->toBe(0);
@@ -344,7 +344,7 @@ it('exports authorization state to a file', function (): void {
 
     $path = tempnam(sys_get_temp_dir(), 'policy_export_');
 
-    $this->artisan('primitives:export', ['--path' => $path])
+    $this->artisan('policy-engine:export', ['--path' => $path])
         ->expectsOutputToContain("Exported to {$path}")
         ->assertSuccessful();
 
@@ -369,14 +369,14 @@ it('rejects export path outside configured document directory', function (): voi
 
     $path = sys_get_temp_dir().'/policy-export-'.uniqid('', true).'.json';
 
-    $this->artisan('primitives:export', ['--path' => $path])
+    $this->artisan('policy-engine:export', ['--path' => $path])
         ->expectsOutputToContain('Export failed:')
         ->assertExitCode(1);
 
     expect(file_exists($path))->toBeFalse();
 });
 
-// --- primitives:validate ---
+// --- policy-engine:validate ---
 
 it('validates a valid policy document', function (): void {
     $document = [
@@ -392,7 +392,7 @@ it('validates a valid policy document', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'policy_');
     file_put_contents($path, json_encode($document));
 
-    $this->artisan('primitives:validate', ['path' => $path])
+    $this->artisan('policy-engine:validate', ['path' => $path])
         ->expectsOutput('Policy document is valid.')
         ->assertSuccessful();
 
@@ -407,7 +407,7 @@ it('validates an invalid policy document', function (): void {
     $path = tempnam(sys_get_temp_dir(), 'policy_');
     file_put_contents($path, json_encode($document));
 
-    $this->artisan('primitives:validate', ['path' => $path])
+    $this->artisan('policy-engine:validate', ['path' => $path])
         ->expectsOutputToContain('invalid')
         ->assertExitCode(1);
 
@@ -415,7 +415,7 @@ it('validates an invalid policy document', function (): void {
 });
 
 it('shows error when validate file not found', function (): void {
-    $this->artisan('primitives:validate', ['path' => '/tmp/nonexistent-policy-file.json'])
+    $this->artisan('policy-engine:validate', ['path' => '/tmp/nonexistent-policy-file.json'])
         ->expectsOutputToContain('File not found')
         ->assertExitCode(1);
 });
@@ -432,17 +432,17 @@ it('exports scoped authorization state', function (): void {
     $assignmentStore->assign('user', '42', 'editor', 'group::5');
     $assignmentStore->assign('user', '99', 'admin');
 
-    $this->artisan('primitives:export', ['--scope' => 'group::5'])
+    $this->artisan('policy-engine:export', ['--scope' => 'group::5'])
         ->expectsOutputToContain('editor')
         ->assertSuccessful();
 });
 
-// --- primitives:cache-clear ---
+// --- policy-engine:cache-clear ---
 
 it('clears the policy engine cache using tags when supported', function (): void {
     config()->set('policy-engine.cache.store', 'array');
 
-    $this->artisan('primitives:cache-clear')
+    $this->artisan('policy-engine:cache-clear')
         ->expectsOutputToContain('cache cleared (tagged)')
         ->assertSuccessful();
 });
@@ -450,7 +450,7 @@ it('clears the policy engine cache using tags when supported', function (): void
 it('clears the policy engine cache with --force on untaggable store', function (): void {
     config()->set('policy-engine.cache.store', 'file');
 
-    $this->artisan('primitives:cache-clear', ['--force' => true])
+    $this->artisan('policy-engine:cache-clear', ['--force' => true])
         ->expectsOutputToContain('full store flush')
         ->assertSuccessful();
 });
@@ -458,16 +458,16 @@ it('clears the policy engine cache with --force on untaggable store', function (
 it('aborts cache clear when user declines confirmation on untaggable store', function (): void {
     config()->set('policy-engine.cache.store', 'file');
 
-    $this->artisan('primitives:cache-clear')
+    $this->artisan('policy-engine:cache-clear')
         ->expectsConfirmation('Cache driver does not support tags. This will clear the entire cache store. Continue?', 'no')
         ->expectsOutput('Aborted.')
         ->assertSuccessful();
 });
 
-// --- primitives:sync ---
+// --- policy-engine:sync ---
 
 it('runs the sync command and handles missing seeder gracefully', function (): void {
-    $this->artisan('primitives:sync')
+    $this->artisan('policy-engine:sync')
         ->expectsOutputToContain('Failed to sync')
         ->assertExitCode(1);
 });
@@ -478,7 +478,7 @@ it('runs the sync command successfully with a valid seeder', function (): void {
         eval('namespace Database\Seeders; class PermissionSeeder extends \Illuminate\Database\Seeder { public function run(): void {} }');
     }
 
-    $this->artisan('primitives:sync')
+    $this->artisan('policy-engine:sync')
         ->expectsOutputToContain('sync completed')
         ->assertSuccessful();
 });

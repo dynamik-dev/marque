@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 
 class CacheClearCommand extends Command
 {
-    protected $signature = 'primitives:cache-clear {--force : Skip confirmation when flushing an untaggable store}';
+    protected $signature = 'policy-engine:cache-clear {--force : Skip confirmation when flushing an untaggable store}';
 
     protected $description = 'Clear the policy engine permission cache';
 
