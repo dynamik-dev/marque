@@ -8,22 +8,37 @@ A scope is a `type::id` string like `group::5` or `org::acme`. When a user is as
 
 ## Making a model act as a scope
 
+Add the `Scopeable` trait. The scope type is inferred from the class name by default:
+
 ```php
 use DynamikDev\PolicyEngine\Concerns\Scopeable;
 
 class Team extends Model
 {
     use Scopeable;
-
-    protected string $scopeType = 'team';
 }
-```
 
-The `$scopeType` property defines the prefix. A Team with ID 12 produces the scope string `team::12`.
-
-```php
 $team->toScope(); // "team::12"
 ```
+
+### Overriding the scope type
+
+Use the `#[ScopeType]` attribute when you need a name that differs from the class:
+
+```php
+use DynamikDev\PolicyEngine\Attributes\ScopeType;
+use DynamikDev\PolicyEngine\Concerns\Scopeable;
+
+#[ScopeType('org')]
+class Organization extends Model
+{
+    use Scopeable;
+}
+
+$org->toScope(); // "org::1"
+```
+
+You can also use a property: `protected string $scopeType = 'org';`. The resolution order is attribute > property > class basename.
 
 ## Assigning a role within a scope
 

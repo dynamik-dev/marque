@@ -50,17 +50,17 @@ This gives the model methods like `assign()`, `revoke()`, `hasRole()`, and `getR
 If you have models that represent containers — teams, groups, organizations — add the `Scopeable` trait so they can be used as permission scopes.
 
 ```php
+use DynamikDev\PolicyEngine\Attributes\ScopeType;
 use DynamikDev\PolicyEngine\Concerns\Scopeable;
 
+#[ScopeType('group')]
 class Group extends Model
 {
     use Scopeable;
-
-    protected string $scopeType = 'group';
 }
 ```
 
-The `$scopeType` property defines the prefix used in scope strings. A Group with ID 5 resolves to `group::5`.
+The scope type defines the prefix used in scope strings. A Group with ID 5 resolves to `group::5`. If you omit `#[ScopeType]`, the type is inferred from the class name (`Group` → `'group'`), so the attribute is only needed when you want a name that differs from the class.
 
 ## Verifying the installation
 

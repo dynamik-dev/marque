@@ -4,28 +4,47 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine\Concerns;
 
+use DynamikDev\PolicyEngine\Attributes\ScopeType;
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Models\Assignment;
 use Illuminate\Support\Collection;
+use ReflectionClass;
 
 /**
  * Turns an Eloquent model into a scope that can contain members.
  *
- * The using model must define a protected string `$scopeType` property
- * (e.g., 'group', 'team', 'org') and be an Eloquent Model
- * (provides getKey()).
+ * The scope type is resolved in order:
+ * 1. `#[ScopeType('team')]` attribute on the class
+ * 2. `protected string $scopeType = 'team'` property
+ * 3. Lowercased class basename (Team → 'team')
  */
 trait Scopeable
 {
     public function toScope(): string
     {
-        if (! property_exists($this, 'scopeType') || ! is_string($this->scopeType)) {
-            throw new \LogicException(
-                static::class.' must define a protected string $scopeType property to use the Scopeable trait.',
-            );
+        return $this->getScopeType().'::'.$this->getKey();
+    }
+
+    /**
+     * Get the scope type string for this model.
+     *
+     * Checks for a #[ScopeType] attribute first, then a $scopeType property,
+     * then falls back to the lowercased class basename.
+     */
+    public function getScopeType(): string
+    {
+        $attribute = (new ReflectionClass(static::class))
+            ->getAttributes(ScopeType::class)[0] ?? null;
+
+        if ($attribute !== null) {
+            return $attribute->newInstance()->type;
         }
 
-        return $this->scopeType.'::'.$this->getKey();
+        if (property_exists($this, 'scopeType') && is_string($this->scopeType)) {
+            return $this->scopeType;
+        }
+
+        return strtolower(class_basename(static::class));
     }
 
     /** @return Collection<int, Assignment> */
