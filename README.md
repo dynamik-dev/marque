@@ -1,5 +1,9 @@
 # Policy Engine for Laravel
 
+[![Pint](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/ci.yml?branch=main&label=Pint&logo=laravel)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/ci.yml)
+[![Larastan](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/ci.yml?branch=main&label=Larastan&logo=php)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/ci.yml)
+[![Pest](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/ci.yml?branch=main&label=Pest&logo=php)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/ci.yml)
+
 An IAM-style policy engine for Laravel. Define your authorization as declarative JSON documents and import them the way you'd manage AWS IAM policies.
 
 ```json
@@ -106,16 +110,15 @@ Every component is coded to a PHP interface. Swap any implementation via the ser
 
 ## Requirements
 
-| Dependency | Supported Versions |
-|---|---|
-| PHP | 8.4, 8.5 |
-| Laravel | 12, 13 |
-| PostgreSQL | 17+ |
-| MySQL | 8.4+ |
-| SQLite | 3.35+ |
-| Valkey / Redis | 8+ |
+| Dependency     | Supported Versions |
+| -------------- | ------------------ |
+| PHP            | 8.4, 8.5           |
+| Laravel        | 12, 13             |
+| PostgreSQL     | 17+                |
+| SQLite         | 3.35+              |
+| Valkey / Redis | 8+                 |
 
-SQLite works out of the box for development. PostgreSQL, MySQL, and Valkey are optional — the package tests against all of them in CI.
+SQLite works out of the box for development. PostgreSQL and Valkey are optional — the package tests against both in CI. MySQL is not officially supported but should work fine since Laravel's query builder abstracts the differences.
 
 ## Documentation
 
