@@ -40,7 +40,7 @@ class ExplainCommand extends Command
         }
 
         if (! config('policy-engine.trace')) {
-            $this->error('Explain mode is disabled. Set policy-engine.explain to true in your configuration.');
+            $this->error('Explain mode is disabled. Set policy-engine.trace to true in your configuration.');
 
             return self::FAILURE;
         }

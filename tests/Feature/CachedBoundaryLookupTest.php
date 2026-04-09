@@ -125,8 +125,7 @@ it('caches boundary lookups for canDo with enforce_boundaries_on_global', functi
 
     $user->assign('editor');
 
-    // With enforce_boundaries_on_global=true, combined ceiling is posts.* (from org::acme and org::beta seeds).
-    // posts.create is within posts.* so allowed; posts.delete is registered but not in any boundary.
+    /* With enforce_boundaries_on_global=true, combined ceiling is posts.* (org::acme and org::beta seeds). posts.create is within posts.* so allowed; posts.delete is not in any boundary. */
     expect($user->canDo('posts.read'))->toBeTrue()
         ->and($user->canDo('posts.create'))->toBeTrue();
 

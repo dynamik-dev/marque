@@ -53,8 +53,7 @@ beforeEach(function (): void {
         $table->string('password');
     });
 
-    // Wire up the v2 evaluator with IdentityPolicyResolver so canDo works
-    // while the service provider binding is updated in Task 1.8.
+    /* Wire up the v2 evaluator with IdentityPolicyResolver so canDo works. */
     app()->singleton(Evaluator::class, function ($app): CachedEvaluator {
         return new CachedEvaluator(
             inner: new DefaultEvaluator(

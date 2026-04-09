@@ -23,9 +23,7 @@ use DynamikDev\PolicyEngine\Enums\Effect;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use Illuminate\Support\Collection;
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+/* Helpers */
 
 function conditionRequest(
     string $action = 'posts.read',
@@ -67,9 +65,7 @@ function makeRegistry(): DefaultConditionRegistry
     return $registry;
 }
 
-// ---------------------------------------------------------------------------
-// Registry tests
-// ---------------------------------------------------------------------------
+/* Registry tests */
 
 it('resolves a registered evaluator by type', function (): void {
     $registry = new DefaultConditionRegistry;
@@ -96,9 +92,7 @@ it('registers the built-in types via the service container binding', function ()
         ->and($registry->evaluatorFor('time_between'))->toBeInstanceOf(TimeBetweenEvaluator::class);
 });
 
-// ---------------------------------------------------------------------------
-// AttributeEqualsEvaluator tests
-// ---------------------------------------------------------------------------
+/* AttributeEqualsEvaluator tests */
 
 it('AttributeEqualsEvaluator passes when subject and resource attribute values match', function (): void {
     $evaluator = new AttributeEqualsEvaluator;
@@ -157,9 +151,7 @@ it('AttributeEqualsEvaluator fails when resource key is missing from resource at
     expect($evaluator->passes($condition, $request))->toBeFalse();
 });
 
-// ---------------------------------------------------------------------------
-// AttributeInEvaluator tests
-// ---------------------------------------------------------------------------
+/* AttributeInEvaluator tests */
 
 it('AttributeInEvaluator passes when principal attribute value is in the allowed set', function (): void {
     $evaluator = new AttributeInEvaluator;
@@ -229,9 +221,7 @@ it('AttributeInEvaluator uses strict type comparison', function (): void {
     expect($evaluator->passes($condition, $request))->toBeFalse();
 });
 
-// ---------------------------------------------------------------------------
-// EnvironmentEqualsEvaluator tests
-// ---------------------------------------------------------------------------
+/* EnvironmentEqualsEvaluator tests */
 
 it('EnvironmentEqualsEvaluator passes when env key matches expected value', function (): void {
     $evaluator = new EnvironmentEqualsEvaluator;
@@ -260,9 +250,7 @@ it('EnvironmentEqualsEvaluator fails when env key is absent', function (): void 
     expect($evaluator->passes($condition, $request))->toBeFalse();
 });
 
-// ---------------------------------------------------------------------------
-// IpRangeEvaluator tests
-// ---------------------------------------------------------------------------
+/* IpRangeEvaluator tests */
 
 it('IpRangeEvaluator passes when IP is within a CIDR range', function (): void {
     $evaluator = new IpRangeEvaluator;
@@ -320,9 +308,7 @@ it('IpRangeEvaluator handles a /32 single-host CIDR correctly', function (): voi
         ->and($evaluator->passes($condition, $outOfRange))->toBeFalse();
 });
 
-// ---------------------------------------------------------------------------
-// TimeBetweenEvaluator tests
-// ---------------------------------------------------------------------------
+/* TimeBetweenEvaluator tests */
 
 it('TimeBetweenEvaluator passes when current time falls within the window', function (): void {
     $evaluator = new TimeBetweenEvaluator;
@@ -383,9 +369,7 @@ it('TimeBetweenEvaluator returns false when end parameter is missing', function 
     expect($evaluator->passes($condition, conditionRequest()))->toBeFalse();
 });
 
-// ---------------------------------------------------------------------------
-// Integration: conditions wired into DefaultEvaluator
-// ---------------------------------------------------------------------------
+/* Integration: conditions wired into DefaultEvaluator */
 
 it('DefaultEvaluator skips a statement when its condition fails', function (): void {
     $registry = makeRegistry();

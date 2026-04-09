@@ -121,8 +121,7 @@ it('allows normally when no Sanctum token is present (session auth)', function (
 });
 
 it('allows normally when user is not authenticated', function (): void {
-    // When there is no authenticated user, the SanctumPolicyResolver returns empty.
-    // Verify by checking the resolver directly: it should not inject any Deny statements.
+    /* When there is no authenticated user, the SanctumPolicyResolver returns empty — verify it injects no Deny statements. */
     $resolver = app(SanctumPolicyResolver::class);
 
     $request = new EvaluationRequest(

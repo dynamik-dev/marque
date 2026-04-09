@@ -21,6 +21,7 @@ it('only allows known namespaces', function (): void {
         'DynamikDev\PolicyEngine\Attributes',
         'DynamikDev\PolicyEngine\Commands',
         'DynamikDev\PolicyEngine\Concerns',
+        'DynamikDev\PolicyEngine\Conditions',
         'DynamikDev\PolicyEngine\Contracts',
         'DynamikDev\PolicyEngine\Documents',
         'DynamikDev\PolicyEngine\DTOs',
@@ -155,9 +156,12 @@ it('requires matchers to implement the Matcher contract', function (): void {
         ->toImplement('DynamikDev\PolicyEngine\Contracts\Matcher');
 });
 
-it('requires resolvers to implement the ScopeResolver contract', function (): void {
-    expect('DynamikDev\PolicyEngine\Resolvers')
-        ->toImplement('DynamikDev\PolicyEngine\Contracts\ScopeResolver');
+it('requires policy resolvers to implement the PolicyResolver contract', function (): void {
+    expect('DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver')->toImplement('DynamikDev\PolicyEngine\Contracts\PolicyResolver');
+    expect('DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver')->toImplement('DynamikDev\PolicyEngine\Contracts\PolicyResolver');
+    expect('DynamikDev\PolicyEngine\Resolvers\ResourcePolicyResolver')->toImplement('DynamikDev\PolicyEngine\Contracts\PolicyResolver');
+    expect('DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver')->toImplement('DynamikDev\PolicyEngine\Contracts\PolicyResolver');
+    expect('DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver')->toImplement('DynamikDev\PolicyEngine\Contracts\ScopeResolver');
 });
 
 it('requires document classes to implement a document contract', function (string $class, string $contract): void {
@@ -200,7 +204,7 @@ it('prevents use of DB facade', function (): void {
 // --- Comment style: consecutive // comments must use block syntax ---
 
 it('requires multi-line comments to use block syntax', function (): void {
-    $iterators = new AppendIterator();
+    $iterators = new AppendIterator;
     $iterators->append(new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator('src', FilesystemIterator::SKIP_DOTS),
     ));
