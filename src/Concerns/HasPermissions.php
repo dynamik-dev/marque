@@ -6,10 +6,19 @@ namespace DynamikDev\PolicyEngine\Concerns;
 
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\PolicyEngine\Contracts\Matcher;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
-use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
+use DynamikDev\PolicyEngine\DTOs\Context;
+use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
+use DynamikDev\PolicyEngine\DTOs\EvaluationResult;
+use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
+use DynamikDev\PolicyEngine\DTOs\Principal;
+use DynamikDev\PolicyEngine\DTOs\Resource;
+use DynamikDev\PolicyEngine\Enums\Decision;
+use DynamikDev\PolicyEngine\Enums\Effect;
 use DynamikDev\PolicyEngine\Models\Assignment;
 use DynamikDev\PolicyEngine\Models\Role;
 use Illuminate\Support\Collection;
@@ -29,28 +38,79 @@ trait HasPermissions
     private const DIRECT_PERMISSION_PREFIX = '__dp.';
 
     /**
+     * Build the Principal DTO for this model.
+     */
+    public function toPrincipal(): Principal
+    {
+        return new Principal(
+            type: $this->getMorphClass(),
+            id: $this->getKey(),
+            attributes: $this->principalAttributes(),
+        );
+    }
+
+    /**
+     * Return extra attributes to embed in the Principal DTO.
+     *
+     * Override this method on the model to include domain-specific
+     * context (e.g. department_id, tenant_id) that policy resolvers
+     * and conditions can inspect.
+     *
+     * @return array<string, mixed>
+     */
+    protected function principalAttributes(): array
+    {
+        return [];
+    }
+
+    /**
      * Evaluate whether this subject holds a permission, optionally within a scope.
      *
      * This is the engine method that powers Gate integration, middleware,
      * and Blade directives. For application code, prefer Laravel's
      * $user->can('permission') which delegates here via the Gate hook.
      */
-    public function canDo(string $permission, mixed $scope = null): bool
-    {
-        return app(Evaluator::class)->can(
-            $this->getMorphClass(),
-            $this->getKey(),
-            $this->buildScopedPermission($permission, $scope),
+    public function canDo(
+        string $permission,
+        mixed $scope = null,
+        ?Resource $resource = null,
+        array $environment = [],
+    ): bool {
+        $result = app(Evaluator::class)->evaluate(
+            $this->buildEvaluationRequest($permission, $scope, $resource, $environment),
         );
+
+        return $result->decision === Decision::Allow;
     }
 
     /**
      * Inverse of canDo() — returns true when the subject does NOT hold
      * the given permission.
      */
-    public function cannotDo(string $permission, mixed $scope = null): bool
-    {
-        return ! $this->canDo($permission, $scope);
+    public function cannotDo(
+        string $permission,
+        mixed $scope = null,
+        ?Resource $resource = null,
+        array $environment = [],
+    ): bool {
+        return ! $this->canDo($permission, $scope, $resource, $environment);
+    }
+
+    /**
+     * Return the full EvaluationResult for a permission check.
+     *
+     * Useful for debugging, audit logging, and policy inspection. The
+     * trace config controls what is populated in the result.
+     */
+    public function explain(
+        string $permission,
+        mixed $scope = null,
+        ?Resource $resource = null,
+        array $environment = [],
+    ): EvaluationResult {
+        return app(Evaluator::class)->evaluate(
+            $this->buildEvaluationRequest($permission, $scope, $resource, $environment),
+        );
     }
 
     /**
@@ -185,6 +245,85 @@ trait HasPermissions
     }
 
     /**
+     * Check whether this subject has a specific role assignment.
+     *
+     * Queries the AssignmentStore directly rather than going through the
+     * Evaluator, so the result is not affected by permission logic or cache.
+     */
+    public function hasRole(string $role, mixed $scope = null): bool
+    {
+        $resolvedScope = app(ScopeResolver::class)->resolve($scope);
+
+        if ($resolvedScope !== null) {
+            return app(AssignmentStore::class)
+                ->forSubjectInScope($this->getMorphClass(), $this->getKey(), $resolvedScope)
+                ->contains('role_id', $role);
+        }
+
+        return app(AssignmentStore::class)
+            ->forSubjectGlobal($this->getMorphClass(), $this->getKey())
+            ->contains('role_id', $role);
+    }
+
+    /**
+     * Return all effective (net-allowed) permission strings for this subject.
+     *
+     * Queries each PolicyResolver in the resolver chain with a wildcard request,
+     * then subtracts any action covered by a Deny statement.
+     *
+     * @return array<int, string>
+     */
+    public function effectivePermissions(mixed $scope = null): array
+    {
+        $resolvedScope = app(ScopeResolver::class)->resolve($scope);
+
+        $request = new EvaluationRequest(
+            principal: $this->toPrincipal(),
+            action: '*.*',
+            resource: null,
+            context: new Context(scope: $resolvedScope),
+        );
+
+        /** @var array<string, class-string<PolicyResolver>> $resolverClasses */
+        $resolverClasses = config('policy-engine.resolvers', []);
+
+        $statements = collect();
+
+        foreach ($resolverClasses as $resolverClass) {
+            /** @var PolicyResolver $resolver */
+            $resolver = app($resolverClass);
+            $statements = $statements->merge($resolver->resolve($request));
+        }
+
+        /** @var Collection<int, PolicyStatement> $allows */
+        $allows = $statements->filter(
+            static fn (PolicyStatement $s): bool => $s->effect === Effect::Allow,
+        );
+
+        /** @var Collection<int, PolicyStatement> $denies */
+        $denies = $statements->filter(
+            static fn (PolicyStatement $s): bool => $s->effect === Effect::Deny,
+        );
+
+        $matcher = app(Matcher::class);
+
+        return $allows
+            ->filter(function (PolicyStatement $allow) use ($denies, $matcher): bool {
+                foreach ($denies as $deny) {
+                    if ($matcher->matches($deny->action, $allow->action)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            })
+            ->pluck('action')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
      * Build the internal role ID for a direct permission assignment.
      */
     private static function directPermissionRoleId(string $permission): string
@@ -217,16 +356,6 @@ trait HasPermissions
         );
     }
 
-    /** @return array<int, string> */
-    public function effectivePermissions(mixed $scope = null): array
-    {
-        return app(Evaluator::class)->effectivePermissions(
-            $this->getMorphClass(),
-            $this->getKey(),
-            app(ScopeResolver::class)->resolve($scope),
-        );
-    }
-
     /** @return Collection<int, Role> */
     public function getRoles(): Collection
     {
@@ -254,43 +383,21 @@ trait HasPermissions
     }
 
     /**
-     * Check whether this subject has a specific role assignment.
-     *
-     * Delegates to the Evaluator (which caches results via CachedEvaluator).
+     * Build an EvaluationRequest DTO from the given permission, scope, resource, and environment.
      */
-    public function hasRole(string $role, mixed $scope = null): bool
-    {
-        return app(Evaluator::class)->hasRole(
-            $this->getMorphClass(),
-            $this->getKey(),
-            $role,
-            app(ScopeResolver::class)->resolve($scope),
-        );
-    }
-
-    public function explain(string $permission, mixed $scope = null): EvaluationTrace
-    {
-        return app(Evaluator::class)->explain(
-            $this->getMorphClass(),
-            $this->getKey(),
-            $this->buildScopedPermission($permission, $scope),
-        );
-    }
-
-    /**
-     * Build a permission string with an optional scope suffix.
-     *
-     * The evaluator expects the format `permission:scope` when a scope
-     * is provided, and plain `permission` when unscoped.
-     */
-    private function buildScopedPermission(string $permission, mixed $scope): string
-    {
+    private function buildEvaluationRequest(
+        string $permission,
+        mixed $scope,
+        ?Resource $resource,
+        array $environment,
+    ): EvaluationRequest {
         $resolvedScope = app(ScopeResolver::class)->resolve($scope);
 
-        if ($resolvedScope === null) {
-            return $permission;
-        }
-
-        return $permission.':'.$resolvedScope;
+        return new EvaluationRequest(
+            principal: $this->toPrincipal(),
+            action: $permission,
+            resource: $resource,
+            context: new Context(scope: $resolvedScope, environment: $environment),
+        );
     }
 }

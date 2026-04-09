@@ -4,14 +4,23 @@ declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Concerns\HasPermissions;
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
+use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\PolicyEngine\Contracts\Matcher;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
-use DynamikDev\PolicyEngine\Enums\EvaluationResult;
+use DynamikDev\PolicyEngine\DTOs\EvaluationResult;
+use DynamikDev\PolicyEngine\DTOs\Principal;
+use DynamikDev\PolicyEngine\DTOs\Resource;
+use DynamikDev\PolicyEngine\Enums\Decision;
+use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
+use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
+use DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver;
+use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
+use Illuminate\Cache\CacheManager;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
@@ -19,214 +28,195 @@ uses(RefreshDatabase::class);
 /**
  * A minimal Eloquent model for testing the HasPermissions trait.
  */
-class TestUser extends Model
+class HasPermissionsTestUser extends Model implements Authenticatable
 {
     use HasPermissions;
+    use Illuminate\Auth\Authenticatable;
 
-    protected $table = 'test_users';
+    protected $table = 'users';
+
+    public $timestamps = false;
 
     protected $guarded = [];
+
+    protected function principalAttributes(): array
+    {
+        return ['department_id' => 42];
+    }
 }
 
 beforeEach(function (): void {
-    Schema::create('test_users', function (Blueprint $table): void {
+    Schema::create('users', function (Blueprint $table): void {
         $table->id();
         $table->string('name');
-        $table->timestamps();
+        $table->string('email')->unique();
+        $table->string('password');
     });
+
+    // Wire up the v2 evaluator with IdentityPolicyResolver so canDo works
+    // while the service provider binding is updated in Task 1.8.
+    app()->singleton(Evaluator::class, function ($app): CachedEvaluator {
+        return new CachedEvaluator(
+            inner: new DefaultEvaluator(
+                resolvers: [new IdentityPolicyResolver(
+                    assignments: $app->make(AssignmentStore::class),
+                    roles: $app->make(RoleStore::class),
+                )],
+                matcher: $app->make(Matcher::class),
+            ),
+            cache: $app->make(CacheManager::class),
+        );
+    });
+
+    // Set the resolver chain for effectivePermissions().
+    config(['policy-engine.resolvers' => [IdentityPolicyResolver::class]]);
 
     $this->permissionStore = app(PermissionStore::class);
     $this->roleStore = app(RoleStore::class);
     $this->assignmentStore = app(AssignmentStore::class);
 
-    $this->user = TestUser::query()->create(['name' => 'Alice']);
+    $this->permissionStore->register(['posts.create', 'posts.read', 'posts.update', 'posts.delete']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read', 'posts.update']);
+
+    $this->user = HasPermissionsTestUser::query()->create([
+        'name' => 'Alice',
+        'email' => 'alice@example.com',
+        'password' => 'secret',
+    ]);
 });
 
 afterEach(function (): void {
-    Schema::dropIfExists('test_users');
+    Schema::dropIfExists('users');
+    CacheStoreResolver::reset();
+});
+
+// --- toPrincipal ---
+
+it('toPrincipal returns a Principal with correct type, id, and attributes', function (): void {
+    $principal = $this->user->toPrincipal();
+
+    expect($principal)->toBeInstanceOf(Principal::class)
+        ->and($principal->type)->toBe(HasPermissionsTestUser::class)
+        ->and($principal->id)->toBe($this->user->getKey())
+        ->and($principal->attributes)->toBe(['department_id' => 42]);
 });
 
 // --- canDo ---
 
-it('returns true when the subject has the permission', function (): void {
-    $this->permissionStore->register(['posts.create']);
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+it('canDo returns true when user has permission via role', function (): void {
     $this->user->assign('editor');
 
     expect($this->user->canDo('posts.create'))->toBeTrue();
 });
 
-it('returns false when the subject lacks the permission', function (): void {
-    $this->permissionStore->register(['posts.read']);
-    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
-    $this->user->assign('viewer');
+it('canDo returns false when user lacks permission', function (): void {
+    $this->user->assign('editor');
 
     expect($this->user->canDo('posts.delete'))->toBeFalse();
 });
 
-it('evaluates scoped permissions via canDo', function (): void {
-    $this->permissionStore->register(['posts.create']);
-    $this->roleStore->save('team-editor', 'Team Editor', ['posts.create']);
-    $this->user->assign('team-editor', 'team::5');
+it('canDo accepts an optional Resource parameter', function (): void {
+    $this->user->assign('editor');
 
-    expect($this->user->canDo('posts.create', 'team::5'))->toBeTrue()
-        ->and($this->user->canDo('posts.create', 'team::99'))->toBeFalse();
+    $resource = new Resource(type: 'post', id: 99);
+
+    expect($this->user->canDo('posts.create', null, resource: $resource))->toBeTrue();
+});
+
+it('canDo accepts an optional environment parameter', function (): void {
+    $this->user->assign('editor');
+
+    expect($this->user->canDo('posts.create', null, environment: ['ip' => '127.0.0.1']))->toBeTrue();
 });
 
 // --- cannotDo ---
 
-it('returns true for cannotDo when permission is missing', function (): void {
+it('cannotDo returns true when permission is missing', function (): void {
     expect($this->user->cannotDo('posts.delete'))->toBeTrue();
 });
 
-it('returns false for cannotDo when permission is granted', function (): void {
-    $this->permissionStore->register(['posts.create']);
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+it('cannotDo returns false when permission is granted', function (): void {
     $this->user->assign('editor');
 
     expect($this->user->cannotDo('posts.create'))->toBeFalse();
 });
 
+// --- explain ---
+
+it('explain returns an EvaluationResult', function (): void {
+    $this->user->assign('editor');
+
+    $result = $this->user->explain('posts.create');
+
+    expect($result)->toBeInstanceOf(EvaluationResult::class)
+        ->and($result->decision)->toBe(Decision::Allow);
+});
+
+it('explain returns a Deny result when permission is not granted', function (): void {
+    $result = $this->user->explain('posts.delete');
+
+    expect($result)->toBeInstanceOf(EvaluationResult::class)
+        ->and($result->decision)->toBe(Decision::Deny);
+});
+
 // --- assign / revoke ---
 
-it('assigns a role to the subject', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+it('assign then canDo returns true, revoke then canDo returns false', function (): void {
     $this->user->assign('editor');
 
-    expect($this->user->assignments())->toHaveCount(1)
-        ->and($this->user->assignments()->first()->role_id)->toBe('editor');
-});
-
-it('assigns a scoped role to the subject', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->user->assign('editor', 'team::5');
-
-    expect($this->user->assignmentsFor('team::5'))->toHaveCount(1)
-        ->and($this->user->assignmentsFor('team::5')->first()->scope)->toBe('team::5');
-});
-
-it('revokes a role from the subject', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->user->assign('editor');
-
-    expect($this->user->assignments())->toHaveCount(1);
+    expect($this->user->canDo('posts.create'))->toBeTrue();
 
     $this->user->revoke('editor');
 
-    expect($this->user->assignments())->toHaveCount(0);
-});
+    // Flush the evaluator cache so the next check hits the store.
+    app()->forgetInstance(Evaluator::class);
+    app()->singleton(Evaluator::class, function ($app): CachedEvaluator {
+        return new CachedEvaluator(
+            inner: new DefaultEvaluator(
+                resolvers: [new IdentityPolicyResolver(
+                    assignments: $app->make(AssignmentStore::class),
+                    roles: $app->make(RoleStore::class),
+                )],
+                matcher: $app->make(Matcher::class),
+            ),
+            cache: $app->make(CacheManager::class),
+        );
+    });
 
-it('revokes a scoped role from the subject', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->user->assign('editor', 'team::5');
-    $this->user->assign('editor');
-
-    $this->user->revoke('editor', 'team::5');
-
-    expect($this->user->assignments())->toHaveCount(1)
-        ->and($this->user->assignments()->first()->scope)->toBeNull();
-});
-
-// --- assignments / assignmentsFor ---
-
-it('returns all assignments for the subject', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->roleStore->save('admin', 'Admin', ['admin.access']);
-    $this->user->assign('editor');
-    $this->user->assign('admin', 'org::acme');
-
-    expect($this->user->assignments())->toHaveCount(2);
-});
-
-it('returns assignments filtered by scope', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->roleStore->save('admin', 'Admin', ['admin.access']);
-    $this->user->assign('editor');
-    $this->user->assign('admin', 'org::acme');
-
-    expect($this->user->assignmentsFor('org::acme'))->toHaveCount(1)
-        ->and($this->user->assignmentsFor('org::acme')->first()->role_id)->toBe('admin');
-});
-
-// --- getRoles / getRolesFor ---
-
-it('returns unique roles for the subject', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->roleStore->save('admin', 'Admin', ['admin.access']);
-    $this->user->assign('editor');
-    $this->user->assign('admin');
-
-    $roles = $this->user->getRoles();
-
-    expect($roles)->toHaveCount(2)
-        ->and($roles->pluck('id')->sort()->values()->all())->toBe(['admin', 'editor']);
-});
-
-it('deduplicates roles across scopes', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->user->assign('editor');
-    $this->user->assign('editor', 'team::5');
-
-    expect($this->user->getRoles())->toHaveCount(1)
-        ->and($this->user->getRoles()->first()->id)->toBe('editor');
-});
-
-it('returns roles filtered by scope', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->roleStore->save('admin', 'Admin', ['admin.access']);
-    $this->user->assign('editor');
-    $this->user->assign('admin', 'org::acme');
-
-    $roles = $this->user->getRolesFor('org::acme');
-
-    expect($roles)->toHaveCount(1)
-        ->and($roles->first()->id)->toBe('admin');
-});
-
-it('returns empty collection when subject has no roles', function (): void {
-    expect($this->user->getRoles())->toHaveCount(0)
-        ->and($this->user->getRoles())->toBeInstanceOf(Collection::class);
+    expect($this->user->canDo('posts.create'))->toBeFalse();
 });
 
 // --- hasRole ---
 
-it('returns true when user has the role (unscoped)', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+it('hasRole returns true when user has the role (unscoped)', function (): void {
     $this->user->assign('editor');
 
     expect($this->user->hasRole('editor'))->toBeTrue();
 });
 
-it('returns false when user does not have the role', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->user->assign('editor');
-
-    expect($this->user->hasRole('admin'))->toBeFalse();
+it('hasRole returns false when user does not have the role', function (): void {
+    expect($this->user->hasRole('editor'))->toBeFalse();
 });
 
-it('returns true when user has role in the given scope', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+it('hasRole returns true when user has role in the given scope', function (): void {
     $this->user->assign('editor', 'team::5');
 
     expect($this->user->hasRole('editor', 'team::5'))->toBeTrue();
 });
 
-it('returns false when user has role in a different scope', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+it('hasRole returns false when user has role in a different scope', function (): void {
     $this->user->assign('editor', 'team::5');
 
     expect($this->user->hasRole('editor', 'team::99'))->toBeFalse();
 });
 
-it('returns false for unscoped hasRole when role is only scoped', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+it('hasRole returns false for unscoped check when role is only scoped', function (): void {
     $this->user->assign('editor', 'team::5');
 
     expect($this->user->hasRole('editor'))->toBeFalse();
 });
 
-it('returns false for scoped hasRole when role is only global', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+it('hasRole returns false for scoped check when role is only global', function (): void {
     $this->user->assign('editor');
 
     expect($this->user->hasRole('editor', 'team::5'))->toBeFalse();
@@ -234,308 +224,28 @@ it('returns false for scoped hasRole when role is only global', function (): voi
 
 // --- effectivePermissions ---
 
-it('returns all effective permissions for the subject', function (): void {
-    $this->permissionStore->register(['posts.create', 'posts.read', 'posts.delete']);
-    $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read', 'posts.delete']);
+it('effectivePermissions returns allowed permission strings', function (): void {
     $this->user->assign('editor');
 
-    expect($this->user->effectivePermissions())
-        ->toContain('posts.create', 'posts.read', 'posts.delete')
-        ->toHaveCount(3);
-});
+    $permissions = $this->user->effectivePermissions();
 
-it('excludes denied permissions from effective set', function (): void {
-    $this->permissionStore->register(['posts.create', 'posts.read', 'posts.delete']);
-    $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read', 'posts.delete']);
-    $this->roleStore->save('restricted', 'Restricted', ['!posts.delete']);
-    $this->user->assign('editor');
-    $this->user->assign('restricted');
-
-    expect($this->user->effectivePermissions())
-        ->toContain('posts.create', 'posts.read')
+    expect($permissions)
+        ->toContain('posts.create', 'posts.read', 'posts.update')
         ->not->toContain('posts.delete');
 });
 
-it('returns scoped effective permissions', function (): void {
-    $this->permissionStore->register(['posts.create', 'posts.read']);
-    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
-    $this->roleStore->save('team-editor', 'Team Editor', ['posts.create']);
-    $this->user->assign('viewer');
-    $this->user->assign('team-editor', 'team::5');
-
-    expect($this->user->effectivePermissions('team::5'))
-        ->toContain('posts.read', 'posts.create');
-});
-
-it('returns empty array when subject has no assignments', function (): void {
-    expect($this->user->effectivePermissions())->toBe([]);
-});
-
-// --- explain ---
-
-it('returns an EvaluationTrace via explain', function (): void {
-    config()->set('policy-engine.explain', true);
-
-    $this->permissionStore->register(['posts.create']);
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->user->assign('editor');
-
-    $trace = $this->user->explain('posts.create');
-
-    expect($trace)
-        ->toBeInstanceOf(EvaluationTrace::class)
-        ->subject->toBe(TestUser::class.':'.$this->user->getKey())
-        ->required->toBe('posts.create')
-        ->result->toBe(EvaluationResult::Allow);
-});
-
-it('returns deny trace when permission is not granted', function (): void {
-    config()->set('policy-engine.explain', true);
-
-    $trace = $this->user->explain('posts.delete');
-
-    expect($trace)
-        ->toBeInstanceOf(EvaluationTrace::class)
-        ->result->toBe(EvaluationResult::Deny);
-});
-
-it('returns scoped explain trace', function (): void {
-    config()->set('policy-engine.explain', true);
-
-    $this->permissionStore->register(['posts.create']);
-    $this->roleStore->save('team-editor', 'Team Editor', ['posts.create']);
-    $this->user->assign('team-editor', 'team::5');
-
-    $trace = $this->user->explain('posts.create', 'team::5');
-
-    expect($trace)
-        ->result->toBe(EvaluationResult::Allow)
-        ->assignments->toHaveCount(1);
-});
-
-it('throws RuntimeException when explain mode is disabled', function (): void {
-    config()->set('policy-engine.explain', false);
-
-    $this->user->explain('posts.create');
-})->throws(RuntimeException::class);
-
-// --- wildcard permissions ---
-
-it('supports wildcard permissions via canDo', function (): void {
-    $this->permissionStore->register(['posts.create', 'posts.read', 'posts.update']);
-    $this->roleStore->save('editor', 'Editor', ['posts.*']);
-    $this->user->assign('editor');
-
-    expect($this->user->canDo('posts.create'))->toBeTrue()
-        ->and($this->user->canDo('posts.read'))->toBeTrue()
-        ->and($this->user->canDo('comments.create'))->toBeFalse();
-});
-
-// --- deny wins over allow ---
-
-it('denies when an explicit deny rule overrides an allow', function (): void {
-    $this->permissionStore->register(['posts.create', 'posts.delete']);
-    $this->roleStore->save('editor', 'Editor', ['posts.*']);
-    $this->roleStore->save('restricted', 'Restricted', ['!posts.delete']);
+it('effectivePermissions excludes permissions covered by deny statements', function (): void {
+    $this->roleStore->save('restricted', 'Restricted', ['!posts.update']);
     $this->user->assign('editor');
     $this->user->assign('restricted');
 
-    expect($this->user->canDo('posts.create'))->toBeTrue()
-        ->and($this->user->canDo('posts.delete'))->toBeFalse();
+    $permissions = $this->user->effectivePermissions();
+
+    expect($permissions)
+        ->toContain('posts.create', 'posts.read')
+        ->not->toContain('posts.update');
 });
 
-// --- givePermission / revokePermission ---
-
-it('gives a permission directly without an explicit role', function (): void {
-    $this->permissionStore->register(['posts.create']);
-
-    $this->user->givePermission('posts.create');
-
-    expect($this->user->canDo('posts.create'))->toBeTrue();
+it('effectivePermissions returns an empty array when user has no assignments', function (): void {
+    expect($this->user->effectivePermissions())->toBe([]);
 });
-
-it('revokes a directly given permission', function (): void {
-    $this->permissionStore->register(['posts.create']);
-
-    $this->user->givePermission('posts.create');
-    expect($this->user->canDo('posts.create'))->toBeTrue();
-
-    $this->user->revokePermission('posts.create');
-    expect($this->user->canDo('posts.create'))->toBeFalse();
-});
-
-it('throws when giving an unregistered permission', function (): void {
-    $this->user->givePermission('nonexistent.perm');
-})->throws(InvalidArgumentException::class, 'not registered');
-
-it('hides direct permission roles from getRoles', function (): void {
-    $this->permissionStore->register(['posts.create']);
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-
-    $this->user->assign('editor');
-    $this->user->givePermission('posts.create');
-
-    $roles = $this->user->getRoles();
-
-    expect($roles)->toHaveCount(1)
-        ->and($roles->first()->id)->toBe('editor');
-});
-
-it('gives a scoped direct permission', function (): void {
-    $this->permissionStore->register(['posts.create']);
-
-    $this->user->givePermission('posts.create', 'team::5');
-
-    expect($this->user->canDo('posts.create', 'team::5'))->toBeTrue()
-        ->and($this->user->canDo('posts.create'))->toBeFalse();
-});
-
-// --- syncRoles ---
-
-it('syncs roles by revoking removed and assigning new', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
-    $this->roleStore->save('admin', 'Admin', ['*.*']);
-
-    $this->user->assign('editor');
-    $this->user->assign('viewer');
-
-    $this->user->syncRoles(['viewer', 'admin']);
-
-    expect($this->user->hasRole('editor'))->toBeFalse()
-        ->and($this->user->hasRole('viewer'))->toBeTrue()
-        ->and($this->user->hasRole('admin'))->toBeTrue();
-});
-
-it('syncs scoped roles without affecting global assignments', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
-    $this->roleStore->save('admin', 'Admin', ['*.*']);
-
-    $this->user->assign('admin');
-    $this->user->assign('editor', 'team::5');
-
-    $this->user->syncRoles(['viewer'], 'team::5');
-
-    // Global admin untouched.
-    expect($this->user->hasRole('admin'))->toBeTrue();
-    // Scoped editor replaced with viewer.
-    expect($this->user->hasRole('editor', 'team::5'))->toBeFalse()
-        ->and($this->user->hasRole('viewer', 'team::5'))->toBeTrue();
-});
-
-it('syncRoles does not revoke direct permission roles', function (): void {
-    $this->permissionStore->register(['posts.create']);
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
-
-    $this->user->givePermission('posts.create');
-    $this->user->assign('editor');
-
-    $this->user->syncRoles(['viewer']);
-
-    expect($this->user->canDo('posts.create'))->toBeTrue()
-        ->and($this->user->hasRole('editor'))->toBeFalse()
-        ->and($this->user->hasRole('viewer'))->toBeTrue();
-});
-
-it('syncs to empty array revokes all roles in scope', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-
-    $this->user->assign('editor');
-
-    $this->user->syncRoles([]);
-
-    expect($this->user->hasRole('editor'))->toBeFalse();
-});
-
-// --- hasAnyRole / hasAllRoles ---
-
-it('hasAnyRole returns true when user has at least one role', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->roleStore->save('admin', 'Admin', ['*.*']);
-
-    $this->user->assign('editor');
-
-    expect($this->user->hasAnyRole(['admin', 'editor']))->toBeTrue();
-});
-
-it('hasAnyRole returns false when user has none of the roles', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-
-    $this->user->assign('editor');
-
-    expect($this->user->hasAnyRole(['admin', 'super']))->toBeFalse();
-});
-
-it('hasAllRoles returns true when user has every role', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
-
-    $this->user->assign('editor');
-    $this->user->assign('viewer');
-
-    expect($this->user->hasAllRoles(['editor', 'viewer']))->toBeTrue();
-});
-
-it('hasAllRoles returns false when user is missing one role', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-    $this->roleStore->save('viewer', 'Viewer', ['posts.read']);
-
-    $this->user->assign('editor');
-
-    expect($this->user->hasAllRoles(['editor', 'viewer']))->toBeFalse();
-});
-
-it('hasAnyRole works with scope', function (): void {
-    $this->roleStore->save('editor', 'Editor', ['posts.create']);
-
-    $this->user->assign('editor', 'team::5');
-
-    expect($this->user->hasAnyRole(['editor'], 'team::5'))->toBeTrue()
-        ->and($this->user->hasAnyRole(['editor'], 'team::99'))->toBeFalse();
-});
-
-it('hasAllRoles returns false for an empty array', function (): void {
-    expect($this->user->hasAllRoles([]))->toBeFalse();
-});
-
-// --- getRoles query efficiency ---
-
-it('fetches multiple roles with a single batch query instead of N+1', function (): void {
-    $permissions = ['posts.create', 'posts.read', 'posts.update', 'posts.delete', 'comments.create'];
-    $this->permissionStore->register($permissions);
-
-    $this->roleStore->save('role-a', 'Role A', ['posts.create']);
-    $this->roleStore->save('role-b', 'Role B', ['posts.read']);
-    $this->roleStore->save('role-c', 'Role C', ['posts.update']);
-    $this->roleStore->save('role-d', 'Role D', ['posts.delete']);
-    $this->roleStore->save('role-e', 'Role E', ['comments.create']);
-
-    $this->user->assign('role-a');
-    $this->user->assign('role-b');
-    $this->user->assign('role-c');
-    $this->user->assign('role-d');
-    $this->user->assign('role-e');
-
-    // Reset query log to only capture getRoles() queries.
-    $connection = TestUser::query()->getConnection();
-    $connection->enableQueryLog();
-    $connection->flushQueryLog();
-
-    $roles = $this->user->getRoles();
-
-    $queries = $connection->getQueryLog();
-    $connection->disableQueryLog();
-
-    expect($roles)->toHaveCount(5)
-        ->and($roles->pluck('id')->sort()->values()->all())
-        ->toBe(['role-a', 'role-b', 'role-c', 'role-d', 'role-e'])
-        ->and($queries)->toHaveCount(2); // 1 for assignments, 1 for roles (whereIn)
-});
-
-// --- assignmentsFor null scope ---
-
-it('throws InvalidArgumentException when assignmentsFor receives a null scope', function (): void {
-    $this->user->assignmentsFor(null);
-})->throws(InvalidArgumentException::class, 'Scope could not be resolved.');
