@@ -5,6 +5,7 @@ declare(strict_types=1);
 use DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver;
 use DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver;
 use DynamikDev\PolicyEngine\Resolvers\ResourcePolicyResolver;
+use DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver;
 
 return [
     'cache' => [
@@ -27,5 +28,6 @@ return [
         IdentityPolicyResolver::class,
         BoundaryPolicyResolver::class,
         ResourcePolicyResolver::class,
+        SanctumPolicyResolver::class,
     ],
 ];

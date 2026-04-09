@@ -281,8 +281,22 @@ it('role middleware resolves scope from route model binding', function (): void 
 // --- can middleware: Sanctum token scoping ---
 
 it('can middleware denies when Sanctum token lacks the required ability', function (): void {
-    // SanctumPolicyResolver not yet implemented (Task 5.1).
-})->skip('SanctumPolicyResolver not yet implemented (Task 5.1)');
+    Route::middleware('can:posts.create')->get('/sanctum-deny-test', fn () => response()->json(['ok' => true]));
+
+    $this->permissionStore->register(['posts.create', 'posts.read']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read']);
+
+    $sanctumUser = MiddlewareTestSanctumUser::query()->create(['name' => 'Token User']);
+    $this->assignmentStore->assign($sanctumUser->getMorphClass(), $sanctumUser->getKey(), 'editor');
+
+    $token = new PersonalAccessToken;
+    $token->abilities = ['posts.read'];
+    $sanctumUser->withAccessToken($token);
+
+    $this->actingAs($sanctumUser)
+        ->getJson('/sanctum-deny-test')
+        ->assertForbidden();
+});
 
 it('can middleware allows when Sanctum token includes the required ability', function (): void {
     Route::middleware('can:posts.create')->get('/sanctum-test', fn () => response()->json(['ok' => true]));

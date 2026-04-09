@@ -43,6 +43,7 @@ use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 use DynamikDev\PolicyEngine\Middleware\RoleMiddleware;
 use DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver;
 use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
+use DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver;
 use DynamikDev\PolicyEngine\Stores\CachingBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
@@ -88,6 +89,13 @@ class PolicyEngineServiceProvider extends ServiceProvider
             $registry->register('time_between', TimeBetweenEvaluator::class);
 
             return $registry;
+        });
+
+        $this->app->singleton(SanctumPolicyResolver::class, function ($app): SanctumPolicyResolver {
+            return new SanctumPolicyResolver(
+                matcher: $app->make(Matcher::class),
+                permissionStore: $app->make(PermissionStore::class),
+            );
         });
 
         $this->app->singleton(BoundaryPolicyResolver::class, function ($app) {
