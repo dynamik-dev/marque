@@ -35,6 +35,7 @@ class IdentityPolicyResolver implements PolicyResolver
             return collect();
         }
 
+        /** @var array<int, string> $roleIds */
         $roleIds = $assignments->pluck('role_id')->unique()->values()->all();
         $permissionsByRole = $this->roles->permissionsForRoles($roleIds);
 

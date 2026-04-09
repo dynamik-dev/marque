@@ -34,6 +34,7 @@ class ResourcePolicy extends Model
 
     public function getEffectEnum(): Effect
     {
+        /** @var Effect */
         return constant(Effect::class.'::'.$this->effect);
     }
 

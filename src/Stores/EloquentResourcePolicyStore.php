@@ -85,7 +85,7 @@ class EloquentResourcePolicyStore implements ResourcePolicyStore
                 type: $item['type'],
                 parameters: $item['parameters'] ?? [],
             ),
-            $raw,
+            array_filter($raw, 'is_array'),
         );
     }
 

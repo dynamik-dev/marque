@@ -16,7 +16,7 @@ class AttributeInEvaluator implements ConditionEvaluator
         $key = $condition->parameters['key'] ?? null;
         $values = $condition->parameters['values'] ?? null;
 
-        if ($source === null || $key === null || ! is_array($values)) {
+        if (! is_string($source) || ! is_string($key) || ! is_array($values)) {
             return false;
         }
 
@@ -41,7 +41,7 @@ class AttributeInEvaluator implements ConditionEvaluator
     {
         return match ($source) {
             'principal' => $request->principal->attributes,
-            'resource' => $request->resource?->attributes ?? [],
+            'resource' => $request->resource->attributes ?? [],
             'environment' => $request->context->environment,
             default => [],
         };

@@ -15,7 +15,7 @@ class EnvironmentEqualsEvaluator implements ConditionEvaluator
         $key = $condition->parameters['key'] ?? null;
         $expected = $condition->parameters['value'] ?? null;
 
-        if ($key === null) {
+        if (! is_string($key)) {
             return false;
         }
 

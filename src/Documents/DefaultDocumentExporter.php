@@ -8,7 +8,6 @@ use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
 use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 use DynamikDev\PolicyEngine\Models\Assignment;
@@ -24,7 +23,6 @@ class DefaultDocumentExporter implements DocumentExporter
         private readonly RoleStore $roleStore,
         private readonly AssignmentStore $assignmentStore,
         private readonly BoundaryStore $boundaryStore,
-        private readonly ResourcePolicyStore $resourcePolicyStore,
     ) {}
 
     public function export(?string $scope = null): PolicyDocument

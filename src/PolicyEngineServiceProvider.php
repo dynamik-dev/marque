@@ -112,7 +112,8 @@ class PolicyEngineServiceProvider extends ServiceProvider
         });
 
         $this->app->singleton(Evaluator::class, function ($app): CachedEvaluator {
-            $resolverClasses = (array) config('policy-engine.resolvers', []);
+            /** @var array<int, string> $resolverClasses */
+            $resolverClasses = config('policy-engine.resolvers', []);
             $resolvers = array_map(
                 fn (string $class): PolicyResolver => $app->make($class),
                 $resolverClasses,
@@ -184,6 +185,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
                 return null;
             }
 
+            /** @var array<int, string> $passthrough */
             $passthrough = config('policy-engine.gate_passthrough', []);
             if (in_array($ability, $passthrough, true)) {
                 return null;
@@ -216,7 +218,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
             if ($first instanceof Resource) {
                 return [null, $first];
             }
-            if (method_exists($first, 'toPolicyResource')) {
+            if (is_object($first) && method_exists($first, 'toPolicyResource')) {
                 return [null, $first->toPolicyResource()];
             }
 

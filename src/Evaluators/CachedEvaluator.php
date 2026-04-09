@@ -32,7 +32,7 @@ class CachedEvaluator implements Evaluator
 
         $cached = $store->get($cacheKey);
 
-        if (is_array($cached)) {
+        if (is_array($cached) && is_string($cached['d'] ?? null) && is_string($cached['b'] ?? null)) {
             return new EvaluationResult(
                 decision: Decision::from($cached['d']),
                 decidedBy: $cached['b'],
@@ -84,6 +84,9 @@ class CachedEvaluator implements Evaluator
 
     private function ttl(): int
     {
-        return (int) config('policy-engine.cache.ttl', 300);
+        /** @var int $ttl */
+        $ttl = config('policy-engine.cache.ttl', 300);
+
+        return $ttl;
     }
 }

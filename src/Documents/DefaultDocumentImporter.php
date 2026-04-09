@@ -211,9 +211,12 @@ class DefaultDocumentImporter implements DocumentImporter
             $result = [];
 
             foreach ($boundaries as $scope => $boundaryData) {
+                $data = is_array($boundaryData) ? $boundaryData : [];
+                /** @var array<int, string> $maxPermissions */
+                $maxPermissions = $data['max_permissions'] ?? [];
                 $result[] = [
                     'scope' => (string) $scope,
-                    'max_permissions' => $boundaryData['max_permissions'] ?? [],
+                    'max_permissions' => $maxPermissions,
                 ];
             }
 
@@ -266,7 +269,7 @@ class DefaultDocumentImporter implements DocumentImporter
         }
 
         foreach ($document->resourcePolicies as $entry) {
-            $conditions = $this->hydrateConditions($entry['conditions'] ?? []);
+            $conditions = $this->hydrateConditions($entry['conditions']);
 
             $statement = new PolicyStatement(
                 effect: Effect::{$entry['effect']},
@@ -303,13 +306,16 @@ class DefaultDocumentImporter implements DocumentImporter
             $result = [];
 
             foreach ($roles as $roleId => $roleData) {
+                $data = is_array($roleData) ? $roleData : [];
+                /** @var array<int, string> $permissions */
+                $permissions = $data['permissions'] ?? [];
                 $entry = [
                     'id' => (string) $roleId,
-                    'name' => $roleData['name'] ?? (string) $roleId,
-                    'permissions' => $roleData['permissions'] ?? [],
+                    'name' => is_string($data['name'] ?? null) ? $data['name'] : (string) $roleId,
+                    'permissions' => $permissions,
                 ];
 
-                if (! empty($roleData['system'])) {
+                if (! empty($data['system'])) {
                     $entry['system'] = true;
                 }
 

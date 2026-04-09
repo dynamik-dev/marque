@@ -18,7 +18,7 @@ class TimeBetweenEvaluator implements ConditionEvaluator
         $end = $condition->parameters['end'] ?? null;
         $timezone = $condition->parameters['timezone'] ?? 'UTC';
 
-        if (! is_string($start) || ! is_string($end) || $start === '' || $end === '') {
+        if (! is_string($start) || ! is_string($end) || $start === '' || $end === '' || ! is_string($timezone)) {
             return false;
         }
 
@@ -30,7 +30,7 @@ class TimeBetweenEvaluator implements ConditionEvaluator
             return false;
         }
 
-        if ($startTime === false || $endTime === false) {
+        if ($startTime === null || $endTime === null) {
             return false;
         }
 

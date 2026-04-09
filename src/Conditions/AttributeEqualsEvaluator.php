@@ -19,7 +19,7 @@ class AttributeEqualsEvaluator implements ConditionEvaluator
         $subjectKey = $condition->parameters['subject_key'] ?? null;
         $resourceKey = $condition->parameters['resource_key'] ?? null;
 
-        if ($subjectKey === null || $resourceKey === null) {
+        if (! is_string($subjectKey) || ! is_string($resourceKey)) {
             return false;
         }
 

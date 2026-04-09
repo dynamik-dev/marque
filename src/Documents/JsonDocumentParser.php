@@ -82,6 +82,7 @@ class JsonDocumentParser implements DocumentParser
         if (array_key_exists('roles', $data)) {
             $rawRoles = $data['roles'];
             if (is_array($rawRoles) && $this->isAssociativeArray($rawRoles) && $rawRoles !== []) {
+                /** @var array<string, mixed> $rawRoles */
                 $this->validateV2Roles($rawRoles, $errors);
             } else {
                 $this->validateRoles($rawRoles, $errors);
@@ -95,6 +96,7 @@ class JsonDocumentParser implements DocumentParser
         if (array_key_exists('boundaries', $data)) {
             $rawBoundaries = $data['boundaries'];
             if (is_array($rawBoundaries) && $this->isAssociativeArray($rawBoundaries) && $rawBoundaries !== []) {
+                /** @var array<string, mixed> $rawBoundaries */
                 $this->validateV2Boundaries($rawBoundaries, $errors);
             } else {
                 $this->validateBoundaries($rawBoundaries, $errors);
@@ -140,10 +142,12 @@ class JsonDocumentParser implements DocumentParser
                 continue;
             }
 
+            /** @var array<int, string> $permissions */
+            $permissions = $roleData['permissions'] ?? [];
             $entry = [
                 'id' => $roleId,
-                'name' => $roleData['name'] ?? $roleId,
-                'permissions' => $roleData['permissions'] ?? [],
+                'name' => is_string($roleData['name'] ?? null) ? $roleData['name'] : $roleId,
+                'permissions' => $permissions,
             ];
 
             if (! empty($roleData['system'])) {
@@ -171,9 +175,11 @@ class JsonDocumentParser implements DocumentParser
                 continue;
             }
 
+            /** @var array<int, string> $maxPermissions */
+            $maxPermissions = $boundaryData['max_permissions'] ?? [];
             $result[] = [
                 'scope' => $scope,
-                'max_permissions' => $boundaryData['max_permissions'] ?? [],
+                'max_permissions' => $maxPermissions,
             ];
         }
 
@@ -199,12 +205,12 @@ class JsonDocumentParser implements DocumentParser
             }
 
             $result[] = [
-                'resource_type' => $entry['resource_type'] ?? '',
-                'resource_id' => isset($entry['resource_id']) ? (string) $entry['resource_id'] : null,
-                'effect' => $entry['effect'] ?? 'Allow',
-                'action' => $entry['action'] ?? '',
-                'principal_pattern' => isset($entry['principal_pattern']) ? (string) $entry['principal_pattern'] : null,
-                'conditions' => $entry['conditions'] ?? [],
+                'resource_type' => is_string($entry['resource_type'] ?? null) ? $entry['resource_type'] : '',
+                'resource_id' => isset($entry['resource_id']) && is_scalar($entry['resource_id']) ? (string) $entry['resource_id'] : null,
+                'effect' => is_string($entry['effect'] ?? null) ? $entry['effect'] : 'Allow',
+                'action' => is_string($entry['action'] ?? null) ? $entry['action'] : '',
+                'principal_pattern' => isset($entry['principal_pattern']) && is_string($entry['principal_pattern']) ? $entry['principal_pattern'] : null,
+                'conditions' => is_array($entry['conditions'] ?? null) ? $entry['conditions'] : [],
             ];
         }
 
@@ -245,7 +251,9 @@ class JsonDocumentParser implements DocumentParser
                 $entry['system'] = true;
             }
 
-            $result[$role['id']] = $entry;
+            /** @var string $roleId */
+            $roleId = $role['id'];
+            $result[$roleId] = $entry;
         }
 
         return $result;
@@ -277,7 +285,9 @@ class JsonDocumentParser implements DocumentParser
                 continue;
             }
 
-            $result[$boundary['scope']] = [
+            /** @var string $scopeKey */
+            $scopeKey = $boundary['scope'];
+            $result[$scopeKey] = [
                 'max_permissions' => $boundary['max_permissions'] ?? [],
             ];
         }

@@ -36,9 +36,12 @@ class SanctumPolicyResolver implements PolicyResolver
             return collect();
         }
 
+        /** @var string|int $authId */
+        $authId = $user->getAuthIdentifier();
+
         if (
             $user->getMorphClass() !== $request->principal->type
-            || (string) $user->getAuthIdentifier() !== (string) $request->principal->id
+            || (string) $authId !== (string) $request->principal->id
         ) {
             return collect();
         }
