@@ -20,7 +20,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 
-uses(RefreshDatabase::class);
+uses(RefreshDatabase::class)->group('benchmark');
 
 // --- Models ---
 
