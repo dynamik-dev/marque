@@ -1,6 +1,6 @@
 # Importing and Exporting Policy Documents
 
-Import JSON documents to apply authorization config. Export your current state to a portable document for version control, environment sync, or backup. See [document format](document-format.md) for the JSON structure.
+Import JSON documents to apply authorization config. Export your current state to a portable document for version control, environment sync, or backup. Export always produces v2 format; import accepts both v1 and v2. See [document format](document-format.md) for the JSON structure.
 
 ## Importing a document from a file
 
@@ -82,7 +82,7 @@ Imports permissions, roles, and boundaries but ignores the `assignments` section
 $json = PolicyEngine::export();
 ```
 
-Returns a JSON string containing all permissions, roles, assignments, and boundaries.
+Returns a JSON string containing all permissions, roles, assignments, boundaries, and resource policies. Export always produces v2 format (`"version": "2.0"`), even when the data was originally imported from a v1 document.
 
 ## Exporting to a file
 
@@ -101,6 +101,7 @@ Scoped export includes:
 - **Roles** — only roles with at least one assignment in the scope
 - **Assignments** — only those matching the scope
 - **Boundaries** — only the boundary for that exact scope
+- **Resource policies** — excluded from scoped exports (only included in full exports)
 
 ```php
 PolicyEngine::exportToFile(
@@ -150,3 +151,27 @@ See [Artisan commands](../cli/artisan-commands.md) for the full command referenc
 | Role sharing | Share a role document as a gist or in docs |
 | Auditing | Diff two exported documents to see what changed |
 | Approval flow | Custom `DocumentImporter` that queues for admin review |
+
+## Importing v1 documents
+
+The importer accepts v1-format documents without any changes. V1 roles (array of objects) and boundaries (array of objects) are normalized internally during parsing.
+
+```json
+{
+    "version": "1.0",
+    "roles": [
+        {"id": "editor", "name": "Editor", "permissions": ["posts.create"]}
+    ],
+    "boundaries": [
+        {"scope": "org::acme", "max_permissions": ["posts.*"]}
+    ]
+}
+```
+
+```php
+$result = PolicyEngine::import($v1JsonString);
+```
+
+Missing v2 sections like `resource_policies` default to empty. When you re-export after importing a v1 document, the output is v2 format.
+
+> You do not need to migrate existing v1 documents. Keep them as-is and let the parser handle the conversion.

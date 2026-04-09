@@ -72,15 +72,68 @@ Manages permission ceilings per scope.
 
 ### `Evaluator`
 
-The core authorization engine.
+The core authorization engine. Accepts a single `EvaluationRequest` DTO and returns an `EvaluationResult`.
 
 | Method | Returns | Description |
 | --- | --- | --- |
-| `can(string $subjectType, string\|int $subjectId, string $permission)` | `bool` | Resolve assignments, roles, permissions, boundaries, deny/allow. |
-| `explain(string $subjectType, string\|int $subjectId, string $permission)` | `EvaluationTrace` | Full decision trace for debugging. |
-| `effectivePermissions(string $subjectType, string\|int $subjectId, ?string $scope = null)` | `array` | Net permissions after deny rules are applied. |
+| `evaluate(EvaluationRequest $request)` | `EvaluationResult` | Run the full evaluation pipeline and return the decision. |
+
+The `EvaluationRequest` bundles a `Principal`, an action string, an optional `Resource`, and a `Context` (scope + environment). The `EvaluationResult` contains the `Decision` enum, a `decidedBy` string, and optional `matchedStatements` and `trace` arrays (populated when the `trace` config is enabled).
 
 **Default implementation:** `DynamikDev\PolicyEngine\Evaluators\CachedEvaluator` (wraps `DefaultEvaluator`)
+
+---
+
+### `PolicyResolver`
+
+Produces `PolicyStatement` collections for an evaluation request. The evaluator calls every registered resolver and merges their results.
+
+| Method | Returns | Description |
+| --- | --- | --- |
+| `resolve(EvaluationRequest $request)` | `Collection<PolicyStatement>` | Return Allow/Deny statements relevant to the request. |
+
+Each resolver is registered in the `resolvers` config array. See [Adding a custom PolicyResolver](../extending/swapping-implementations.md#adding-a-custom-policyresolver).
+
+**Default implementations:** `IdentityPolicyResolver`, `BoundaryPolicyResolver`, `ResourcePolicyResolver`, `SanctumPolicyResolver`
+
+---
+
+### `ConditionEvaluator`
+
+Evaluates a single condition attached to a `PolicyStatement`.
+
+| Method | Returns | Description |
+| --- | --- | --- |
+| `passes(Condition $condition, EvaluationRequest $request)` | `bool` | Return whether the condition is satisfied for the request. |
+
+Condition evaluators are registered in the `ConditionRegistry` by type string. Built-in types: `attribute_equals`, `attribute_in`, `environment_equals`, `ip_range`, `time_between`.
+
+---
+
+### `ConditionRegistry`
+
+Maps condition type strings to their `ConditionEvaluator` implementations.
+
+| Method | Returns | Description |
+| --- | --- | --- |
+| `register(string $type, string $evaluatorClass)` | `void` | Register an evaluator class for a condition type. |
+| `evaluatorFor(string $type)` | `ConditionEvaluator` | Retrieve the evaluator for a condition type. |
+
+**Default implementation:** `DynamikDev\PolicyEngine\Conditions\DefaultConditionRegistry`
+
+---
+
+### `ResourcePolicyStore`
+
+Manages policy statements attached directly to resource models.
+
+| Method | Returns | Description |
+| --- | --- | --- |
+| `forResource(string $type, string\|int\|null $id)` | `Collection<PolicyStatement>` | Get all statements for a resource. |
+| `attach(string $resourceType, string\|int\|null $resourceId, PolicyStatement $statement)` | `void` | Attach a statement to a resource. |
+| `detach(string $resourceType, string\|int\|null $resourceId, string $action)` | `void` | Detach statements matching an action from a resource. |
+
+**Default implementation:** `DynamikDev\PolicyEngine\Stores\EloquentResourcePolicyStore`
 
 ---
 

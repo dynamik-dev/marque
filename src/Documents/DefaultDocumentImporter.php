@@ -8,12 +8,17 @@ use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
 use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
+use DynamikDev\PolicyEngine\DTOs\Condition;
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\ImportResult;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
+use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
+use DynamikDev\PolicyEngine\Enums\Effect;
 use DynamikDev\PolicyEngine\Events\DocumentImported;
 use DynamikDev\PolicyEngine\Models\Permission;
+use DynamikDev\PolicyEngine\Models\ResourcePolicy;
 use DynamikDev\PolicyEngine\Support\SubjectParser;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
@@ -26,6 +31,7 @@ class DefaultDocumentImporter implements DocumentImporter
         private readonly RoleStore $roleStore,
         private readonly AssignmentStore $assignmentStore,
         private readonly BoundaryStore $boundaryStore,
+        private readonly ResourcePolicyStore $resourcePolicyStore,
     ) {}
 
     public function import(PolicyDocument $document, ImportOptions $options): ImportResult
@@ -48,6 +54,7 @@ class DefaultDocumentImporter implements DocumentImporter
             $rolesResult = $this->importRoles($document, $options, $isReplace);
             $this->importBoundaries($document, $options);
             $assignmentsCreated = $this->importAssignments($document, $options);
+            $this->importResourcePolicies($document, $options);
 
             $warnings = [...$warnings, ...$rolesResult['warnings']];
 
@@ -77,7 +84,9 @@ class DefaultDocumentImporter implements DocumentImporter
         $warnings = [];
         $documentPermissions = array_flip($document->permissions);
 
-        foreach ($document->roles as $role) {
+        $normalizedRoles = $this->normalizeRoles($document->roles);
+
+        foreach ($normalizedRoles as $role) {
             foreach ($role['permissions'] as $permission) {
                 if (! isset($documentPermissions[$permission]) && ! $this->permissionStore->exists($permission)) {
                     $warnings[] = "Permission '{$permission}' referenced in role '{$role['id']}' is not registered";
@@ -89,12 +98,13 @@ class DefaultDocumentImporter implements DocumentImporter
     }
 
     /**
-     * Remove all existing permissions, roles, assignments, and boundaries via store contracts.
+     * Remove all existing permissions, roles, assignments, boundaries, and resource policies via store contracts.
      *
      * Dispatches removal events for each entity so cache invalidation listeners fire.
      */
     private function clearAllData(): void
     {
+        ResourcePolicy::query()->delete();
         $this->assignmentStore->removeAll();
         $this->boundaryStore->removeAll();
         $this->roleStore->removeAll();
@@ -126,7 +136,8 @@ class DefaultDocumentImporter implements DocumentImporter
     }
 
     /**
-     * Import roles from the document.
+     * Import roles from the document. Supports both indexed (array of {id, name, permissions}) and
+     * keyed (by ID) formats via normalization.
      *
      * @return array{created: array<int, string>, updated: array<int, string>, warnings: array<int, string>}
      */
@@ -136,7 +147,9 @@ class DefaultDocumentImporter implements DocumentImporter
         $updated = [];
         $warnings = [];
 
-        foreach ($document->roles as $role) {
+        $normalizedRoles = $this->normalizeRoles($document->roles);
+
+        foreach ($normalizedRoles as $role) {
             $existing = $this->roleStore->find($role['id']);
             $isNew = $isReplace || $existing === null;
 
@@ -166,7 +179,8 @@ class DefaultDocumentImporter implements DocumentImporter
     }
 
     /**
-     * Import boundaries from the document.
+     * Import boundaries from the document. Supports both indexed (array of {scope, max_permissions}) and
+     * keyed (by scope string) formats via normalization.
      */
     private function importBoundaries(PolicyDocument $document, ImportOptions $options): void
     {
@@ -174,9 +188,44 @@ class DefaultDocumentImporter implements DocumentImporter
             return;
         }
 
-        foreach ($document->boundaries as $boundary) {
+        foreach ($this->normalizeBoundaries($document->boundaries) as $boundary) {
             $this->boundaryStore->set($boundary['scope'], $boundary['max_permissions']);
         }
+    }
+
+    /**
+     * Normalize boundaries from either indexed (array of objects) or keyed (by scope) format
+     * into a canonical array of {scope, max_permissions}.
+     *
+     * @param  array<mixed>  $boundaries
+     * @return array<int, array{scope: string, max_permissions: array<int, string>}>
+     */
+    private function normalizeBoundaries(array $boundaries): array
+    {
+        if ($boundaries === []) {
+            return [];
+        }
+
+        // Keyed: associative array keyed by scope string
+        if (array_keys($boundaries) !== range(0, count($boundaries) - 1)) {
+            $result = [];
+
+            foreach ($boundaries as $scope => $boundaryData) {
+                $data = is_array($boundaryData) ? $boundaryData : [];
+                /** @var array<int, string> $maxPermissions */
+                $maxPermissions = $data['max_permissions'] ?? [];
+                $result[] = [
+                    'scope' => (string) $scope,
+                    'max_permissions' => $maxPermissions,
+                ];
+            }
+
+            return $result;
+        }
+
+        // Indexed array of boundary objects — return as-is
+        /** @var array<int, array{scope: string, max_permissions: array<int, string>}> */
+        return $boundaries;
     }
 
     /**
@@ -208,6 +257,94 @@ class DefaultDocumentImporter implements DocumentImporter
         }
 
         return count($document->assignments);
+    }
+
+    /**
+     * Import resource policies from the document.
+     */
+    private function importResourcePolicies(PolicyDocument $document, ImportOptions $options): void
+    {
+        if ($options->dryRun || $document->resourcePolicies === []) {
+            return;
+        }
+
+        foreach ($document->resourcePolicies as $entry) {
+            $conditions = $this->hydrateConditions($entry['conditions']);
+
+            $statement = new PolicyStatement(
+                effect: Effect::{$entry['effect']},
+                action: $entry['action'],
+                principalPattern: $entry['principal_pattern'] ?? null,
+                resourcePattern: null,
+                conditions: $conditions,
+                source: 'document',
+            );
+
+            $this->resourcePolicyStore->attach(
+                resourceType: $entry['resource_type'],
+                resourceId: $entry['resource_id'] ?? null,
+                statement: $statement,
+            );
+        }
+    }
+
+    /**
+     * Normalize roles from either indexed (array of objects) or keyed (by ID) format
+     * into a canonical array of {id, name, permissions, system?}.
+     *
+     * @param  array<mixed>  $roles
+     * @return array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool}>
+     */
+    private function normalizeRoles(array $roles): array
+    {
+        if ($roles === []) {
+            return [];
+        }
+
+        // Keyed: associative array keyed by role ID
+        if (array_keys($roles) !== range(0, count($roles) - 1)) {
+            $result = [];
+
+            foreach ($roles as $roleId => $roleData) {
+                $data = is_array($roleData) ? $roleData : [];
+                /** @var array<int, string> $permissions */
+                $permissions = $data['permissions'] ?? [];
+                $entry = [
+                    'id' => (string) $roleId,
+                    'name' => is_string($data['name'] ?? null) ? $data['name'] : (string) $roleId,
+                    'permissions' => $permissions,
+                ];
+
+                if (! empty($data['system'])) {
+                    $entry['system'] = true;
+                }
+
+                $result[] = $entry;
+            }
+
+            return $result;
+        }
+
+        // Indexed array of role objects — return as-is
+        /** @var array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool}> */
+        return $roles;
+    }
+
+    /**
+     * Hydrate raw condition arrays into Condition DTOs.
+     *
+     * @param  array<int, mixed>  $raw
+     * @return array<int, Condition>
+     */
+    private function hydrateConditions(array $raw): array
+    {
+        return array_map(
+            static fn (array $item) => new Condition(
+                type: $item['type'],
+                parameters: $item['parameters'] ?? [],
+            ),
+            array_filter($raw, 'is_array'),
+        );
     }
 
     /**

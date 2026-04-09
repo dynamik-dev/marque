@@ -4,19 +4,29 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine;
 
+use DynamikDev\PolicyEngine\Conditions\AttributeEqualsEvaluator;
+use DynamikDev\PolicyEngine\Conditions\AttributeInEvaluator;
+use DynamikDev\PolicyEngine\Conditions\DefaultConditionRegistry;
+use DynamikDev\PolicyEngine\Conditions\EnvironmentEqualsEvaluator;
+use DynamikDev\PolicyEngine\Conditions\IpRangeEvaluator;
+use DynamikDev\PolicyEngine\Conditions\TimeBetweenEvaluator;
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Contracts\ConditionRegistry;
 use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
 use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
 use DynamikDev\PolicyEngine\Contracts\DocumentParser;
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
 use DynamikDev\PolicyEngine\Contracts\Matcher;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
+use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
 use DynamikDev\PolicyEngine\Documents\DefaultDocumentExporter;
 use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
 use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
+use DynamikDev\PolicyEngine\DTOs\Resource;
 use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
 use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
 use DynamikDev\PolicyEngine\Events\AssignmentCreated;
@@ -31,11 +41,14 @@ use DynamikDev\PolicyEngine\Events\RoleUpdated;
 use DynamikDev\PolicyEngine\Listeners\InvalidatePermissionCache;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 use DynamikDev\PolicyEngine\Middleware\RoleMiddleware;
+use DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver;
 use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
+use DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver;
 use DynamikDev\PolicyEngine\Stores\CachingBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
+use DynamikDev\PolicyEngine\Stores\EloquentResourcePolicyStore;
 use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
 use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
@@ -60,22 +73,57 @@ class PolicyEngineServiceProvider extends ServiceProvider
         $this->app->singleton(RoleStore::class, EloquentRoleStore::class);
         $this->app->singleton(AssignmentStore::class, EloquentAssignmentStore::class);
         $this->app->singleton(BoundaryStore::class, EloquentBoundaryStore::class);
+        $this->app->singleton(ResourcePolicyStore::class, EloquentResourcePolicyStore::class);
         $this->app->singleton(Matcher::class, WildcardMatcher::class);
         $this->app->singleton(ScopeResolver::class, ModelScopeResolver::class);
         $this->app->singleton(DocumentParser::class, JsonDocumentParser::class);
         $this->app->singleton(DocumentImporter::class, DefaultDocumentImporter::class);
         $this->app->singleton(DocumentExporter::class, DefaultDocumentExporter::class);
 
+        $this->app->singleton(ConditionRegistry::class, function (): DefaultConditionRegistry {
+            $registry = new DefaultConditionRegistry;
+            $registry->register('attribute_equals', AttributeEqualsEvaluator::class);
+            $registry->register('attribute_in', AttributeInEvaluator::class);
+            $registry->register('environment_equals', EnvironmentEqualsEvaluator::class);
+            $registry->register('ip_range', IpRangeEvaluator::class);
+            $registry->register('time_between', TimeBetweenEvaluator::class);
+
+            return $registry;
+        });
+
+        $this->app->singleton(SanctumPolicyResolver::class, function ($app): SanctumPolicyResolver {
+            return new SanctumPolicyResolver(
+                matcher: $app->make(Matcher::class),
+                permissionStore: $app->make(PermissionStore::class),
+            );
+        });
+
+        $this->app->singleton(BoundaryPolicyResolver::class, function ($app) {
+            return new BoundaryPolicyResolver(
+                boundaries: new CachingBoundaryStore(
+                    inner: $app->make(BoundaryStore::class),
+                    cache: $app->make(CacheManager::class),
+                ),
+                matcher: $app->make(Matcher::class),
+                permissionStore: $app->make(PermissionStore::class),
+                denyUnboundedScopes: (bool) config('policy-engine.deny_unbounded_scopes', false),
+                enforceOnGlobal: (bool) config('policy-engine.enforce_boundaries_on_global', false),
+            );
+        });
+
         $this->app->singleton(Evaluator::class, function ($app): CachedEvaluator {
+            /** @var array<int, string> $resolverClasses */
+            $resolverClasses = config('policy-engine.resolvers', []);
+            $resolvers = array_map(
+                fn (string $class): PolicyResolver => $app->make($class),
+                $resolverClasses,
+            );
+
             return new CachedEvaluator(
                 inner: new DefaultEvaluator(
-                    assignments: $app->make(AssignmentStore::class),
-                    roles: $app->make(RoleStore::class),
-                    boundaries: new CachingBoundaryStore(
-                        inner: $app->make(BoundaryStore::class),
-                        cache: $app->make(CacheManager::class),
-                    ),
+                    resolvers: $resolvers,
                     matcher: $app->make(Matcher::class),
+                    conditionRegistry: $app->make(ConditionRegistry::class),
                 ),
                 cache: $app->make(CacheManager::class),
             );
@@ -133,18 +181,12 @@ class PolicyEngineServiceProvider extends ServiceProvider
     private function registerGateHook(): void
     {
         Gate::before(static function (Authenticatable $user, string $ability, array $arguments): ?bool {
-            /*
-             * Non-dot abilities (update, delete, view) are left to Laravel's
-             * standard Gate and Policy resolution. Policies can call canDo()
-             * internally when they need the engine.
-             */
             if (! str_contains($ability, '.')) {
                 return null;
             }
 
             /** @var array<int, string> $passthrough */
             $passthrough = config('policy-engine.gate_passthrough', []);
-
             if (in_array($ability, $passthrough, true)) {
                 return null;
             }
@@ -153,11 +195,43 @@ class PolicyEngineServiceProvider extends ServiceProvider
                 return null;
             }
 
-            // Dot-notated abilities are always handled by the engine.
-            $scope = $arguments[0] ?? null;
+            [$scope, $resource] = self::resolveGateArguments($arguments);
 
-            return $user->canDo($ability, $scope);
+            return $user->canDo($ability, $scope, $resource);
         });
+    }
+
+    /**
+     * @param  array<int, mixed>  $arguments
+     * @return array{0: mixed, 1: ?resource}
+     */
+    private static function resolveGateArguments(array $arguments): array
+    {
+        $first = $arguments[0] ?? null;
+        $second = $arguments[1] ?? null;
+
+        if ($first === null) {
+            return [null, null];
+        }
+
+        if ($second === null) {
+            if ($first instanceof Resource) {
+                return [null, $first];
+            }
+            if (is_object($first) && method_exists($first, 'toPolicyResource')) {
+                return [null, $first->toPolicyResource()];
+            }
+
+            return [$first, null];
+        }
+
+        $resource = match (true) {
+            $second instanceof Resource => $second,
+            is_object($second) && method_exists($second, 'toPolicyResource') => $second->toPolicyResource(),
+            default => null,
+        };
+
+        return [$first, $resource];
     }
 
     private function registerEventListeners(): void

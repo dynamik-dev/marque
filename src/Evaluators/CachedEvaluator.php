@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace DynamikDev\PolicyEngine\Evaluators;
 
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
+use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
+use DynamikDev\PolicyEngine\DTOs\EvaluationResult;
+use DynamikDev\PolicyEngine\Enums\Decision;
 use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 
@@ -16,107 +18,40 @@ class CachedEvaluator implements Evaluator
         private readonly CacheManager $cache,
     ) {}
 
-    public function can(string $subjectType, string|int $subjectId, string $permission): bool
+    public function evaluate(EvaluationRequest $request): EvaluationResult
     {
         if (! config('policy-engine.cache.enabled')) {
-            return $this->inner->can($subjectType, $subjectId, $permission);
+            return $this->inner->evaluate($request);
         }
 
-        $generation = CacheStoreResolver::subjectGeneration($this->cache, $subjectType, $subjectId);
-        $globalGen = CacheStoreResolver::globalGeneration($this->cache);
-        $cacheKey = self::key('can', $subjectType, $subjectId, $permission, $generation, $globalGen);
-        $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
+        $principal = $request->principal;
+        $generation = CacheStoreResolver::subjectGeneration($this->cache, $principal->type, (string) $principal->id);
+        $globalGeneration = CacheStoreResolver::globalGeneration($this->cache);
+        $store = CacheStoreResolver::forSubject($this->cache, $principal->type, (string) $principal->id);
+        $cacheKey = self::key($request, $generation, $globalGeneration);
 
-        /*
-         * Race window (TOCTOU): Between the cache miss and the put() below,
-         * another request may revoke a role and clear the cache. This request
-         * would then write a stale "allowed" result that persists for the full
-         * TTL. This is inherent to cache-aside patterns. Mitigations:
-         * - Use a shorter TTL for security-critical applications
-         * - Use a dedicated cache store to isolate invalidation
-         * - See "Customizing the Cache" docs for advanced strategies
-         *
-         * Values are wrapped in an array (['v' => bool]) so that a stored
-         * `false` is never confused with a cache miss (`null`). Some cache
-         * drivers cannot distinguish stored `false` from a miss.
-         */
-        $result = $store->get($cacheKey);
+        $cached = $store->get($cacheKey);
 
-        if (is_array($result)) {
-            /** @var bool */
-            return $result['v'];
+        if (is_array($cached) && is_string($cached['d'] ?? null) && is_string($cached['b'] ?? null)) {
+            return new EvaluationResult(
+                decision: Decision::from($cached['d']),
+                decidedBy: $cached['b'],
+            );
         }
 
-        $evaluated = $this->inner->can($subjectType, $subjectId, $permission);
-        $store->put($cacheKey, ['v' => $evaluated], $this->ttl());
+        $result = $this->inner->evaluate($request);
 
-        return $evaluated;
-    }
+        $store->put($cacheKey, ['d' => $result->decision->name, 'b' => $result->decidedBy], $this->ttl());
 
-    public function explain(string $subjectType, string|int $subjectId, string $permission): EvaluationTrace
-    {
-        return $this->inner->explain($subjectType, $subjectId, $permission);
+        return $result;
     }
 
     /**
-     * @return array<int, string>
-     */
-    public function effectivePermissions(string $subjectType, string|int $subjectId, ?string $scope = null): array
-    {
-        if (! config('policy-engine.cache.enabled')) {
-            return $this->inner->effectivePermissions($subjectType, $subjectId, $scope);
-        }
-
-        $generation = CacheStoreResolver::subjectGeneration($this->cache, $subjectType, $subjectId);
-        $globalGen = CacheStoreResolver::globalGeneration($this->cache);
-        $cacheKey = self::key('effective', $subjectType, $subjectId, $scope, $generation, $globalGen);
-        $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
-
-        $result = $store->get($cacheKey);
-
-        if (is_array($result) && array_key_exists('v', $result)) {
-            /** @var array<int, string> */
-            return $result['v'];
-        }
-
-        $evaluated = $this->inner->effectivePermissions($subjectType, $subjectId, $scope);
-        $store->put($cacheKey, ['v' => $evaluated], $this->ttl());
-
-        return $evaluated;
-    }
-
-    public function hasRole(string $subjectType, string|int $subjectId, string $role, ?string $scope = null): bool
-    {
-        if (! config('policy-engine.cache.enabled')) {
-            return $this->inner->hasRole($subjectType, $subjectId, $role, $scope);
-        }
-
-        $generation = CacheStoreResolver::subjectGeneration($this->cache, $subjectType, $subjectId);
-        $globalGen = CacheStoreResolver::globalGeneration($this->cache);
-        $cacheKey = self::key('role', $subjectType, $subjectId, $role.($scope !== null ? ":{$scope}" : ''), $generation, $globalGen);
-        $store = CacheStoreResolver::forSubject($this->cache, $subjectType, $subjectId);
-
-        $result = $store->get($cacheKey);
-
-        if (is_array($result)) {
-            /** @var bool */
-            return $result['v'];
-        }
-
-        $evaluated = $this->inner->hasRole($subjectType, $subjectId, $role, $scope);
-        $store->put($cacheKey, ['v' => $evaluated], $this->ttl());
-
-        return $evaluated;
-    }
-
-    /**
-     * Build a namespaced cache key.
+     * Build a namespaced cache key for an EvaluationRequest.
      *
-     * Format: policy-engine:{type}:{subjectType}:{subjectId}[:g{generation}]:{hashedSuffix}
-     * The type prefix (can, role, effective) prevents collisions between
-     * different cache entry kinds. The suffix is hashed with MD5 to ensure
-     * safe key lengths across all cache drivers (Memcached 250-char limit,
-     * file-based drivers that use the key as a filename, etc.).
+     * Format: policy-engine:eval:{principalType}:{principalId}[:g{combinedGen}]:{md5hash}
+     * The hash encodes the full request identity (principal, action, resource, scope)
+     * to prevent collisions across different request shapes sharing the same subject.
      *
      * The generation segment combines global and per-subject generations on
      * non-tagged stores. Global generation is incremented by flush() (role/
@@ -124,9 +59,10 @@ class CachedEvaluator implements Evaluator
      * flushSubject() (assignment changes). Both must be embedded so either
      * invalidation path renders old keys unreachable.
      */
-    public static function key(string $type, string $subjectType, string|int $subjectId, ?string $suffix = null, int $generation = 0, int $globalGeneration = 0): string
+    public static function key(EvaluationRequest $request, int $generation = 0, int $globalGeneration = 0): string
     {
-        $key = "policy-engine:{$type}:{$subjectType}:{$subjectId}";
+        $principal = $request->principal;
+        $key = "policy-engine:eval:{$principal->type}:{$principal->id}";
 
         $combinedGeneration = $globalGeneration + $generation;
 
@@ -134,19 +70,16 @@ class CachedEvaluator implements Evaluator
             $key .= ":g{$combinedGeneration}";
         }
 
-        if ($suffix !== null) {
-            $key .= ':'.md5($suffix);
-        }
+        $hash = md5(serialize([
+            $principal->type,
+            $principal->id,
+            $request->action,
+            $request->resource?->type,
+            $request->resource?->id,
+            $request->context->scope,
+        ]));
 
-        return $key;
-    }
-
-    /**
-     * @deprecated Use key() instead. Kept for backward compatibility.
-     */
-    public static function cacheKey(string $subjectType, string|int $subjectId, ?string $permission = null): string
-    {
-        return self::key('can', $subjectType, $subjectId, $permission);
+        return "{$key}:{$hash}";
     }
 
     private function ttl(): int

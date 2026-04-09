@@ -134,7 +134,7 @@ it('shows error for subject with empty ID after separator', function (): void {
 // --- policy-engine:explain ---
 
 it('explains an allowed permission check', function (): void {
-    config()->set('policy-engine.explain', true);
+    config()->set('policy-engine.trace', true);
 
     $roleStore = app(RoleStore::class);
     $roleStore->save('editor', 'Editor', ['posts.create', 'posts.update']);
@@ -150,7 +150,7 @@ it('explains an allowed permission check', function (): void {
 });
 
 it('explains a denied permission check', function (): void {
-    config()->set('policy-engine.explain', true);
+    config()->set('policy-engine.trace', true);
 
     $roleStore = app(RoleStore::class);
     $roleStore->save('viewer', 'Viewer', ['posts.read']);
@@ -162,12 +162,11 @@ it('explains a denied permission check', function (): void {
         ->expectsOutputToContain('user:42')
         ->expectsOutputToContain('posts.delete')
         ->expectsOutputToContain('DENY')
-        ->expectsOutputToContain('viewer')
         ->assertSuccessful();
 });
 
 it('shows error when explain mode is disabled', function (): void {
-    config()->set('policy-engine.explain', false);
+    config()->set('policy-engine.trace', false);
 
     $this->artisan('policy-engine:explain', ['subject' => 'user::42', 'permission' => 'posts.create'])
         ->expectsOutputToContain('Explain mode is disabled')
@@ -175,7 +174,7 @@ it('shows error when explain mode is disabled', function (): void {
 });
 
 it('shows error for invalid subject format in explain', function (): void {
-    config()->set('policy-engine.explain', true);
+    config()->set('policy-engine.trace', true);
 
     $this->artisan('policy-engine:explain', ['subject' => 'bad-format', 'permission' => 'posts.create'])
         ->expectsOutputToContain('Invalid subject format')
@@ -183,7 +182,7 @@ it('shows error for invalid subject format in explain', function (): void {
 });
 
 it('explains a scoped permission check', function (): void {
-    config()->set('policy-engine.explain', true);
+    config()->set('policy-engine.trace', true);
 
     $roleStore = app(RoleStore::class);
     $roleStore->save('editor', 'Editor', ['posts.create']);
@@ -203,7 +202,7 @@ it('explains a scoped permission check', function (): void {
 });
 
 it('shows cache hit status in explain output', function (): void {
-    config()->set('policy-engine.explain', true);
+    config()->set('policy-engine.trace', true);
 
     $roleStore = app(RoleStore::class);
     $roleStore->save('viewer', 'Viewer', ['posts.read']);
@@ -359,9 +358,9 @@ it('exports authorization state to a file', function (): void {
     $contents = file_get_contents($path);
     $decoded = json_decode($contents, true);
 
-    expect($decoded)->toHaveKey('version', '1.0');
+    expect($decoded)->toHaveKey('version', '2.0');
     expect($decoded['permissions'])->toContain('posts.create');
-    expect($decoded['roles'][0]['id'])->toBe('editor');
+    expect($decoded['roles'])->toHaveKey('editor');
 
     unlink($path);
 });

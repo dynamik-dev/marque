@@ -9,6 +9,7 @@ use DynamikDev\PolicyEngine\Events\PermissionCreated;
 use DynamikDev\PolicyEngine\Events\PermissionDeleted;
 use DynamikDev\PolicyEngine\Models\Permission;
 use DynamikDev\PolicyEngine\Models\RolePermission;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 
@@ -83,7 +84,9 @@ class EloquentPermissionStore implements PermissionStore
         $deleted = Permission::query()->where('id', $id)->delete();
 
         if ($deleted > 0) {
-            Permission::query()->getConnection()->afterCommit(function () use ($id): void {
+            /** @var Connection $connection */
+            $connection = Permission::query()->getConnection();
+            $connection->afterCommit(function () use ($id): void {
                 Event::dispatch(new PermissionDeleted($id));
             });
         }

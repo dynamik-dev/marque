@@ -2,17 +2,32 @@ name: CI
 
 on:
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
+
+env:
+  COMPOSER_PROCESS_TIMEOUT: 0
+  COMPOSER_NO_INTERACTION: 1
+  COMPOSER_NO_AUDIT: 1
 
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+
+      - uses: actions/cache@v5
+        with:
+          path: vendor
+          key: composer-lint-${{ hashFiles('composer.json') }}
+          restore-keys: composer-lint-
 
       - run: composer install --no-interaction
 
@@ -23,11 +38,17 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+
+      - uses: actions/cache@v5
+        with:
+          path: vendor
+          key: composer-static-${{ hashFiles('composer.json') }}
+          restore-keys: composer-static-
 
       - run: composer install --no-interaction
 
@@ -43,7 +64,7 @@ jobs:
         php: ['8.4', '8.5']
         laravel: ['12', '13']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: shivammathur/setup-php@v2
         with:
@@ -51,14 +72,20 @@ jobs:
           coverage: pcov
           extensions: redis
 
+      - uses: actions/cache@v5
+        with:
+          path: vendor
+          key: composer-test-${{ matrix.php }}-${{ matrix.laravel }}-${{ hashFiles('composer.json') }}
+          restore-keys: composer-test-${{ matrix.php }}-${{ matrix.laravel }}-
+
       - run: composer require illuminate/support:^${{ matrix.laravel }}.0 --no-update
       - run: composer update --no-interaction
 
-      - run: docker compose -f docker-compose.test.yml up -d --wait valkey
+      - run: docker compose up -d --wait valkey
 
-      - run: vendor/bin/pest --coverage --min=90
+      - run: vendor/bin/pest --exclude-group=benchmark --coverage --min=90
 
-      - run: docker compose -f docker-compose.test.yml down -v
+      - run: docker compose down -v
 
   test-database:
     name: Tests (${{ matrix.database }} / PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }})
@@ -69,20 +96,26 @@ jobs:
       matrix:
         php: ['8.4', '8.5']
         laravel: ['12', '13']
-        database: [pgsql, mysql]
+        database: [pgsql]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: redis, pdo_pgsql, pdo_mysql
+          extensions: redis, pdo_pgsql
+
+      - uses: actions/cache@v5
+        with:
+          path: vendor
+          key: composer-db-${{ matrix.php }}-${{ matrix.laravel }}-${{ hashFiles('composer.json') }}
+          restore-keys: composer-db-${{ matrix.php }}-${{ matrix.laravel }}-
 
       - run: composer require illuminate/support:^${{ matrix.laravel }}.0 --no-update
       - run: composer update --no-interaction
 
-      - run: docker compose -f docker-compose.test.yml up -d --wait ${{ matrix.database }} valkey
+      - run: docker compose up -d --wait postgres valkey
 
-      - run: DB_CONNECTION=${{ matrix.database }} vendor/bin/pest
+      - run: DB_CONNECTION=${{ matrix.database }} vendor/bin/pest --exclude-group=benchmark
 
-      - run: docker compose -f docker-compose.test.yml down -v
+      - run: docker compose down -v

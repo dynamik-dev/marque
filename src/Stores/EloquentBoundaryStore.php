@@ -8,6 +8,7 @@ use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
 use DynamikDev\PolicyEngine\Events\BoundaryRemoved;
 use DynamikDev\PolicyEngine\Events\BoundarySet;
 use DynamikDev\PolicyEngine\Models\Boundary;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 
@@ -48,7 +49,9 @@ class EloquentBoundaryStore implements BoundaryStore
         $deleted = Boundary::query()->where('scope', $scope)->delete();
 
         if ($deleted > 0) {
-            Boundary::query()->getConnection()->afterCommit(function () use ($scope): void {
+            /** @var Connection $connection */
+            $connection = Boundary::query()->getConnection();
+            $connection->afterCommit(function () use ($scope): void {
                 Event::dispatch(new BoundaryRemoved($scope));
             });
         }

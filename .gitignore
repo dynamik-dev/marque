@@ -14,3 +14,4 @@ composer.lock
 CLAUDE.md
 /backlog
 /docs/superpowers
+.worktrees/

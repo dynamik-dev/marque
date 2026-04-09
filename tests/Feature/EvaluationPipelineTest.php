@@ -6,13 +6,14 @@ use DynamikDev\PolicyEngine\Concerns\HasPermissions;
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
-class PipelineTestUser extends \Illuminate\Database\Eloquent\Model
+class PipelineTestUser extends Model
 {
     use HasPermissions;
 
@@ -101,13 +102,16 @@ it('allows scoped permission via global assignment', function (): void {
 });
 
 it('denies when boundary restricts wildcard permissions in scope', function (): void {
-    $this->permissionStore->register(['posts.create', 'members.invite']);
-    $this->roleStore->save('super', 'Super', ['*.*']);
-    $this->user->assign('super', 'org::acme');
+    $this->permissionStore->register(['posts.create', 'posts.delete', 'billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['*.*']);
+    $this->user->assign('admin', 'org::acme');
     $this->boundaryStore->set('org::acme', ['posts.*']);
 
-    expect($this->user->canDo('posts.create', 'org::acme'))->toBeTrue()
-        ->and($this->user->canDo('members.invite', 'org::acme'))->toBeFalse();
+    // posts.create is within boundary ceiling.
+    expect($this->user->canDo('posts.create', 'org::acme'))->toBeTrue();
+
+    // billing.manage is outside the boundary ceiling — should be denied.
+    expect($this->user->canDo('billing.manage', 'org::acme'))->toBeFalse();
 });
 
 it('allows when permission is within boundary ceiling', function (): void {

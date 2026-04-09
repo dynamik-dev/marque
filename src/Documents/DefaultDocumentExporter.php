@@ -12,6 +12,7 @@ use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
 use DynamikDev\PolicyEngine\Models\Assignment;
 use DynamikDev\PolicyEngine\Models\Boundary;
+use DynamikDev\PolicyEngine\Models\ResourcePolicy;
 use DynamikDev\PolicyEngine\Models\Role;
 use Illuminate\Support\Collection;
 
@@ -30,11 +31,12 @@ class DefaultDocumentExporter implements DocumentExporter
         $assignments = $this->exportAssignments($scope);
 
         return new PolicyDocument(
-            version: '1.0',
+            version: '2.0',
             permissions: $permissions,
             roles: $this->exportRoles($scope, $assignments),
             assignments: $this->serializeAssignments($assignments),
             boundaries: $this->exportBoundaries($scope),
+            resourcePolicies: $scope === null ? $this->exportResourcePolicies() : [],
         );
     }
 
@@ -64,12 +66,12 @@ class DefaultDocumentExporter implements DocumentExporter
     }
 
     /**
-     * Export roles as document arrays.
+     * Export roles in keyed format.
      *
      * When a scope is provided, only roles that have assignments in that scope are included.
      *
      * @param  Collection<int, Assignment>  $assignments
-     * @return array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool}>
+     * @return array<string, array{permissions: array<int, string>, system?: bool}>
      */
     private function exportRoles(?string $scope, Collection $assignments): array
     {
@@ -77,19 +79,23 @@ class DefaultDocumentExporter implements DocumentExporter
             ? $this->roleStore->all()
             : $this->roleStore->all()->whereIn('id', $assignments->pluck('role_id')->unique());
 
-        return $roles->map(fn (Role $role): array => $this->serializeRole($role))->values()->all();
+        $result = [];
+
+        foreach ($roles as $role) {
+            $result[$role->id] = $this->serializeKeyedRole($role);
+        }
+
+        return $result;
     }
 
     /**
-     * Serialize a single role model into a document array.
+     * Serialize a single role model into keyed format.
      *
-     * @return array{id: string, name: string, permissions: array<int, string>, system?: bool}
+     * @return array{permissions: array<int, string>, system?: bool}
      */
-    private function serializeRole(Role $role): array
+    private function serializeKeyedRole(Role $role): array
     {
         $data = [
-            'id' => $role->id,
-            'name' => $role->name,
             'permissions' => $this->roleStore->permissionsFor($role->id),
         ];
 
@@ -123,19 +129,24 @@ class DefaultDocumentExporter implements DocumentExporter
     }
 
     /**
-     * Export boundaries as document arrays.
+     * Export boundaries in keyed format.
      *
      * When a scope is provided, only the boundary for that scope (if it exists) is included.
      *
-     * @return array<int, array{scope: string, max_permissions: array<int, string>}>
+     * @return array<string, array{max_permissions: array<int, string>}>
      */
     private function exportBoundaries(?string $scope): array
     {
         if ($scope === null) {
-            return $this->boundaryStore->all()->map(static fn (Boundary $boundary): array => [
-                'scope' => $boundary->scope,
-                'max_permissions' => $boundary->max_permissions,
-            ])->values()->all();
+            $result = [];
+
+            foreach ($this->boundaryStore->all() as $boundary) {
+                $result[$boundary->scope] = [
+                    'max_permissions' => $boundary->max_permissions,
+                ];
+            }
+
+            return $result;
         }
 
         $boundary = $this->boundaryStore->find($scope);
@@ -145,10 +156,30 @@ class DefaultDocumentExporter implements DocumentExporter
         }
 
         return [
-            [
-                'scope' => $boundary->scope,
+            $boundary->scope => [
                 'max_permissions' => $boundary->max_permissions,
             ],
         ];
+    }
+
+    /**
+     * Export all resource policies as document arrays.
+     *
+     * @return array<int, array{resource_type: string, resource_id: string|null, effect: string, action: string, principal_pattern: string|null, conditions: array<int, mixed>}>
+     */
+    private function exportResourcePolicies(): array
+    {
+        return ResourcePolicy::query()
+            ->get()
+            ->map(static fn (ResourcePolicy $rp): array => [
+                'resource_type' => $rp->resource_type,
+                'resource_id' => $rp->resource_id,
+                'effect' => $rp->effect,
+                'action' => $rp->action,
+                'principal_pattern' => $rp->principal_pattern,
+                'conditions' => $rp->conditions ?? [],
+            ])
+            ->values()
+            ->all();
     }
 }

@@ -147,9 +147,9 @@ it('exports the current configuration as a string', function (): void {
     $decoded = json_decode($output, true);
 
     expect($decoded)->toBeArray()
-        ->and($decoded['version'])->toBe('1.0')
+        ->and($decoded['version'])->toBe('2.0')
         ->and($decoded['permissions'])->toBe(['posts.create', 'posts.read'])
-        ->and($decoded['roles'][0]['id'])->toBe('editor');
+        ->and($decoded['roles'])->toHaveKey('editor');
 });
 
 it('exports the current configuration to a file', function (): void {
@@ -163,9 +163,9 @@ it('exports the current configuration to a file', function (): void {
     $decoded = json_decode(file_get_contents($path), true);
 
     expect($decoded)->toBeArray()
-        ->and($decoded['version'])->toBe('1.0')
+        ->and($decoded['version'])->toBe('2.0')
         ->and($decoded['permissions'])->toBe(['posts.create', 'posts.read'])
-        ->and($decoded['roles'][0]['id'])->toBe('editor');
+        ->and($decoded['roles'])->toHaveKey('editor');
 
     unlink($path);
 });

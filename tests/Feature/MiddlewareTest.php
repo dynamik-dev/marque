@@ -281,7 +281,7 @@ it('role middleware resolves scope from route model binding', function (): void 
 // --- can middleware: Sanctum token scoping ---
 
 it('can middleware denies when Sanctum token lacks the required ability', function (): void {
-    Route::middleware('can:posts.create')->get('/sanctum-test', fn () => response()->json(['ok' => true]));
+    Route::middleware('can:posts.create')->get('/sanctum-deny-test', fn () => response()->json(['ok' => true]));
 
     $this->permissionStore->register(['posts.create', 'posts.read']);
     $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read']);
@@ -294,7 +294,7 @@ it('can middleware denies when Sanctum token lacks the required ability', functi
     $sanctumUser->withAccessToken($token);
 
     $this->actingAs($sanctumUser)
-        ->getJson('/sanctum-test')
+        ->getJson('/sanctum-deny-test')
         ->assertForbidden();
 });
 

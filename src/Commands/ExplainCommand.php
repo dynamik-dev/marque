@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace DynamikDev\PolicyEngine\Commands;
 
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\DTOs\EvaluationTrace;
-use DynamikDev\PolicyEngine\Enums\EvaluationResult;
+use DynamikDev\PolicyEngine\DTOs\Context;
+use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
+use DynamikDev\PolicyEngine\DTOs\EvaluationResult;
+use DynamikDev\PolicyEngine\DTOs\Principal;
+use DynamikDev\PolicyEngine\Enums\Decision;
 use DynamikDev\PolicyEngine\Support\SubjectParser;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
-use RuntimeException;
 
 class ExplainCommand extends Command
 {
@@ -37,63 +39,64 @@ class ExplainCommand extends Command
             return self::FAILURE;
         }
 
-        $scopeOption = $this->option('scope');
-        $permission = $this->buildPermissionString(
-            $permissionArg,
-            is_string($scopeOption) ? $scopeOption : null,
-        );
-
-        try {
-            $trace = $evaluator->explain($subjectType, $subjectId, $permission);
-        } catch (RuntimeException $e) {
-            $this->error('Explain mode is disabled. Set policy-engine.explain to true in your configuration.');
+        if (! config('policy-engine.trace')) {
+            $this->error('Explain mode is disabled. Set policy-engine.trace to true in your configuration.');
 
             return self::FAILURE;
         }
 
-        $this->renderTrace($trace);
+        $scopeOption = $this->option('scope');
+        $scope = is_string($scopeOption) ? $scopeOption : null;
+
+        $request = new EvaluationRequest(
+            principal: new Principal(type: $subjectType, id: $subjectId),
+            action: $permissionArg,
+            resource: null,
+            context: new Context(scope: $scope),
+        );
+
+        $result = $evaluator->evaluate($request);
+
+        $this->renderResult($subjectType, $subjectId, $permissionArg, $scope, $result);
 
         return self::SUCCESS;
     }
 
-    private function buildPermissionString(string $permission, ?string $scope): string
-    {
-        if ($scope === null) {
-            return $permission;
-        }
-
-        return $permission.':'.$scope;
-    }
-
-    private function renderTrace(EvaluationTrace $trace): void
-    {
+    private function renderResult(
+        string $subjectType,
+        string $subjectId,
+        string $permission,
+        ?string $scope,
+        EvaluationResult $result,
+    ): void {
         $this->newLine();
-        $this->line("  <info>Subject:</info>    {$trace->subject}");
-        $this->line("  <info>Permission:</info> {$trace->required}");
+        $this->line("  <info>Subject:</info>    {$subjectType}:{$subjectId}");
+        $this->line("  <info>Permission:</info> {$permission}");
 
-        $resultLabel = strtoupper($trace->result->value);
-        $resultStyle = $trace->result === EvaluationResult::Allow ? 'info' : 'error';
+        $resultLabel = strtoupper($result->decision->value);
+        $resultStyle = $result->decision === Decision::Allow ? 'info' : 'error';
         $this->line("  <info>Result:</info>     <{$resultStyle}>{$resultLabel}</{$resultStyle}>");
+        $this->line("  <info>Decided by:</info> {$result->decidedBy}");
 
-        $this->newLine();
-        $this->line('  <comment>Assignments checked:</comment>');
-
-        if ($trace->assignments === []) {
-            $this->line('    (none)');
+        if ($scope !== null) {
+            $this->line("  <info>Scope:</info>      {$scope}");
         }
 
-        foreach ($trace->assignments as $assignment) {
-            $scopeLabel = $assignment['scope'] ?? 'global';
-            $this->line("    Role: <info>{$assignment['role']}</info> (scope: {$scopeLabel})");
+        $this->newLine();
 
-            if ($assignment['permissions_checked'] !== []) {
-                $this->line('      Permissions: '.implode(', ', $assignment['permissions_checked']));
+        if ($result->matchedStatements !== []) {
+            $this->line('  <comment>Matched statements:</comment>');
+
+            foreach ($result->matchedStatements as $statement) {
+                $effect = strtoupper($statement->effect->name);
+                $this->line("    [{$effect}] {$statement->action} (source: {$statement->source})");
             }
+        } else {
+            $this->line('  <comment>Matched statements:</comment> (none)');
         }
 
         $this->newLine();
-        $this->line('  <info>Boundary:</info>   '.($trace->boundary ?? 'none'));
-        $this->line('  <info>Cache hit:</info>  '.($trace->cacheHit ? 'Yes' : 'No'));
+        $this->line('  <info>Cache hit:</info>  N/A');
         $this->newLine();
     }
 }

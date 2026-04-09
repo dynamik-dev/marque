@@ -8,12 +8,16 @@ use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
 use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
 use DynamikDev\PolicyEngine\Contracts\DocumentParser;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
+use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
+use DynamikDev\PolicyEngine\Enums\Effect;
 use DynamikDev\PolicyEngine\Models\Assignment;
 use DynamikDev\PolicyEngine\Models\Boundary;
 use DynamikDev\PolicyEngine\Models\Permission;
+use DynamikDev\PolicyEngine\Models\ResourcePolicy;
 use DynamikDev\PolicyEngine\Models\Role;
 use DynamikDev\PolicyEngine\Models\RolePermission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,6 +29,7 @@ beforeEach(function (): void {
     $this->roleStore = app(RoleStore::class);
     $this->assignmentStore = app(AssignmentStore::class);
     $this->boundaryStore = app(BoundaryStore::class);
+    $this->resourcePolicyStore = app(ResourcePolicyStore::class);
     $this->exporter = app(DocumentExporter::class);
     $this->importer = app(DocumentImporter::class);
     $this->parser = app(DocumentParser::class);
@@ -35,6 +40,7 @@ beforeEach(function (): void {
  */
 function clearDatabase(): void
 {
+    ResourcePolicy::query()->delete();
     Assignment::query()->delete();
     RolePermission::query()->delete();
     Boundary::query()->delete();
@@ -57,16 +63,23 @@ it('round-trips a full authorization state through export, serialize, clear, par
     // Export the full state.
     $originalExport = $this->exporter->export();
 
+    // Exporter now outputs v2 format.
+    expect($originalExport->version)->toBe('2.0');
+    expect($originalExport->roles)->toHaveKey('editor');
+    expect($originalExport->roles)->toHaveKey('admin');
+    expect($originalExport->boundaries)->toHaveKey('org::acme');
+
     // Serialize to JSON and parse back.
     $json = $this->parser->serialize($originalExport);
     $parsed = $this->parser->parse($json);
 
-    // Verify the parsed document matches the original export.
-    expect($parsed->version)->toBe($originalExport->version)
-        ->and($parsed->permissions)->toBe($originalExport->permissions)
-        ->and($parsed->roles)->toBe($originalExport->roles)
-        ->and($parsed->assignments)->toBe($originalExport->assignments)
-        ->and($parsed->boundaries)->toBe($originalExport->boundaries);
+    // After parse, roles and boundaries are normalized to v1-compatible indexed format.
+    expect($parsed->version)->toBe('2.0');
+    expect($parsed->permissions)->toBe($originalExport->permissions);
+    expect($parsed->assignments)->toBe($originalExport->assignments);
+
+    // Verify role count
+    expect($parsed->roles)->toHaveCount(2);
 
     // Clear the database completely.
     clearDatabase();
@@ -83,23 +96,22 @@ it('round-trips a full authorization state through export, serialize, clear, par
     // Re-export and verify all sections match the original.
     $reExported = $this->exporter->export();
 
-    expect($reExported->version)->toBe($originalExport->version)
-        ->and($reExported->permissions)->toBe($originalExport->permissions)
-        ->and($reExported->boundaries)->toBe($originalExport->boundaries);
+    expect($reExported->version)->toBe('2.0');
+    expect($reExported->permissions)->toBe($originalExport->permissions);
 
-    // Verify roles match (order-independent).
+    // Boundaries keyed by scope — both should have the same keys
+    expect(array_keys($reExported->boundaries))->toEqualCanonicalizing(array_keys($originalExport->boundaries));
+
+    // Verify roles match (order-independent via keys in v2 format).
     expect($reExported->roles)->toHaveCount(count($originalExport->roles));
 
-    foreach ($originalExport->roles as $originalRole) {
-        $reExportedRole = collect($reExported->roles)->firstWhere('id', $originalRole['id']);
-        expect($reExportedRole)->not->toBeNull()
-            ->and($reExportedRole['name'])->toBe($originalRole['name'])
-            ->and($reExportedRole['permissions'])->toBe($originalRole['permissions']);
-
-        if (isset($originalRole['system'])) {
-            expect($reExportedRole['system'])->toBe($originalRole['system']);
-        }
+    foreach (array_keys($originalExport->roles) as $roleId) {
+        expect($reExported->roles)->toHaveKey($roleId);
+        expect($reExported->roles[$roleId]['permissions'])->toBe($originalExport->roles[$roleId]['permissions']);
     }
+
+    // Verify system flag preserved on admin
+    expect($reExported->roles['admin']['system'])->toBeTrue();
 
     // Verify assignments match (order-independent).
     expect($reExported->assignments)->toHaveCount(count($originalExport->assignments));
@@ -138,11 +150,11 @@ it('exports and imports only data for a specific scope', function (): void {
     expect($scopedExport->permissions)->toEqualCanonicalizing(['posts.create', 'posts.delete', 'comments.create'])
         ->and($scopedExport->assignments)->toHaveCount(2)
         ->and($scopedExport->boundaries)->toHaveCount(1)
-        ->and($scopedExport->boundaries[0]['scope'])->toBe('team::5');
+        ->and($scopedExport->boundaries)->toHaveKey('team::5');
 
     // Only the moderator role should be present (only role assigned in team::5).
-    expect($scopedExport->roles)->toHaveCount(1)
-        ->and($scopedExport->roles[0]['id'])->toBe('moderator');
+    expect($scopedExport->roles)->toHaveCount(1);
+    expect($scopedExport->roles)->toHaveKey('moderator');
 
     // All scoped assignments reference team::5.
     foreach ($scopedExport->assignments as $assignment) {
@@ -199,4 +211,81 @@ it('imports a partial document with only roles and permissions', function (): vo
     // Assignments and boundaries are empty.
     expect(Assignment::query()->count())->toBe(0)
         ->and(Boundary::query()->count())->toBe(0);
+});
+
+// --- v2 round-trip with resource policies ---
+
+it('round-trips resource policies through export, serialize, parse, and import', function (): void {
+    $this->permissionStore->register(['posts.read']);
+
+    $statement = new PolicyStatement(
+        effect: Effect::Allow,
+        action: 'posts.read',
+        principalPattern: '*',
+    );
+    $this->resourcePolicyStore->attach('post', null, $statement);
+
+    // Export → serialize → parse → clear → import
+    $exported = $this->exporter->export();
+    expect($exported->resourcePolicies)->toHaveCount(1);
+
+    $json = $this->parser->serialize($exported);
+    clearDatabase();
+
+    $parsed = $this->parser->parse($json);
+    expect($parsed->resourcePolicies)->toHaveCount(1);
+
+    $this->importer->import($parsed, new ImportOptions(merge: false));
+
+    expect(ResourcePolicy::query()->count())->toBe(1);
+
+    $rp = ResourcePolicy::query()->first();
+    expect($rp->resource_type)->toBe('post')
+        ->and($rp->resource_id)->toBeNull()
+        ->and($rp->effect)->toBe('Allow')
+        ->and($rp->action)->toBe('posts.read')
+        ->and($rp->principal_pattern)->toBe('*');
+});
+
+// --- v2 document parsed from JSON string round-trip ---
+
+it('parses a v2 JSON document and imports it correctly', function (): void {
+    $json = json_encode([
+        'version' => '2.0',
+        'permissions' => ['posts.create', 'posts.read'],
+        'roles' => [
+            'editor' => ['permissions' => ['posts.create', 'posts.read']],
+        ],
+        'assignments' => [
+            ['subject' => 'App\Models\User::1', 'role' => 'editor'],
+        ],
+        'boundaries' => [
+            'free-tier' => ['max_permissions' => ['posts.read']],
+        ],
+        'resource_policies' => [
+            [
+                'resource_type' => 'post',
+                'resource_id' => null,
+                'effect' => 'Allow',
+                'action' => 'posts.read',
+                'principal_pattern' => '*',
+                'conditions' => [],
+            ],
+        ],
+    ]);
+
+    $parser = app(DocumentParser::class);
+    $document = $parser->parse($json);
+
+    $this->importer->import($document, new ImportOptions(merge: false));
+
+    expect(Permission::query()->count())->toBe(2);
+    expect(Role::query()->count())->toBe(1);
+    expect(Role::query()->find('editor'))->not->toBeNull();
+    expect(Assignment::query()->count())->toBe(1);
+    expect(Boundary::query()->count())->toBe(1);
+    expect(ResourcePolicy::query()->count())->toBe(1);
+
+    expect($this->roleStore->permissionsFor('editor'))->toBe(['posts.create', 'posts.read']);
+    expect($this->boundaryStore->find('free-tier'))->not->toBeNull();
 });

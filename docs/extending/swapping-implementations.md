@@ -22,9 +22,11 @@ Everything that touches permissions now uses your Redis store.
 | `RoleStore` | `EloquentRoleStore` | Redis, Postgres views, flat file |
 | `AssignmentStore` | `EloquentAssignmentStore` | External identity service, LDAP |
 | `BoundaryStore` | `EloquentBoundaryStore` | Config-driven, plan-based lookup |
+| `ResourcePolicyStore` | `EloquentResourcePolicyStore` | JSON file, API-backed |
 | `Evaluator` | `CachedEvaluator` | Custom caching strategy, external policy engine |
 | `Matcher` | `WildcardMatcher` | Regex matcher, bitfield matcher |
 | `ScopeResolver` | `ModelScopeResolver` | DTO-based resolver, string parser |
+| `ConditionRegistry` | `DefaultConditionRegistry` | Custom registry with additional condition types |
 | `DocumentParser` | `JsonDocumentParser` | YAML, TOML, custom format |
 | `DocumentImporter` | `DefaultDocumentImporter` | Approval queue, audit-logged importer |
 | `DocumentExporter` | `DefaultDocumentExporter` | Tenant-filtered, redacted exporter |
@@ -133,3 +135,49 @@ $this->app->bind(DocumentParser::class, YamlDocumentParser::class);
 ```
 
 Your YAML format works everywhere the parser contract is used.
+
+## Adding a custom PolicyResolver
+
+Extend the evaluation pipeline by adding a `PolicyResolver` to the `resolvers` config array. Each resolver receives an `EvaluationRequest` and returns a collection of `PolicyStatement` objects.
+
+```php
+use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
+use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
+use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
+use DynamikDev\PolicyEngine\Enums\Effect;
+use Illuminate\Support\Collection;
+
+class MaintenanceModeResolver implements PolicyResolver
+{
+    public function resolve(EvaluationRequest $request): Collection
+    {
+        if (! app()->isDownForMaintenance()) {
+            return collect();
+        }
+
+        return collect([
+            new PolicyStatement(
+                effect: Effect::Deny,
+                action: '*.*',
+                source: 'maintenance-mode',
+            ),
+        ]);
+    }
+}
+```
+
+Register it in `config/policy-engine.php`:
+
+```php
+'resolvers' => [
+    \DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver::class,
+    \DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver::class,
+    \DynamikDev\PolicyEngine\Resolvers\ResourcePolicyResolver::class,
+    \DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver::class,
+    \App\Auth\MaintenanceModeResolver::class,
+],
+```
+
+The evaluator calls every resolver in order and merges the returned statements. Deny statements from any resolver override Allow statements from any other — order does not affect deny-wins logic.
+
+> Return an empty collection from `resolve()` when your resolver has nothing to contribute. This is a no-op and adds no overhead to the evaluation.

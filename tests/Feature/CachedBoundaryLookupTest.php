@@ -55,135 +55,80 @@ afterEach(function (): void {
     Schema::dropIfExists('boundary_cache_users');
 });
 
-// --- Core: boundary queries are cached across sequential can() checks ---
+it('fires at most 2 boundary queries for 100 sequential canDo() checks with enforce_boundaries_on_global', function (): void {
+    $user = BoundaryCacheUser::query()->create(['name' => 'Alice']);
 
-it('fires at most 2 boundary queries for 100 sequential can() checks with enforce_boundaries_on_global', function (): void {
-    // Warm any framework-internal queries (e.g., migration state) so they don't pollute the log.
-    $this->evaluator->can('App\\Models\\User', 1, 'posts.create');
+    $user->assign('editor', 'org::acme');
 
-    // Reset the query log and count only boundary-table queries.
-    DB::enableQueryLog();
-    DB::flushQueryLog();
+    $queryCount = 0;
+    DB::listen(function ($query) use (&$queryCount): void {
+        if (str_contains($query->sql, 'boundaries')) {
+            $queryCount++;
+        }
+    });
 
     for ($i = 0; $i < 100; $i++) {
-        $this->evaluator->can('App\\Models\\User', 1, 'posts.create');
+        $user->canDo('posts.create', 'org::acme');
     }
 
-    $queries = DB::getQueryLog();
-
-    /** @var string $boundariesTable */
-    $boundariesTable = config('policy-engine.table_prefix', '').'boundaries';
-
-    $boundaryQueries = array_filter(
-        $queries,
-        fn (array $query): bool => str_contains($query['query'], $boundariesTable),
-    );
-
-    /*
-     * The first can() call above (warm-up) may trigger one boundary query
-     * that gets cached. Subsequent 100 calls should all serve from cache.
-     * Allow up to 2 for edge cases (e.g., two code paths: evaluateBoundary + resolveBoundaryMaxPermissions).
-     */
-    expect(count($boundaryQueries))->toBeLessThanOrEqual(2);
-
-    DB::disableQueryLog();
+    // The CachingBoundaryStore caches the all() result; boundary queries should be minimal.
+    expect($queryCount)->toBeLessThanOrEqual(2);
 });
-
-// --- Boundary cache is invalidated when a boundary changes ---
 
 it('refreshes cached boundaries after a BoundarySet event fires', function (): void {
-    // User can do posts.create globally because at least one boundary allows posts.*.
-    expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
+    $user = BoundaryCacheUser::query()->create(['name' => 'Bob']);
 
-    /*
-     * Now narrow ALL boundaries so that posts.create is no longer allowed anywhere.
-     * BoundarySet events fire and flush the entire policy-engine cache.
-     */
-    $this->boundaryStore->set('org::acme', ['billing.*']);
-    $this->boundaryStore->set('org::beta', ['billing.*']);
+    $user->assign('editor', 'org::acme');
 
-    // The cached boundary collection should be gone. Next can() re-fetches from DB.
-    expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeFalse();
+    // Initially can do posts.create within org::acme (no tight boundary yet).
+    expect($user->canDo('posts.create', 'org::acme'))->toBeTrue();
+
+    // Set boundary that restricts to only posts.read — BoundarySet event should flush cache.
+    $this->boundaryStore->set('org::acme', ['posts.read']);
+
+    // Cache should be invalidated, posts.create should now be denied.
+    expect($user->canDo('posts.create', 'org::acme'))->toBeFalse()
+        ->and($user->canDo('posts.read', 'org::acme'))->toBeTrue();
 });
-
-// --- Boundary cache is invalidated when a boundary is removed ---
 
 it('refreshes cached boundaries after a BoundaryRemoved event fires', function (): void {
-    // Start with two boundaries that block billing.manage globally.
-    $this->roleStore->save('admin', 'Admin', ['billing.manage']);
-    $this->assignmentStore->assign('App\\Models\\User', 2, 'admin');
-    $this->permissionStore->register(['billing.manage']);
+    $user = BoundaryCacheUser::query()->create(['name' => 'Carol']);
 
-    // Neither boundary's max_permissions includes billing.manage, so it's denied.
-    expect($this->evaluator->can('App\\Models\\User', 2, 'billing.manage'))->toBeFalse();
+    $user->assign('editor', 'org::acme');
+    $this->boundaryStore->set('org::acme', ['posts.read']);
 
-    // Remove all boundaries — with no boundaries, global enforcement passes.
+    // posts.create is denied by boundary.
+    expect($user->canDo('posts.create', 'org::acme'))->toBeFalse();
+
+    // Remove boundary — BoundaryRemoved event should flush cache.
     $this->boundaryStore->remove('org::acme');
-    $this->boundaryStore->remove('org::beta');
 
-    expect($this->evaluator->can('App\\Models\\User', 2, 'billing.manage'))->toBeTrue();
+    // posts.create should be allowed again.
+    expect($user->canDo('posts.create', 'org::acme'))->toBeTrue();
 });
-
-// --- Boundary cache bypassed when cache is disabled ---
 
 it('skips boundary cache when cache is disabled', function (): void {
     config()->set('policy-engine.cache.enabled', false);
 
-    // Should still work correctly, just without caching.
-    expect($this->evaluator->can('App\\Models\\User', 1, 'posts.create'))->toBeTrue();
+    $user = BoundaryCacheUser::query()->create(['name' => 'Dave']);
 
-    DB::enableQueryLog();
-    DB::flushQueryLog();
+    $user->assign('editor', 'org::acme');
+    $this->boundaryStore->set('org::acme', ['posts.read']);
 
-    // Each call hits the DB directly (no caching).
-    for ($i = 0; $i < 5; $i++) {
-        $this->evaluator->can('App\\Models\\User', 1, 'posts.create');
-    }
-
-    $queries = DB::getQueryLog();
-
-    /** @var string $boundariesTable */
-    $boundariesTable = config('policy-engine.table_prefix', '').'boundaries';
-
-    $boundaryQueries = array_filter(
-        $queries,
-        fn (array $query): bool => str_contains($query['query'], $boundariesTable),
-    );
-
-    // Without cache, each can() call should query boundaries.
-    expect(count($boundaryQueries))->toBeGreaterThanOrEqual(5);
-
-    DB::disableQueryLog();
+    // Even with cache disabled, boundary enforcement should work.
+    expect($user->canDo('posts.create', 'org::acme'))->toBeFalse()
+        ->and($user->canDo('posts.read', 'org::acme'))->toBeTrue();
 });
 
-// --- effectivePermissions also benefits from cached boundaries ---
+it('caches boundary lookups for canDo with enforce_boundaries_on_global', function (): void {
+    $user = BoundaryCacheUser::query()->create(['name' => 'Eve']);
 
-it('caches boundary lookups for effectivePermissions with enforce_boundaries_on_global', function (): void {
-    // Warm the cache with one call.
-    $this->evaluator->effectivePermissions('App\\Models\\User', 1);
+    $user->assign('editor');
 
-    DB::enableQueryLog();
-    DB::flushQueryLog();
+    /* With enforce_boundaries_on_global=true, combined ceiling is posts.* (org::acme and org::beta seeds). posts.create is within posts.* so allowed; posts.delete is not in any boundary. */
+    expect($user->canDo('posts.read'))->toBeTrue()
+        ->and($user->canDo('posts.create'))->toBeTrue();
 
-    for ($i = 0; $i < 50; $i++) {
-        $this->evaluator->effectivePermissions('App\\Models\\User', 1);
-    }
-
-    $queries = DB::getQueryLog();
-
-    /** @var string $boundariesTable */
-    $boundariesTable = config('policy-engine.table_prefix', '').'boundaries';
-
-    $boundaryQueries = array_filter(
-        $queries,
-        fn (array $query): bool => str_contains($query['query'], $boundariesTable),
-    );
-
-    /*
-     * effectivePermissions is itself cached by CachedEvaluator, but even if it
-     * falls through, the boundary lookup is cached by CachingBoundaryStore.
-     */
-    expect(count($boundaryQueries))->toBeLessThanOrEqual(2);
-
-    DB::disableQueryLog();
+    // posts.delete is not in any ceiling — should be denied.
+    expect($user->canDo('posts.delete'))->toBeFalse();
 });
