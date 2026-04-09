@@ -9,8 +9,10 @@ use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
+use DynamikDev\PolicyEngine\DTOs\Context;
+use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
+use DynamikDev\PolicyEngine\DTOs\Principal;
+use DynamikDev\PolicyEngine\Enums\Decision;
 use DynamikDev\PolicyEngine\Models\Assignment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -79,6 +81,39 @@ afterEach(function (): void {
 });
 
 // --- Helpers ---
+
+/**
+ * Build an EvaluationRequest from type, id, action, and optional scope string.
+ */
+function benchRequest(string $type, string|int $id, string $action, ?string $scope = null): EvaluationRequest
+{
+    return new EvaluationRequest(
+        principal: new Principal(type: $type, id: $id),
+        action: $action,
+        resource: null,
+        context: new Context(scope: $scope),
+    );
+}
+
+/**
+ * Evaluate a permission check using the given evaluator instance.
+ */
+function benchCan(Evaluator $evaluator, string $type, string|int $id, string $action, ?string $scope = null): bool
+{
+    return $evaluator->evaluate(benchRequest($type, $id, $action, $scope))->decision === Decision::Allow;
+}
+
+/**
+ * Check role membership directly via AssignmentStore (replaces evaluator->hasRole()).
+ */
+function benchHasRole(AssignmentStore $store, string $type, string|int $id, string $role, ?string $scope = null): bool
+{
+    if ($scope !== null) {
+        return $store->forSubjectGlobalAndScope($type, $id, $scope)->contains('role_id', $role);
+    }
+
+    return $store->forSubjectGlobal($type, $id)->contains('role_id', $role);
+}
 
 function seedGroupsPlatform(object $test, int $users, int $groups, int $groupsPerUser): void
 {
@@ -193,62 +228,48 @@ function benchReport(string $label, array $stats): void
 it('benchmarks small scale: 100 users, 20 groups', function (): void {
     seedGroupsPlatform($this, users: 100, groups: 20, groupsPerUser: 5);
 
-    $user = BenchUser::query()->find(1);
     $scope = 'benchgroup::1';
 
     echo "\n\n  SMALL SCALE: 100 users, 20 groups, ~500 assignments\n";
     echo '  '.str_repeat('-', 75)."\n";
 
-    // can() — cache miss (first call, evaluates from DB)
+    // evaluate() — cache miss (first call, evaluates from DB)
     config()->set('policy-engine.cache.enabled', false);
-    benchReport('can() uncached', benchmark(
-        fn () => $this->defaultEvaluator->can(BenchUser::class, 1, "posts.create:{$scope}"),
+    benchReport('evaluate() uncached', benchmark(
+        fn () => benchCan($this->defaultEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
-    // can() — cache hit
+    // evaluate() — cache hit
     config()->set('policy-engine.cache.enabled', true);
-    $this->cachedEvaluator->can(BenchUser::class, 1, "posts.create:{$scope}"); // warm
-    benchReport('can() cached', benchmark(
-        fn () => $this->cachedEvaluator->can(BenchUser::class, 1, "posts.create:{$scope}"),
+    benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope); // warm
+    benchReport('evaluate() cached', benchmark(
+        fn () => benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
-    // hasRole() — uncached
+    // hasRole() via AssignmentStore — uncached
     config()->set('policy-engine.cache.enabled', false);
     benchReport('hasRole() uncached', benchmark(
-        fn () => $this->defaultEvaluator->hasRole(BenchUser::class, 1, 'member', $scope),
+        fn () => benchHasRole($this->assignmentStore, BenchUser::class, 1, 'member', $scope),
     ));
 
-    // hasRole() — cached
-    config()->set('policy-engine.cache.enabled', true);
-    $this->cachedEvaluator->hasRole(BenchUser::class, 1, 'member', $scope); // warm
-    benchReport('hasRole() cached', benchmark(
-        fn () => $this->cachedEvaluator->hasRole(BenchUser::class, 1, 'member', $scope),
-    ));
-
-    // effectivePermissions() — uncached
+    // effectivePermissions() — uncached via BenchUser model
     config()->set('policy-engine.cache.enabled', false);
+    $benchUser = BenchUser::query()->find(1);
     benchReport('effectivePermissions() uncached', benchmark(
-        fn () => $this->defaultEvaluator->effectivePermissions(BenchUser::class, 1, $scope),
+        fn () => $benchUser->effectivePermissions($scope),
         iterations: 50,
-    ));
-
-    // effectivePermissions() — cached
-    config()->set('policy-engine.cache.enabled', true);
-    $this->cachedEvaluator->effectivePermissions(BenchUser::class, 1, $scope); // warm
-    benchReport('effectivePermissions() cached', benchmark(
-        fn () => $this->cachedEvaluator->effectivePermissions(BenchUser::class, 1, $scope),
     ));
 
     // Wildcard match
     config()->set('policy-engine.cache.enabled', false);
-    benchReport('can() wildcard posts.* uncached', benchmark(
-        fn () => $this->defaultEvaluator->can(BenchUser::class, 1, "posts.delete.own:{$scope}"),
+    benchReport('evaluate() wildcard posts.* uncached', benchmark(
+        fn () => benchCan($this->defaultEvaluator, BenchUser::class, 1, 'posts.delete.own', $scope),
     ));
 
     // Deny rule check
     $this->assignmentStore->assign(BenchUser::class, 1, 'restricted', $scope);
-    benchReport('can() with deny rule uncached', benchmark(
-        fn () => $this->defaultEvaluator->can(BenchUser::class, 1, "posts.create:{$scope}"),
+    benchReport('evaluate() with deny rule uncached', benchmark(
+        fn () => benchCan($this->defaultEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
     echo "\n";
@@ -266,24 +287,24 @@ it('benchmarks medium scale: 1,000 users, 100 groups', function (): void {
     $scope = 'benchgroup::1';
 
     config()->set('policy-engine.cache.enabled', false);
-    benchReport('can() uncached', benchmark(
-        fn () => $this->defaultEvaluator->can(BenchUser::class, 1, "posts.create:{$scope}"),
+    benchReport('evaluate() uncached', benchmark(
+        fn () => benchCan($this->defaultEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
     config()->set('policy-engine.cache.enabled', true);
-    $this->cachedEvaluator->can(BenchUser::class, 1, "posts.create:{$scope}");
-    benchReport('can() cached', benchmark(
-        fn () => $this->cachedEvaluator->can(BenchUser::class, 1, "posts.create:{$scope}"),
+    benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope);
+    benchReport('evaluate() cached', benchmark(
+        fn () => benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
     // Simulate write pressure: assign + invalidate + re-evaluate
     config()->set('policy-engine.cache.enabled', false);
     $assignCount = 0;
-    benchReport('assign() + can() cycle', benchmark(function () use (&$assignCount, $scope): void {
+    benchReport('assign() + evaluate() cycle', benchmark(function () use (&$assignCount, $scope): void {
         $assignCount++;
         $userId = ($assignCount % 1000) + 1;
         $this->assignmentStore->assign(BenchUser::class, $userId, 'member', $scope);
-        $this->defaultEvaluator->can(BenchUser::class, $userId, "posts.create:{$scope}");
+        benchCan($this->defaultEvaluator, BenchUser::class, $userId, 'posts.create', $scope);
     }, iterations: 50));
 
     echo "\n";
@@ -304,38 +325,34 @@ it('benchmarks large scale: 10,000 users, 500 groups', function (): void {
 
     // Uncached reads
     config()->set('policy-engine.cache.enabled', false);
-    benchReport('can() uncached', benchmark(
-        fn () => $this->defaultEvaluator->can(BenchUser::class, 1, "posts.create:{$scope}"),
+    benchReport('evaluate() uncached', benchmark(
+        fn () => benchCan($this->defaultEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
     benchReport('hasRole() uncached', benchmark(
-        fn () => $this->defaultEvaluator->hasRole(BenchUser::class, 1, 'member', $scope),
+        fn () => benchHasRole($this->assignmentStore, BenchUser::class, 1, 'member', $scope),
     ));
 
+    $benchUser = BenchUser::query()->find(1);
     benchReport('effectivePermissions() uncached', benchmark(
-        fn () => $this->defaultEvaluator->effectivePermissions(BenchUser::class, 1, $scope),
+        fn () => $benchUser->effectivePermissions($scope),
         iterations: 50,
     ));
 
     // Cached reads
     config()->set('policy-engine.cache.enabled', true);
-    $this->cachedEvaluator->can(BenchUser::class, 1, "posts.create:{$scope}");
-    benchReport('can() cached', benchmark(
-        fn () => $this->cachedEvaluator->can(BenchUser::class, 1, "posts.create:{$scope}"),
-    ));
-
-    $this->cachedEvaluator->hasRole(BenchUser::class, 1, 'member', $scope);
-    benchReport('hasRole() cached', benchmark(
-        fn () => $this->cachedEvaluator->hasRole(BenchUser::class, 1, 'member', $scope),
+    benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope);
+    benchReport('evaluate() cached', benchmark(
+        fn () => benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
     // Different users (cold cache per user, warm DB)
     config()->set('policy-engine.cache.enabled', false);
     $userCycle = 0;
-    benchReport('can() across 100 different users', benchmark(function () use (&$userCycle, $scope): void {
+    benchReport('evaluate() across 100 different users', benchmark(function () use (&$userCycle, $scope): void {
         $userCycle++;
         $userId = ($userCycle % 100) + 1;
-        $this->defaultEvaluator->can(BenchUser::class, $userId, "posts.create:{$scope}");
+        benchCan($this->defaultEvaluator, BenchUser::class, $userId, 'posts.create', $scope);
     }));
 
     // 10 permission checks for same user (simulates page render)
@@ -345,9 +362,9 @@ it('benchmarks large scale: 10,000 users, 500 groups', function (): void {
         'settings.manage', 'posts.update.any',
     ];
     config()->set('policy-engine.cache.enabled', true);
-    benchReport('10 can() checks same user (page render)', benchmark(function () use ($permissions, $scope): void {
+    benchReport('10 evaluate() checks same user (page render)', benchmark(function () use ($permissions, $scope): void {
         foreach ($permissions as $perm) {
-            $this->cachedEvaluator->can(BenchUser::class, 1, "{$perm}:{$scope}");
+            benchCan($this->cachedEvaluator, BenchUser::class, 1, $perm, $scope);
         }
     }, iterations: 50));
 
