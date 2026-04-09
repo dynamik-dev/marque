@@ -66,7 +66,7 @@ class DefaultDocumentExporter implements DocumentExporter
     }
 
     /**
-     * Export roles in v2 keyed format.
+     * Export roles in keyed format.
      *
      * When a scope is provided, only roles that have assignments in that scope are included.
      *
@@ -82,18 +82,18 @@ class DefaultDocumentExporter implements DocumentExporter
         $result = [];
 
         foreach ($roles as $role) {
-            $result[$role->id] = $this->serializeRoleV2($role);
+            $result[$role->id] = $this->serializeKeyedRole($role);
         }
 
         return $result;
     }
 
     /**
-     * Serialize a single role model into v2 format.
+     * Serialize a single role model into keyed format.
      *
      * @return array{permissions: array<int, string>, system?: bool}
      */
-    private function serializeRoleV2(Role $role): array
+    private function serializeKeyedRole(Role $role): array
     {
         $data = [
             'permissions' => $this->roleStore->permissionsFor($role->id),
@@ -129,7 +129,7 @@ class DefaultDocumentExporter implements DocumentExporter
     }
 
     /**
-     * Export boundaries in v2 keyed format.
+     * Export boundaries in keyed format.
      *
      * When a scope is provided, only the boundary for that scope (if it exists) is included.
      *

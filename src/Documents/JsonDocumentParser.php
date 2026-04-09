@@ -24,16 +24,16 @@ class JsonDocumentParser implements DocumentParser
         $rawRoles = is_array($data['roles'] ?? null) ? $data['roles'] : [];
         $rawBoundaries = is_array($data['boundaries'] ?? null) ? $data['boundaries'] : [];
 
-        $isV2 = $this->isAssociativeArray($rawRoles) && $rawRoles !== [];
+        $isKeyed = $this->isAssociativeArray($rawRoles) && $rawRoles !== [];
 
         /** @var array<int|string, array{id: string, name: string, permissions: array<int, string>, system?: bool}|array{permissions: array<int, string>}> $roles */
-        $roles = $isV2
-            ? $this->parseV2Roles($rawRoles)
+        $roles = $isKeyed
+            ? $this->parseKeyedRoles($rawRoles)
             : $rawRoles;
 
         /** @var array<int|string, array{scope?: string, max_permissions: array<int, string>}> $boundaries */
         $boundaries = ($this->isAssociativeArray($rawBoundaries) && $rawBoundaries !== [])
-            ? $this->parseV2Boundaries($rawBoundaries)
+            ? $this->parseKeyedBoundaries($rawBoundaries)
             : $rawBoundaries;
 
         $resourcePolicies = $this->parseResourcePolicies($data['resource_policies'] ?? []);
@@ -55,8 +55,8 @@ class JsonDocumentParser implements DocumentParser
 
     public function serialize(PolicyDocument $document): string
     {
-        $roles = $this->serializeRolesToV2($document->roles);
-        $boundaries = $this->serializeBoundariesToV2($document->boundaries);
+        $roles = $this->serializeRolesToKeyed($document->roles);
+        $boundaries = $this->serializeBoundariesToKeyed($document->boundaries);
 
         return json_encode([
             'version' => '2.0',
@@ -90,7 +90,7 @@ class JsonDocumentParser implements DocumentParser
             $rawRoles = $data['roles'];
             if (is_array($rawRoles) && $this->isAssociativeArray($rawRoles) && $rawRoles !== []) {
                 /** @var array<string, mixed> $rawRoles */
-                $this->validateV2Roles($rawRoles, $errors);
+                $this->validateKeyedRoles($rawRoles, $errors);
             } else {
                 $this->validateRoles($rawRoles, $errors);
             }
@@ -104,7 +104,7 @@ class JsonDocumentParser implements DocumentParser
             $rawBoundaries = $data['boundaries'];
             if (is_array($rawBoundaries) && $this->isAssociativeArray($rawBoundaries) && $rawBoundaries !== []) {
                 /** @var array<string, mixed> $rawBoundaries */
-                $this->validateV2Boundaries($rawBoundaries, $errors);
+                $this->validateKeyedBoundaries($rawBoundaries, $errors);
             } else {
                 $this->validateBoundaries($rawBoundaries, $errors);
             }
@@ -135,12 +135,12 @@ class JsonDocumentParser implements DocumentParser
     }
 
     /**
-     * Parse v2-format roles (keyed by ID) into the internal v1 array-of-objects format.
+     * Parse keyed roles (associative: id => data) into indexed array-of-objects format.
      *
      * @param  array<mixed>  $rawRoles
      * @return array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool}>
      */
-    private function parseV2Roles(array $rawRoles): array
+    private function parseKeyedRoles(array $rawRoles): array
     {
         $result = [];
 
@@ -169,12 +169,12 @@ class JsonDocumentParser implements DocumentParser
     }
 
     /**
-     * Parse v2-format boundaries (keyed by scope) into the internal v1 array-of-objects format.
+     * Parse keyed boundaries (associative: scope => data) into indexed array-of-objects format.
      *
      * @param  array<mixed>  $rawBoundaries
      * @return array<int, array{scope: string, max_permissions: array<int, string>}>
      */
-    private function parseV2Boundaries(array $rawBoundaries): array
+    private function parseKeyedBoundaries(array $rawBoundaries): array
     {
         $result = [];
 
@@ -226,24 +226,24 @@ class JsonDocumentParser implements DocumentParser
     }
 
     /**
-     * Convert internal roles (v1 or v2) to v2 keyed format for serialization.
+     * Convert indexed roles to keyed format for serialization.
      *
      * @param  array<mixed>  $roles
      * @return array<string, array{permissions: array<int, string>, system?: bool}>
      */
-    private function serializeRolesToV2(array $roles): array
+    private function serializeRolesToKeyed(array $roles): array
     {
         if ($roles === []) {
             return [];
         }
 
-        // Already in v2 keyed format (associative with string keys pointing to arrays without 'id')
+        // Already in keyed format (associative with string keys pointing to arrays without 'id')
         if ($this->isAssociativeArray($roles)) {
             /** @var array<string, array{permissions: array<int, string>, system?: bool}> */
             return $roles;
         }
 
-        // v1 indexed format — convert to v2
+        // Indexed format — convert to keyed
         $result = [];
 
         foreach ($roles as $role) {
@@ -270,24 +270,24 @@ class JsonDocumentParser implements DocumentParser
     }
 
     /**
-     * Convert internal boundaries (v1 or v2) to v2 keyed format for serialization.
+     * Convert indexed boundaries to keyed format for serialization.
      *
      * @param  array<mixed>  $boundaries
      * @return array<string, array{max_permissions: array<int, string>}>
      */
-    private function serializeBoundariesToV2(array $boundaries): array
+    private function serializeBoundariesToKeyed(array $boundaries): array
     {
         if ($boundaries === []) {
             return [];
         }
 
-        // Already in v2 keyed format
+        // Already in keyed format
         if ($this->isAssociativeArray($boundaries)) {
             /** @var array<string, array{max_permissions: array<int, string>}> */
             return $boundaries;
         }
 
-        // v1 indexed format — convert to v2
+        // Indexed format — convert to keyed
         $result = [];
 
         foreach ($boundaries as $boundary) {
@@ -326,7 +326,7 @@ class JsonDocumentParser implements DocumentParser
     }
 
     /**
-     * Validate v1-format roles (indexed array of objects).
+     * Validate indexed roles (array of objects with id, name, permissions).
      *
      * @param  array<int, string>  $errors
      */
@@ -374,12 +374,12 @@ class JsonDocumentParser implements DocumentParser
     }
 
     /**
-     * Validate v2-format roles (associative: id => {permissions, conditions?}).
+     * Validate keyed roles (associative: id => {permissions, conditions?}).
      *
      * @param  array<string, mixed>  $roles
      * @param  array<int, string>  $errors
      */
-    private function validateV2Roles(array $roles, array &$errors): void
+    private function validateKeyedRoles(array $roles, array &$errors): void
     {
         foreach ($roles as $roleId => $roleData) {
             if (! is_array($roleData)) {
@@ -441,7 +441,7 @@ class JsonDocumentParser implements DocumentParser
     }
 
     /**
-     * Validate v1-format boundaries (indexed array of objects).
+     * Validate indexed boundaries (array of objects with scope, max_permissions).
      *
      * @param  array<int, string>  $errors
      */
@@ -485,12 +485,12 @@ class JsonDocumentParser implements DocumentParser
     }
 
     /**
-     * Validate v2-format boundaries (associative: scope => {max_permissions}).
+     * Validate keyed boundaries (associative: scope => {max_permissions}).
      *
      * @param  array<string, mixed>  $boundaries
      * @param  array<int, string>  $errors
      */
-    private function validateV2Boundaries(array $boundaries, array &$errors): void
+    private function validateKeyedBoundaries(array $boundaries, array &$errors): void
     {
         foreach ($boundaries as $scope => $boundaryData) {
             if (! is_array($boundaryData)) {

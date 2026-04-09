@@ -136,8 +136,8 @@ class DefaultDocumentImporter implements DocumentImporter
     }
 
     /**
-     * Import roles from the document. Supports both v1 (array of {id, name, permissions}) and
-     * v2 (keyed by ID) formats via normalization.
+     * Import roles from the document. Supports both indexed (array of {id, name, permissions}) and
+     * keyed (by ID) formats via normalization.
      *
      * @return array{created: array<int, string>, updated: array<int, string>, warnings: array<int, string>}
      */
@@ -179,8 +179,8 @@ class DefaultDocumentImporter implements DocumentImporter
     }
 
     /**
-     * Import boundaries from the document. Supports both v1 (array of {scope, max_permissions}) and
-     * v2 (keyed by scope string) formats via normalization.
+     * Import boundaries from the document. Supports both indexed (array of {scope, max_permissions}) and
+     * keyed (by scope string) formats via normalization.
      */
     private function importBoundaries(PolicyDocument $document, ImportOptions $options): void
     {
@@ -194,7 +194,7 @@ class DefaultDocumentImporter implements DocumentImporter
     }
 
     /**
-     * Normalize boundaries from either v1 (indexed array of objects) or v2 (keyed by scope) format
+     * Normalize boundaries from either indexed (array of objects) or keyed (by scope) format
      * into a canonical array of {scope, max_permissions}.
      *
      * @param  array<mixed>  $boundaries
@@ -206,7 +206,7 @@ class DefaultDocumentImporter implements DocumentImporter
             return [];
         }
 
-        // v2: associative array keyed by scope string
+        // Keyed: associative array keyed by scope string
         if (array_keys($boundaries) !== range(0, count($boundaries) - 1)) {
             $result = [];
 
@@ -223,7 +223,7 @@ class DefaultDocumentImporter implements DocumentImporter
             return $result;
         }
 
-        // v1: indexed array of boundary objects — return as-is
+        // Indexed array of boundary objects — return as-is
         /** @var array<int, array{scope: string, max_permissions: array<int, string>}> */
         return $boundaries;
     }
@@ -289,7 +289,7 @@ class DefaultDocumentImporter implements DocumentImporter
     }
 
     /**
-     * Normalize roles from either v1 (indexed array of objects) or v2 (keyed by ID) format
+     * Normalize roles from either indexed (array of objects) or keyed (by ID) format
      * into a canonical array of {id, name, permissions, system?}.
      *
      * @param  array<mixed>  $roles
@@ -301,7 +301,7 @@ class DefaultDocumentImporter implements DocumentImporter
             return [];
         }
 
-        // v2: associative array keyed by role ID
+        // Keyed: associative array keyed by role ID
         if (array_keys($roles) !== range(0, count($roles) - 1)) {
             $result = [];
 
@@ -325,7 +325,7 @@ class DefaultDocumentImporter implements DocumentImporter
             return $result;
         }
 
-        // v1: indexed array of role objects — return as-is
+        // Indexed array of role objects — return as-is
         /** @var array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool}> */
         return $roles;
     }
