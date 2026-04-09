@@ -24,18 +24,25 @@ services:
       retries: 5
 
   mysql:
-    image: mariadb:11-jammy
+    image: mysql:8.4
     ports:
       - "3306:3306"
     environment:
-      MARIADB_DATABASE: policy_engine_test
-      MARIADB_USER: test
-      MARIADB_PASSWORD: test
-      MARIADB_ROOT_PASSWORD: root
+      MYSQL_DATABASE: policy_engine_test
+      MYSQL_USER: test
+      MYSQL_PASSWORD: test
+      MYSQL_ROOT_PASSWORD: root
+    command: >-
+      --innodb-buffer-pool-size=64M
+      --innodb-redo-log-capacity=32M
+      --performance-schema=OFF
+      --mysqlx=OFF
+      --disable-log-bin
+      --max-connections=50
     tmpfs:
       - /var/lib/mysql
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 2s
       timeout: 3s
       retries: 10
