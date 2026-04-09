@@ -70,6 +70,28 @@ $user->cannotDo('posts.delete');
 
 Use `canDo()` inside [model policies](../integrations/integrating-with-model-policies.md#writing-a-policy-that-uses-cando), where the policy method needs to check permissions without re-entering the Gate.
 
+### Passing a resource to canDo
+
+```php
+use DynamikDev\PolicyEngine\DTOs\Resource;
+
+$resource = new Resource(type: 'post', id: $post->id);
+$user->canDo('posts.update', scope: $group, resource: $resource);
+```
+
+The `resource` parameter makes the evaluation request available to `ResourcePolicyResolver` and any conditions that inspect resource attributes. Models that use the `HasResourcePolicies` trait can convert themselves with `$post->toPolicyResource()`.
+
+### Passing environment data to canDo
+
+```php
+$user->canDo('posts.publish', scope: $group, environment: [
+    'ip' => request()->ip(),
+    'time' => now()->toIso8601String(),
+]);
+```
+
+The `environment` array is forwarded to the evaluation context. Condition evaluators (like `ip_range` or `time_between`) read from it to make runtime decisions.
+
 ## Listing a user's effective permissions
 
 ```php
@@ -117,18 +139,18 @@ $assignments = $user->assignmentsFor(scope: $group);
 ## Debugging a permission decision
 
 ```php
-$trace = $user->explain('posts.delete', scope: $group);
+$result = $user->explain('posts.delete', scope: $group);
 ```
 
-Returns an `EvaluationTrace` with the full decision path: which assignments were found, which permissions were checked, whether a boundary blocked it, and the final result.
+Returns an `EvaluationResult` with the decision, the resolver that decided it, any matched policy statements, and a trace log.
 
 ```php
-$trace->subject;      // "App\Models\User:42"
-$trace->required;     // "posts.delete"
-$trace->result;       // EvaluationResult::Allow or EvaluationResult::Deny
-$trace->assignments;  // array of role/scope/permissions_checked
-$trace->boundary;     // null or boundary note (e.g., "Passed boundary on scope [group::5]")
-$trace->cacheHit;     // bool
+$result->decision;          // Decision::Allow or Decision::Deny
+$result->decidedBy;         // "role:admin", "boundary:group::5", etc.
+$result->matchedStatements; // array of PolicyStatement objects
+$result->trace;             // array of string trace entries
 ```
 
-> `explain()` is disabled by default. Set `POLICY_ENGINE_EXPLAIN=true` in your `.env` or `config('policy-engine.explain', true)` to enable it. Calling `explain()` when disabled throws a `RuntimeException`.
+Each entry in `matchedStatements` is a `PolicyStatement` with `effect`, `action`, `source`, and optional `conditions`. The `trace` array contains human-readable strings describing each step of the evaluation.
+
+> The `matchedStatements` and `trace` arrays are only populated when the `trace` config key is `true`. Set `POLICY_ENGINE_TRACE=true` in your `.env` or `config('policy-engine.trace', true)` to enable it. When disabled, `explain()` still returns the `decision` and `decidedBy` fields, but the arrays are empty.

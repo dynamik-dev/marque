@@ -72,7 +72,7 @@ Outputs a table with `Subject Type`, `Subject ID`, `Role`, and `Scope` columns.
 
 ### `policy-engine:explain`
 
-Show the full evaluation trace for a specific permission check.
+Show the evaluation result for a specific permission check.
 
 ```bash
 php artisan policy-engine:explain {subject} {permission} {--scope=}
@@ -88,9 +88,23 @@ php artisan policy-engine:explain {subject} {permission} {--scope=}
 php artisan policy-engine:explain user::42 "posts.delete" --scope="group::5"
 ```
 
-Displays the evaluation trace: assignments found, permissions checked per role, boundary status, and the final `ALLOW` or `DENY` result.
+Displays the decision (`ALLOW` or `DENY`), the resolver that decided it (`decidedBy`), and any matched policy statements with their effect, action, and source.
 
-> The `explain` config option must be set to `true` for this command to work. If disabled, the command prints an error message.
+```
+  Subject:    user:42
+  Permission: posts.delete
+  Result:     DENY
+  Decided by: role:moderator
+  Scope:      group::5
+
+  Matched statements:
+    [ALLOW] posts.* (source: role:moderator)
+    [DENY] posts.delete (source: boundary:group::5)
+
+  Cache hit:  N/A
+```
+
+> The `trace` config option must be set to `true` for this command to work. If disabled, the command prints an error message.
 
 ## Importing a policy document
 

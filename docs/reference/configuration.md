@@ -65,16 +65,16 @@ Useful for audit logging and monitoring. Disable if denial events create too muc
 
 ---
 
-### `explain`
+### `trace`
 
-Enable the `explain()` evaluation trace.
+Enable populated trace data in `EvaluationResult`.
 
 - **Type:** `bool`
-- **Default:** `env('POLICY_ENGINE_EXPLAIN', false)`
+- **Default:** `env('POLICY_ENGINE_TRACE', false)`
 
-When disabled, calling `explain()` throws a `RuntimeException`. Enable in development and staging for debugging. Disable in production — the trace adds overhead and may expose internal authorization structure.
+When enabled, `explain()` returns `matchedStatements` and `trace` arrays in the `EvaluationResult`. When disabled, `explain()` still returns the `decision` and `decidedBy` fields, but the arrays are empty. Enable in development and staging for debugging. Disable in production — the trace adds overhead and may expose internal authorization structure.
 
-> **Security:** When enabled, `explain()` exposes the full authorization decision tree — roles, permissions, boundaries, and scope context. Never enable this in production unless access is restricted. The `policy-engine:explain` Artisan command reads this config at runtime; lock down Artisan access in production environments.
+> **Security:** When enabled, trace data exposes the full authorization decision tree — roles, permissions, boundaries, resolver sources, and scope context. Never enable this in production unless access is restricted. The `policy-engine:explain` Artisan command reads this config at runtime; lock down Artisan access in production environments.
 
 ---
 
@@ -116,6 +116,45 @@ Useful when another package (e.g. Spatie Permission, Bouncer) already uses gener
 ```
 
 After changing the prefix, you must re-run migrations. If you are adding the prefix to an existing installation, rename the existing tables first or create a migration to rename them.
+
+---
+
+### `resolvers`
+
+The ordered list of `PolicyResolver` classes that form the evaluation chain.
+
+- **Type:** `array`
+- **Default:**
+```php
+'resolvers' => [
+    \DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver::class,
+    \DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver::class,
+    \DynamikDev\PolicyEngine\Resolvers\ResourcePolicyResolver::class,
+    \DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver::class,
+],
+```
+
+Each resolver receives an `EvaluationRequest` and returns a collection of `PolicyStatement` objects (Allow or Deny). The evaluator merges statements from all resolvers and applies deny-wins logic.
+
+| Resolver | Purpose |
+| --- | --- |
+| `IdentityPolicyResolver` | Resolves role assignments into Allow/Deny statements |
+| `BoundaryPolicyResolver` | Emits Deny statements for permissions outside scope boundaries |
+| `ResourcePolicyResolver` | Returns statements attached to a specific resource model |
+| `SanctumPolicyResolver` | Emits Deny statements for permissions not in the Sanctum token's abilities |
+
+Add custom resolvers to this array. Remove `SanctumPolicyResolver` if you do not use Sanctum. See [Adding a custom PolicyResolver](../extending/swapping-implementations.md#adding-a-custom-policyresolver).
+
+---
+
+### `seeder_class`
+
+The seeder class invoked by `policy-engine:sync`.
+
+- **Type:** `string`
+- **Default:** `'PermissionSeeder'`
+
+Change this if your permission seeder uses a different class name.
 
 ---
 
@@ -175,6 +214,11 @@ When both the morph map and this config are empty, subject type validation is sk
 ```php
 // config/policy-engine.php
 
+use DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver;
+use DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver;
+use DynamikDev\PolicyEngine\Resolvers\ResourcePolicyResolver;
+use DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver;
+
 return [
     'cache' => [
         'enabled' => true,
@@ -183,12 +227,20 @@ return [
     ],
     'protect_system_roles' => true,
     'log_denials' => true,
-    'explain' => env('POLICY_ENGINE_EXPLAIN', false),
+    'trace' => env('POLICY_ENGINE_TRACE', false),
     'deny_unbounded_scopes' => false,
     'enforce_boundaries_on_global' => false,
     'table_prefix' => '',
+    'seeder_class' => 'PermissionSeeder',
     'document_path' => null,
     'gate_passthrough' => [],
     'import_subject_types' => [],
+
+    'resolvers' => [
+        IdentityPolicyResolver::class,
+        BoundaryPolicyResolver::class,
+        ResourcePolicyResolver::class,
+        SanctumPolicyResolver::class,
+    ],
 ];
 ```

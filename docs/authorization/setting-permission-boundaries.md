@@ -17,12 +17,14 @@ This scope now has a ceiling. Only permissions matching `posts.*` or `comments.*
 
 ## How boundary enforcement works
 
-The evaluator checks boundaries before processing allow/deny rules. The order is:
+Boundaries are enforced by the `BoundaryPolicyResolver` in the resolver chain. When evaluating a permission check, the resolver emits Deny statements for any registered permission that falls outside the scope's boundary ceiling. The evaluator then processes these alongside Allow/Deny statements from other resolvers.
 
-1. Find the user's assignments (global + scoped)
-2. Check the scope's boundary (if one exists)
-3. If the required permission is **not** covered by any boundary pattern, deny immediately
-4. If the boundary passes, proceed to normal deny/allow evaluation
+The effective order is:
+
+1. The `IdentityPolicyResolver` finds the user's assignments and emits Allow/Deny statements from roles
+2. The `BoundaryPolicyResolver` checks the scope's boundary (if one exists)
+3. If the required permission is **not** covered by any boundary pattern, a Deny statement is emitted
+4. Deny wins — the evaluator merges all statements and denies if any Deny matches
 
 ```php
 PolicyEngine::boundary('org::acme', ['posts.*', 'comments.*']);

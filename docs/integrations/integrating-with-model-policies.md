@@ -93,6 +93,41 @@ $this->authorize('delete', $post); // Standard Gate → PostPolicy::delete()
 
 When a policy method internally calls `canDo()`, it goes directly to the `HasPermissions` trait — it does not re-enter the Gate.
 
+## Passing a resource model through the Gate
+
+Models that use the `HasResourcePolicies` trait are automatically detected as resources when passed to `can()`.
+
+```php
+use DynamikDev\PolicyEngine\Concerns\HasResourcePolicies;
+
+class Post extends Model
+{
+    use HasResourcePolicies;
+}
+```
+
+```php
+$user->can('posts.update', $post);
+```
+
+The Gate hook calls `$post->toPolicyResource()` and forwards the resulting `Resource` DTO to the evaluator. This makes the resource available to the `ResourcePolicyResolver` and any conditions that inspect resource attributes.
+
+### Passing both a scope and a resource
+
+```php
+$user->can('posts.update', [$team, $post]);
+```
+
+When the Gate receives an array, the first argument is treated as the scope and the second is checked for the `HasResourcePolicies` trait. If the second argument has the trait, it is converted to a `Resource` DTO.
+
+### Scope-only behavior (unchanged)
+
+```php
+$user->can('posts.update', $team);
+```
+
+When the argument does not have the `HasResourcePolicies` trait, it is treated as a scope — the same behavior as v1.
+
 ## Registering the policy
 
 ```php
