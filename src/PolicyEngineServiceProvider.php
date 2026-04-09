@@ -33,7 +33,9 @@ use DynamikDev\PolicyEngine\Events\RoleUpdated;
 use DynamikDev\PolicyEngine\Listeners\InvalidatePermissionCache;
 use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
 use DynamikDev\PolicyEngine\Middleware\RoleMiddleware;
+use DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver;
 use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
+use DynamikDev\PolicyEngine\Stores\CachingBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
 use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
 use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
@@ -66,6 +68,19 @@ class PolicyEngineServiceProvider extends ServiceProvider
         $this->app->singleton(DocumentParser::class, JsonDocumentParser::class);
         $this->app->singleton(DocumentImporter::class, DefaultDocumentImporter::class);
         $this->app->singleton(DocumentExporter::class, DefaultDocumentExporter::class);
+
+        $this->app->singleton(BoundaryPolicyResolver::class, function ($app) {
+            return new BoundaryPolicyResolver(
+                boundaries: new CachingBoundaryStore(
+                    inner: $app->make(BoundaryStore::class),
+                    cache: $app->make(CacheManager::class),
+                ),
+                matcher: $app->make(Matcher::class),
+                permissionStore: $app->make(PermissionStore::class),
+                denyUnboundedScopes: (bool) config('policy-engine.deny_unbounded_scopes', false),
+                enforceOnGlobal: (bool) config('policy-engine.enforce_boundaries_on_global', false),
+            );
+        });
 
         $this->app->singleton(Evaluator::class, function ($app): CachedEvaluator {
             $resolverClasses = (array) config('policy-engine.resolvers', []);

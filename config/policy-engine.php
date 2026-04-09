@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver;
 use DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver;
 
 return [
@@ -23,5 +24,6 @@ return [
 
     'resolvers' => [
         IdentityPolicyResolver::class,
+        BoundaryPolicyResolver::class,
     ],
 ];

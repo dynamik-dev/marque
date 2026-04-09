@@ -102,8 +102,17 @@ it('allows scoped permission via global assignment', function (): void {
 });
 
 it('denies when boundary restricts wildcard permissions in scope', function (): void {
-    // BoundaryPolicyResolver not yet implemented (Task 2.1).
-})->skip('BoundaryPolicyResolver not yet implemented (Task 2.1)');
+    $this->permissionStore->register(['posts.create', 'posts.delete', 'billing.manage']);
+    $this->roleStore->save('admin', 'Admin', ['*.*']);
+    $this->user->assign('admin', 'org::acme');
+    $this->boundaryStore->set('org::acme', ['posts.*']);
+
+    // posts.create is within boundary ceiling.
+    expect($this->user->canDo('posts.create', 'org::acme'))->toBeTrue();
+
+    // billing.manage is outside the boundary ceiling — should be denied.
+    expect($this->user->canDo('billing.manage', 'org::acme'))->toBeFalse();
+});
 
 it('allows when permission is within boundary ceiling', function (): void {
     $this->permissionStore->register(['posts.create']);

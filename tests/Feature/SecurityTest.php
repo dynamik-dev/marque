@@ -209,8 +209,16 @@ function securityEval(Evaluator $evaluator, string $type, string|int $id, string
 // --- Finding 6: deny_unbounded_scopes ---
 
 it('denies scoped permission when no boundary exists and deny_unbounded_scopes is enabled', function (): void {
-    // BoundaryPolicyResolver not yet implemented (Task 2.1).
-})->skip('BoundaryPolicyResolver not yet implemented (Task 2.1)');
+    config()->set('policy-engine.deny_unbounded_scopes', true);
+
+    $this->permissionStore->register(['posts.create']);
+    $this->roleStore->save('editor', 'Editor', ['posts.create']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'editor', 'company::99');
+
+    $evaluator = app(Evaluator::class);
+
+    expect(securityEval($evaluator, 'App\\Models\\User', 1, 'posts.create', 'company::99'))->toBeFalse();
+});
 
 it('allows scoped permission when no boundary exists and deny_unbounded_scopes is disabled', function (): void {
     config()->set('policy-engine.deny_unbounded_scopes', false);
@@ -257,8 +265,19 @@ it('denies posts.* when full wildcard grant exists but posts deny rule present',
 // --- Finding 10: Boundary enforcement on global assignment checking scoped permission ---
 
 it('enforces boundary on scoped check even when user has global wildcard assignment', function (): void {
-    // BoundaryPolicyResolver not yet implemented (Task 2.1).
-})->skip('BoundaryPolicyResolver not yet implemented (Task 2.1)');
+    $this->permissionStore->register(['posts.create', 'billing.manage']);
+    $this->roleStore->save('superadmin', 'Super Admin', ['*.*']);
+    $this->assignmentStore->assign('App\\Models\\User', 1, 'superadmin');
+    $this->boundaryStore->set('org::restricted', ['posts.*']);
+
+    $evaluator = app(Evaluator::class);
+
+    // billing.manage is outside the boundary ceiling for org::restricted.
+    expect(securityEval($evaluator, 'App\\Models\\User', 1, 'billing.manage', 'org::restricted'))->toBeFalse();
+
+    // posts.create is within the boundary ceiling.
+    expect(securityEval($evaluator, 'App\\Models\\User', 1, 'posts.create', 'org::restricted'))->toBeTrue();
+});
 
 // --- Finding 11: PathValidator rejects paths with non-existent parent directories ---
 
