@@ -21,26 +21,33 @@ class JsonDocumentParser implements DocumentParser
         /** @var string $version */
         $version = $data['version'] ?? '1.0';
 
-        $rawRoles = $data['roles'] ?? [];
-        $rawBoundaries = $data['boundaries'] ?? [];
+        $rawRoles = is_array($data['roles'] ?? null) ? $data['roles'] : [];
+        $rawBoundaries = is_array($data['boundaries'] ?? null) ? $data['boundaries'] : [];
 
         $isV2 = $this->isAssociativeArray($rawRoles) && $rawRoles !== [];
 
+        /** @var array<int|string, array{id: string, name: string, permissions: array<int, string>, system?: bool}|array{permissions: array<int, string>}> $roles */
         $roles = $isV2
             ? $this->parseV2Roles($rawRoles)
             : $rawRoles;
 
+        /** @var array<int|string, array{scope?: string, max_permissions: array<int, string>}> $boundaries */
         $boundaries = ($this->isAssociativeArray($rawBoundaries) && $rawBoundaries !== [])
             ? $this->parseV2Boundaries($rawBoundaries)
             : $rawBoundaries;
 
         $resourcePolicies = $this->parseResourcePolicies($data['resource_policies'] ?? []);
 
+        /** @var array<int, string> $permissions */
+        $permissions = $data['permissions'] ?? [];
+        /** @var array<int, array{subject: string, role: string, scope?: string}> $assignments */
+        $assignments = $data['assignments'] ?? [];
+
         return new PolicyDocument(
             version: $version,
-            permissions: $data['permissions'] ?? [],
+            permissions: $permissions,
             roles: $roles,
-            assignments: $data['assignments'] ?? [],
+            assignments: $assignments,
             boundaries: $boundaries,
             resourcePolicies: $resourcePolicies,
         );
@@ -130,7 +137,7 @@ class JsonDocumentParser implements DocumentParser
     /**
      * Parse v2-format roles (keyed by ID) into the internal v1 array-of-objects format.
      *
-     * @param  array<string, mixed>  $rawRoles
+     * @param  array<mixed>  $rawRoles
      * @return array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool}>
      */
     private function parseV2Roles(array $rawRoles): array
@@ -144,9 +151,10 @@ class JsonDocumentParser implements DocumentParser
 
             /** @var array<int, string> $permissions */
             $permissions = $roleData['permissions'] ?? [];
+            $id = (string) $roleId;
             $entry = [
-                'id' => $roleId,
-                'name' => is_string($roleData['name'] ?? null) ? $roleData['name'] : $roleId,
+                'id' => $id,
+                'name' => is_string($roleData['name'] ?? null) ? $roleData['name'] : $id,
                 'permissions' => $permissions,
             ];
 
@@ -163,7 +171,7 @@ class JsonDocumentParser implements DocumentParser
     /**
      * Parse v2-format boundaries (keyed by scope) into the internal v1 array-of-objects format.
      *
-     * @param  array<string, mixed>  $rawBoundaries
+     * @param  array<mixed>  $rawBoundaries
      * @return array<int, array{scope: string, max_permissions: array<int, string>}>
      */
     private function parseV2Boundaries(array $rawBoundaries): array
@@ -178,7 +186,7 @@ class JsonDocumentParser implements DocumentParser
             /** @var array<int, string> $maxPermissions */
             $maxPermissions = $boundaryData['max_permissions'] ?? [];
             $result[] = [
-                'scope' => $scope,
+                'scope' => (string) $scope,
                 'max_permissions' => $maxPermissions,
             ];
         }
@@ -243,8 +251,10 @@ class JsonDocumentParser implements DocumentParser
                 continue;
             }
 
+            /** @var array<int, string> $permissions */
+            $permissions = $role['permissions'] ?? [];
             $entry = [
-                'permissions' => $role['permissions'] ?? [],
+                'permissions' => $permissions,
             ];
 
             if (! empty($role['system'])) {
@@ -287,8 +297,10 @@ class JsonDocumentParser implements DocumentParser
 
             /** @var string $scopeKey */
             $scopeKey = $boundary['scope'];
+            /** @var array<int, string> $maxPerms */
+            $maxPerms = $boundary['max_permissions'] ?? [];
             $result[$scopeKey] = [
-                'max_permissions' => $boundary['max_permissions'] ?? [],
+                'max_permissions' => $maxPerms,
             ];
         }
 
