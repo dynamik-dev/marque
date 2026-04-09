@@ -6,9 +6,12 @@ use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
 use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
 use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
 use DynamikDev\PolicyEngine\Contracts\RoleStore;
 use DynamikDev\PolicyEngine\DTOs\ImportOptions;
 use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
+use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
+use DynamikDev\PolicyEngine\Enums\Effect;
 use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
 use DynamikDev\PolicyEngine\Events\BoundaryRemoved;
 use DynamikDev\PolicyEngine\Events\DocumentImported;
@@ -17,6 +20,7 @@ use DynamikDev\PolicyEngine\Events\RoleDeleted;
 use DynamikDev\PolicyEngine\Models\Assignment;
 use DynamikDev\PolicyEngine\Models\Boundary;
 use DynamikDev\PolicyEngine\Models\Permission;
+use DynamikDev\PolicyEngine\Models\ResourcePolicy;
 use DynamikDev\PolicyEngine\Models\Role;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -29,6 +33,7 @@ beforeEach(function (): void {
     $this->roleStore = app(RoleStore::class);
     $this->assignmentStore = app(AssignmentStore::class);
     $this->boundaryStore = app(BoundaryStore::class);
+    $this->resourcePolicyStore = app(ResourcePolicyStore::class);
     $this->importer = app(DocumentImporter::class);
 });
 
@@ -452,4 +457,173 @@ it('dispatches cache invalidation events during replace-mode clear', function ()
 
     // Import events from the new data
     Event::assertDispatched(DocumentImported::class);
+});
+
+// --- v2 format import ---
+
+it('imports a v2 document with roles keyed by id', function (): void {
+    $document = new PolicyDocument(
+        version: '2.0',
+        permissions: ['posts.create', 'posts.update'],
+        roles: [
+            'editor' => ['permissions' => ['posts.create', 'posts.update']],
+            'admin' => ['permissions' => ['posts.create', 'posts.update'], 'system' => true],
+        ],
+        assignments: [],
+        boundaries: [
+            'team::5' => ['max_permissions' => ['posts.create']],
+        ],
+    );
+
+    $result = $this->importer->import($document, new ImportOptions);
+
+    expect($result->rolesCreated)->toBe(['editor', 'admin'])
+        ->and($result->rolesUpdated)->toBe([])
+        ->and($result->warnings)->toBe([]);
+
+    expect(Role::query()->count())->toBe(2);
+    expect(Role::query()->find('admin')->is_system)->toBeTrue();
+    expect(Role::query()->find('editor')->is_system)->toBeFalse();
+
+    expect($this->roleStore->permissionsFor('editor'))->toBe(['posts.create', 'posts.update']);
+
+    $boundary = $this->boundaryStore->find('team::5');
+    expect($boundary)->not->toBeNull();
+    expect($boundary->max_permissions)->toBe(['posts.create']);
+});
+
+it('imports v2 roles in merge mode correctly', function (): void {
+    $this->roleStore->save('editor', 'Old Editor', ['posts.create']);
+
+    $document = new PolicyDocument(
+        version: '2.0',
+        permissions: ['posts.create', 'posts.update'],
+        roles: [
+            'editor' => ['permissions' => ['posts.create', 'posts.update']],
+            'admin' => ['permissions' => ['posts.create', 'posts.update']],
+        ],
+    );
+
+    $result = $this->importer->import($document, new ImportOptions(merge: true));
+
+    expect($result->rolesCreated)->toBe(['admin'])
+        ->and($result->rolesUpdated)->toBe(['editor']);
+});
+
+it('warns about unregistered permissions in v2 role definitions', function (): void {
+    $document = new PolicyDocument(
+        version: '2.0',
+        permissions: ['posts.create'],
+        roles: [
+            'editor' => ['permissions' => ['posts.create', 'posts.delete', 'unknown.perm']],
+        ],
+    );
+
+    $result = $this->importer->import($document, new ImportOptions);
+
+    expect($result->warnings)->toHaveCount(2)
+        ->and($result->warnings[0])->toContain('posts.delete')
+        ->and($result->warnings[1])->toContain('unknown.perm');
+});
+
+// --- resource policy import ---
+
+it('imports resource policies from the document', function (): void {
+    $document = new PolicyDocument(
+        version: '2.0',
+        permissions: [],
+        roles: [],
+        assignments: [],
+        boundaries: [],
+        resourcePolicies: [
+            [
+                'resource_type' => 'post',
+                'resource_id' => null,
+                'effect' => 'Allow',
+                'action' => 'posts.read',
+                'principal_pattern' => '*',
+                'conditions' => [],
+            ],
+        ],
+    );
+
+    $this->importer->import($document, new ImportOptions);
+
+    expect(ResourcePolicy::query()->count())->toBe(1);
+
+    $rp = ResourcePolicy::query()->first();
+    expect($rp->resource_type)->toBe('post')
+        ->and($rp->resource_id)->toBeNull()
+        ->and($rp->effect)->toBe('Allow')
+        ->and($rp->action)->toBe('posts.read')
+        ->and($rp->principal_pattern)->toBe('*');
+});
+
+it('does not import resource policies during dry run', function (): void {
+    $document = new PolicyDocument(
+        version: '2.0',
+        resourcePolicies: [
+            [
+                'resource_type' => 'post',
+                'resource_id' => null,
+                'effect' => 'Allow',
+                'action' => 'posts.read',
+                'principal_pattern' => null,
+                'conditions' => [],
+            ],
+        ],
+    );
+
+    $this->importer->import($document, new ImportOptions(dryRun: true));
+
+    expect(ResourcePolicy::query()->count())->toBe(0);
+});
+
+it('clears resource policies in replace mode', function (): void {
+    // Pre-seed a resource policy
+    $this->resourcePolicyStore->attach('post', null, new PolicyStatement(
+        effect: Effect::Allow,
+        action: 'posts.read',
+    ));
+    expect(ResourcePolicy::query()->count())->toBe(1);
+
+    // Import in replace mode with no resource policies
+    $document = new PolicyDocument(
+        version: '2.0',
+        permissions: ['posts.create'],
+        roles: ['editor' => ['permissions' => ['posts.create']]],
+    );
+
+    $this->importer->import($document, new ImportOptions(merge: false));
+
+    expect(ResourcePolicy::query()->count())->toBe(0);
+});
+
+it('imports resource policies with conditions', function (): void {
+    $document = new PolicyDocument(
+        version: '2.0',
+        resourcePolicies: [
+            [
+                'resource_type' => 'post',
+                'resource_id' => '42',
+                'effect' => 'Deny',
+                'action' => 'posts.delete',
+                'principal_pattern' => null,
+                'conditions' => [
+                    ['type' => 'attribute_equals', 'parameters' => ['subject_key' => 'dept', 'resource_key' => 'dept']],
+                ],
+            ],
+        ],
+    );
+
+    $this->importer->import($document, new ImportOptions);
+
+    expect(ResourcePolicy::query()->count())->toBe(1);
+
+    $rp = ResourcePolicy::query()->first();
+    expect($rp->resource_type)->toBe('post')
+        ->and($rp->resource_id)->toBe('42')
+        ->and($rp->effect)->toBe('Deny')
+        ->and($rp->conditions)->toHaveCount(1)
+        ->and($rp->conditions[0]['type'])->toBe('attribute_equals');
 });

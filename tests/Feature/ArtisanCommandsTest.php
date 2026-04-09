@@ -358,9 +358,9 @@ it('exports authorization state to a file', function (): void {
     $contents = file_get_contents($path);
     $decoded = json_decode($contents, true);
 
-    expect($decoded)->toHaveKey('version', '1.0');
+    expect($decoded)->toHaveKey('version', '2.0');
     expect($decoded['permissions'])->toContain('posts.create');
-    expect($decoded['roles'][0]['id'])->toBe('editor');
+    expect($decoded['roles'])->toHaveKey('editor');
 
     unlink($path);
 });
