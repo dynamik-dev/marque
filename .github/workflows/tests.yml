@@ -1,7 +1,13 @@
-name: CI
+name: Tests
 
 on:
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'LICENSE'
+  push:
+    branches: [main]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -13,50 +19,8 @@ env:
   COMPOSER_NO_AUDIT: 1
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-
-      - uses: actions/cache@v5
-        with:
-          path: vendor
-          key: composer-lint-${{ hashFiles('composer.json') }}
-          restore-keys: composer-lint-
-
-      - run: composer install --no-interaction
-
-      - run: vendor/bin/pint --test
-
-  static:
-    name: Static Analysis
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-
-      - uses: actions/cache@v5
-        with:
-          path: vendor
-          key: composer-static-${{ hashFiles('composer.json') }}
-          restore-keys: composer-static-
-
-      - run: composer install --no-interaction
-
-      - run: vendor/bin/phpstan analyse
-
-  test:
-    name: Tests (SQLite / PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }})
-    needs: static
+  sqlite:
+    name: SQLite / PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -87,16 +51,15 @@ jobs:
 
       - run: docker compose down -v
 
-  test-database:
-    name: Tests (${{ matrix.database }} / PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }})
-    needs: test
+  pgsql:
+    name: PostgreSQL / PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }}
+    needs: sqlite
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
       matrix:
         php: ['8.4', '8.5']
         laravel: ['12', '13']
-        database: [pgsql]
     steps:
       - uses: actions/checkout@v6
 
@@ -116,6 +79,6 @@ jobs:
 
       - run: docker compose up -d --wait postgres valkey
 
-      - run: DB_CONNECTION=${{ matrix.database }} vendor/bin/pest --exclude-group=benchmark
+      - run: DB_CONNECTION=pgsql vendor/bin/pest --exclude-group=benchmark
 
       - run: docker compose down -v
