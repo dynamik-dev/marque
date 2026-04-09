@@ -3,6 +3,11 @@ name: CI
 on:
   pull_request:
 
+env:
+  COMPOSER_PROCESS_TIMEOUT: 0
+  COMPOSER_NO_INTERACTION: 1
+  COMPOSER_NO_AUDIT: 1
+
 jobs:
   lint:
     name: Lint
@@ -13,6 +18,12 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+
+      - uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-lint-${{ hashFiles('composer.json') }}
+          restore-keys: composer-lint-
 
       - run: composer install --no-interaction
 
@@ -28,6 +39,12 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
+
+      - uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-static-${{ hashFiles('composer.json') }}
+          restore-keys: composer-static-
 
       - run: composer install --no-interaction
 
@@ -50,6 +67,12 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: pcov
           extensions: redis
+
+      - uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-test-${{ matrix.php }}-${{ matrix.laravel }}-${{ hashFiles('composer.json') }}
+          restore-keys: composer-test-${{ matrix.php }}-${{ matrix.laravel }}-
 
       - run: composer require illuminate/support:^${{ matrix.laravel }}.0 --no-update
       - run: composer update --no-interaction
@@ -77,6 +100,12 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           extensions: redis, pdo_pgsql, pdo_mysql
+
+      - uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-db-${{ matrix.php }}-${{ matrix.laravel }}-${{ hashFiles('composer.json') }}
+          restore-keys: composer-db-${{ matrix.php }}-${{ matrix.laravel }}-
 
       - run: composer require illuminate/support:^${{ matrix.laravel }}.0 --no-update
       - run: composer update --no-interaction
