@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine;
 
+use DynamikDev\PolicyEngine\Conditions\AttributeEqualsEvaluator;
+use DynamikDev\PolicyEngine\Conditions\AttributeInEvaluator;
+use DynamikDev\PolicyEngine\Conditions\DefaultConditionRegistry;
+use DynamikDev\PolicyEngine\Conditions\EnvironmentEqualsEvaluator;
+use DynamikDev\PolicyEngine\Conditions\IpRangeEvaluator;
+use DynamikDev\PolicyEngine\Conditions\TimeBetweenEvaluator;
 use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
 use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\PolicyEngine\Contracts\ConditionRegistry;
 use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
 use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
 use DynamikDev\PolicyEngine\Contracts\DocumentParser;
@@ -69,6 +76,17 @@ class PolicyEngineServiceProvider extends ServiceProvider
         $this->app->singleton(DocumentImporter::class, DefaultDocumentImporter::class);
         $this->app->singleton(DocumentExporter::class, DefaultDocumentExporter::class);
 
+        $this->app->singleton(ConditionRegistry::class, function (): DefaultConditionRegistry {
+            $registry = new DefaultConditionRegistry;
+            $registry->register('attribute_equals', AttributeEqualsEvaluator::class);
+            $registry->register('attribute_in', AttributeInEvaluator::class);
+            $registry->register('environment_equals', EnvironmentEqualsEvaluator::class);
+            $registry->register('ip_range', IpRangeEvaluator::class);
+            $registry->register('time_between', TimeBetweenEvaluator::class);
+
+            return $registry;
+        });
+
         $this->app->singleton(BoundaryPolicyResolver::class, function ($app) {
             return new BoundaryPolicyResolver(
                 boundaries: new CachingBoundaryStore(
@@ -93,6 +111,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
                 inner: new DefaultEvaluator(
                     resolvers: $resolvers,
                     matcher: $app->make(Matcher::class),
+                    conditionRegistry: $app->make(ConditionRegistry::class),
                 ),
                 cache: $app->make(CacheManager::class),
             );

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DynamikDev\PolicyEngine\Evaluators;
 
+use DynamikDev\PolicyEngine\Contracts\ConditionRegistry;
 use DynamikDev\PolicyEngine\Contracts\Evaluator;
 use DynamikDev\PolicyEngine\Contracts\Matcher;
 use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
@@ -24,6 +25,7 @@ class DefaultEvaluator implements Evaluator
     public function __construct(
         private readonly array $resolvers,
         private readonly Matcher $matcher,
+        private readonly ?ConditionRegistry $conditionRegistry = null,
     ) {}
 
     public function evaluate(EvaluationRequest $request): EvaluationResult
@@ -76,6 +78,7 @@ class DefaultEvaluator implements Evaluator
         return $all->filter(fn (PolicyStatement $statement): bool => $this->matchesAction($statement, $request)
             && $this->matchesPrincipal($statement, $request->principal)
             && $this->matchesResource($statement, $request->resource)
+            && $this->conditionsPass($statement, $request)
         )->values();
     }
 
@@ -112,5 +115,21 @@ class DefaultEvaluator implements Evaluator
         }
 
         return $statement->resourcePattern === "{$resource->type}:{$resource->id}";
+    }
+
+    private function conditionsPass(PolicyStatement $statement, EvaluationRequest $request): bool
+    {
+        if ($statement->conditions === [] || $this->conditionRegistry === null) {
+            return true;
+        }
+
+        foreach ($statement->conditions as $condition) {
+            $evaluator = $this->conditionRegistry->evaluatorFor($condition->type);
+            if (! $evaluator->passes($condition, $request)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
