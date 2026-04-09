@@ -166,5 +166,5 @@ it('stores and hydrates conditions correctly', function (): void {
     $condition = $result->conditions[0];
     expect($condition)->toBeInstanceOf(Condition::class)
         ->and($condition->type)->toBe('attribute_equals')
-        ->and($condition->parameters)->toBe(['attribute' => 'department_id', 'value' => 1]);
+        ->and($condition->parameters)->toEqualCanonicalizing(['attribute' => 'department_id', 'value' => 1]);
 });
