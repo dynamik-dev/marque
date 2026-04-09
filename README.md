@@ -1,8 +1,8 @@
 # Policy Engine for Laravel
 
-[![Pint](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/ci.yml?branch=main&label=Pint&logo=laravel)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/ci.yml)
-[![Larastan](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/ci.yml?branch=main&label=Larastan&logo=php)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/ci.yml)
-[![Pest](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/ci.yml?branch=main&label=Pest&logo=php)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/ci.yml)
+[![Pint](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/lint.yml?branch=main&label=Pint&logo=laravel)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/lint.yml)
+[![Larastan](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/static.yml?branch=main&label=Larastan&logo=php)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/static.yml)
+[![Pest](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/tests.yml?branch=main&label=Pest&logo=php)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/tests.yml)
 
 An IAM-style policy engine for Laravel. Define your authorization as declarative JSON documents and import them the way you'd manage AWS IAM policies.
 
