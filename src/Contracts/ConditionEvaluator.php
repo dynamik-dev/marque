@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Contracts;
+namespace DynamikDev\Marque\Contracts;
 
-use DynamikDev\PolicyEngine\DTOs\Condition;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\Condition;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
 
 interface ConditionEvaluator
 {

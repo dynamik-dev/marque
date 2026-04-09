@@ -2,31 +2,31 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\Matcher;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentExporter;
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
-use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
-use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
-use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
-use DynamikDev\PolicyEngine\PolicyEngineManager;
-use DynamikDev\PolicyEngine\PolicyEngineServiceProvider;
-use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\DocumentExporter;
+use DynamikDev\Marque\Contracts\DocumentImporter;
+use DynamikDev\Marque\Contracts\DocumentParser;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\Matcher;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Contracts\ScopeResolver;
+use DynamikDev\Marque\Documents\DefaultDocumentExporter;
+use DynamikDev\Marque\Documents\DefaultDocumentImporter;
+use DynamikDev\Marque\Documents\JsonDocumentParser;
+use DynamikDev\Marque\Evaluators\CachedEvaluator;
+use DynamikDev\Marque\MarqueManager;
+use DynamikDev\Marque\MarqueServiceProvider;
+use DynamikDev\Marque\Matchers\WildcardMatcher;
+use DynamikDev\Marque\Resolvers\ModelScopeResolver;
+use DynamikDev\Marque\Stores\EloquentAssignmentStore;
+use DynamikDev\Marque\Stores\EloquentBoundaryStore;
+use DynamikDev\Marque\Stores\EloquentPermissionStore;
+use DynamikDev\Marque\Stores\EloquentRoleStore;
 
 it('boots without errors', function (): void {
-    expect(app()->getProviders(PolicyEngineServiceProvider::class))
+    expect(app()->getProviders(MarqueServiceProvider::class))
         ->not->toBeEmpty();
 });
 
@@ -70,15 +70,15 @@ it('resolves Evaluator to CachedEvaluator', function (): void {
     expect(app(Evaluator::class))->toBeInstanceOf(CachedEvaluator::class);
 });
 
-it('resolves PolicyEngineManager as singleton', function (): void {
-    $first = app(PolicyEngineManager::class);
-    $second = app(PolicyEngineManager::class);
+it('resolves MarqueManager as singleton', function (): void {
+    $first = app(MarqueManager::class);
+    $second = app(MarqueManager::class);
 
     expect($first)->toBe($second);
 });
 
 it('merges config from package config file', function (): void {
-    expect(config('policy-engine'))->toBeArray();
-    expect(config('policy-engine.cache.enabled'))->toBeBool();
-    expect(config('policy-engine.protect_system_roles'))->toBeBool();
+    expect(config('marque'))->toBeArray();
+    expect(config('marque.cache.enabled'))->toBeBool();
+    expect(config('marque.protect_system_roles'))->toBeBool();
 });

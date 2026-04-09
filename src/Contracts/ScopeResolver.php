@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Contracts;
+namespace DynamikDev\Marque\Contracts;
 
 interface ScopeResolver
 {

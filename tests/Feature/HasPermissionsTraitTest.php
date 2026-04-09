@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Concerns\HasPermissions;
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\Matcher;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\DTOs\EvaluationResult;
-use DynamikDev\PolicyEngine\DTOs\Principal;
-use DynamikDev\PolicyEngine\DTOs\Resource;
-use DynamikDev\PolicyEngine\Enums\Decision;
-use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
-use DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver;
-use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
+use DynamikDev\Marque\Concerns\HasPermissions;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\Matcher;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\EvaluationResult;
+use DynamikDev\Marque\DTOs\Principal;
+use DynamikDev\Marque\DTOs\Resource;
+use DynamikDev\Marque\Enums\Decision;
+use DynamikDev\Marque\Evaluators\CachedEvaluator;
+use DynamikDev\Marque\Evaluators\DefaultEvaluator;
+use DynamikDev\Marque\Resolvers\IdentityPolicyResolver;
+use DynamikDev\Marque\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
@@ -68,7 +68,7 @@ beforeEach(function (): void {
     });
 
     // Set the resolver chain for effectivePermissions().
-    config(['policy-engine.resolvers' => [IdentityPolicyResolver::class]]);
+    config(['marque.resolvers' => [IdentityPolicyResolver::class]]);
 
     $this->permissionStore = app(PermissionStore::class);
     $this->roleStore = app(RoleStore::class);

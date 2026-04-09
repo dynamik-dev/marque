@@ -9,7 +9,7 @@ Route::middleware('can:posts.create')
     ->post('/posts', [PostController::class, 'store']);
 ```
 
-The Gate hook intercepts `posts.create` (a dot-notated ability) and routes it through Policy Engine. Returns 403 if denied, 401 if unauthenticated.
+The Gate hook intercepts `posts.create` (a dot-notated ability) and routes it through Marque. Returns 403 if denied, 401 if unauthenticated.
 
 If the user model lacks the `HasPermissions` trait, the Gate hook passes through and Laravel denies by default — fail-closed.
 

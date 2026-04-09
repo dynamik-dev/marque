@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\Matcher;
+use DynamikDev\Marque\Contracts\Matcher;
 
 beforeEach(function (): void {
     $this->matcher = app(Matcher::class);

@@ -1,13 +1,13 @@
 # Working with Roles
 
-Roles are named collections of permissions. Assign them to users globally or within a scope, and manage their permissions through the `PolicyEngine` facade or directly through the `RoleStore` contract.
+Roles are named collections of permissions. Assign them to users globally or within a scope, and manage their permissions through the `Marque` facade or directly through the `RoleStore` contract.
 
 ## Creating a role
 
 ```php
-use DynamikDev\PolicyEngine\Facades\PolicyEngine;
+use DynamikDev\Marque\Facades\Marque;
 
-PolicyEngine::role('editor', 'Editor')
+Marque::role('editor', 'Editor')
     ->grant(['posts.create', 'posts.update.any', 'posts.delete.own']);
 ```
 
@@ -16,7 +16,7 @@ Role IDs are string primary keys. `grant()` returns the builder, so you can chai
 ## Creating a system-locked role
 
 ```php
-PolicyEngine::role('admin', 'Admin', system: true)
+Marque::role('admin', 'Admin', system: true)
     ->grant(['*.*']);
 ```
 
@@ -25,7 +25,7 @@ System roles cannot be deleted at runtime when `protect_system_roles` is enabled
 ## Adding permissions to an existing role
 
 ```php
-PolicyEngine::role('editor', 'Editor')
+Marque::role('editor', 'Editor')
     ->grant(['comments.create', 'comments.delete.own']);
 ```
 
@@ -34,7 +34,7 @@ PolicyEngine::role('editor', 'Editor')
 ## Removing permissions from a role
 
 ```php
-PolicyEngine::role('editor', 'Editor')
+Marque::role('editor', 'Editor')
     ->ungrant(['posts.delete.own']);
 ```
 
@@ -43,7 +43,7 @@ PolicyEngine::role('editor', 'Editor')
 ## Deleting a role
 
 ```php
-PolicyEngine::role('editor', 'Editor')->remove();
+Marque::role('editor', 'Editor')->remove();
 ```
 
 This deletes the role and cascades to all assignments. Users who held this role lose it immediately.
@@ -111,7 +111,7 @@ Both return a `Collection` of `Assignment` models.
 ## Inspecting a role's permissions
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
+use DynamikDev\Marque\Contracts\RoleStore;
 
 $permissions = app(RoleStore::class)->permissionsFor('editor');
 // ['posts.create', 'posts.update.any', 'comments.create', ...]

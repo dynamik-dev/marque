@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine;
+namespace DynamikDev\Marque;
 
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\DTOs\ImportOptions;
-use DynamikDev\PolicyEngine\DTOs\ImportResult;
-use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
-use DynamikDev\PolicyEngine\Support\PathValidator;
-use DynamikDev\PolicyEngine\Support\RoleBuilder;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\DocumentExporter;
+use DynamikDev\Marque\Contracts\DocumentImporter;
+use DynamikDev\Marque\Contracts\DocumentParser;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\ImportOptions;
+use DynamikDev\Marque\DTOs\ImportResult;
+use DynamikDev\Marque\DTOs\PolicyDocument;
+use DynamikDev\Marque\Support\PathValidator;
+use DynamikDev\Marque\Support\RoleBuilder;
 
-class PolicyEngineManager
+class MarqueManager
 {
     public function __construct(
         private readonly PermissionStore $permissions,

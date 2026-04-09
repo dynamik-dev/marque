@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Commands;
+namespace DynamikDev\Marque\Commands;
 
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\DTOs\Context;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\EvaluationResult;
-use DynamikDev\PolicyEngine\DTOs\Principal;
-use DynamikDev\PolicyEngine\Enums\Decision;
-use DynamikDev\PolicyEngine\Support\SubjectParser;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\DTOs\Context;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\EvaluationResult;
+use DynamikDev\Marque\DTOs\Principal;
+use DynamikDev\Marque\Enums\Decision;
+use DynamikDev\Marque\Support\SubjectParser;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
 
 class ExplainCommand extends Command
 {
-    protected $signature = 'policy-engine:explain {subject} {permission} {--scope=}';
+    protected $signature = 'marque:explain {subject} {permission} {--scope=}';
 
     protected $description = 'Explain the evaluation trace for a permission check';
 
@@ -39,8 +39,8 @@ class ExplainCommand extends Command
             return self::FAILURE;
         }
 
-        if (! config('policy-engine.trace')) {
-            $this->error('Explain mode is disabled. Set policy-engine.trace to true in your configuration.');
+        if (! config('marque.trace')) {
+            $this->error('Explain mode is disabled. Set marque.trace to true in your configuration.');
 
             return self::FAILURE;
         }

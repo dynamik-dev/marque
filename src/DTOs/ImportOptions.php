@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\DTOs;
+namespace DynamikDev\Marque\DTOs;
 
 readonly class ImportOptions
 {

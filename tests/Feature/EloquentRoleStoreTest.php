@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\Events\RoleCreated;
-use DynamikDev\PolicyEngine\Events\RoleDeleted;
-use DynamikDev\PolicyEngine\Events\RoleUpdated;
-use DynamikDev\PolicyEngine\Models\Permission;
-use DynamikDev\PolicyEngine\Models\Role;
-use DynamikDev\PolicyEngine\Models\RolePermission;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Events\RoleCreated;
+use DynamikDev\Marque\Events\RoleDeleted;
+use DynamikDev\Marque\Events\RoleUpdated;
+use DynamikDev\Marque\Models\Permission;
+use DynamikDev\Marque\Models\Role;
+use DynamikDev\Marque\Models\RolePermission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 
@@ -126,7 +126,7 @@ it('deletes a role', function (): void {
 });
 
 it('throws RuntimeException when removing a system-protected role', function (): void {
-    config()->set('policy-engine.protect_system_roles', true);
+    config()->set('marque.protect_system_roles', true);
 
     $this->store->save('admin', 'Admin', [], system: true);
 
@@ -134,7 +134,7 @@ it('throws RuntimeException when removing a system-protected role', function ():
 })->throws(RuntimeException::class);
 
 it('allows removing a system role when protection is disabled', function (): void {
-    config()->set('policy-engine.protect_system_roles', false);
+    config()->set('marque.protect_system_roles', false);
 
     $this->store->save('admin', 'Admin', [], system: true);
 
@@ -204,7 +204,7 @@ it('returns empty array when role has no permissions', function (): void {
 });
 
 it('allows saving a system role with the same permissions in different order', function (): void {
-    config()->set('policy-engine.protect_system_roles', true);
+    config()->set('marque.protect_system_roles', true);
 
     Permission::query()->create(['id' => 'posts.create']);
     Permission::query()->create(['id' => 'posts.update']);
@@ -218,7 +218,7 @@ it('allows saving a system role with the same permissions in different order', f
 });
 
 it('throws when saving a system role with actually different permissions', function (): void {
-    config()->set('policy-engine.protect_system_roles', true);
+    config()->set('marque.protect_system_roles', true);
 
     Permission::query()->create(['id' => 'posts.create']);
     Permission::query()->create(['id' => 'posts.update']);

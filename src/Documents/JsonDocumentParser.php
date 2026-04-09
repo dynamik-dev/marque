@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Documents;
+namespace DynamikDev\Marque\Documents;
 
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
-use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
-use DynamikDev\PolicyEngine\DTOs\ValidationResult;
+use DynamikDev\Marque\Contracts\DocumentParser;
+use DynamikDev\Marque\DTOs\PolicyDocument;
+use DynamikDev\Marque\DTOs\ValidationResult;
 
 class JsonDocumentParser implements DocumentParser
 {

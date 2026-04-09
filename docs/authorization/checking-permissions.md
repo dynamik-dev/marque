@@ -1,6 +1,6 @@
 # Checking Permissions
 
-Use `$user->can()` to check whether a subject holds a specific permission. The package hooks into Laravel's Gate via `Gate::before()`, so dot-notated permissions like `posts.create` route through the Policy Engine evaluation pipeline automatically.
+Use `$user->can()` to check whether a subject holds a specific permission. The package hooks into Laravel's Gate via `Gate::before()`, so dot-notated permissions like `posts.create` route through the Marque evaluation pipeline automatically.
 
 ## Checking a permission on a user
 
@@ -73,7 +73,7 @@ Use `canDo()` inside [model policies](../integrations/integrating-with-model-pol
 ### Passing a resource to canDo
 
 ```php
-use DynamikDev\PolicyEngine\DTOs\Resource;
+use DynamikDev\Marque\DTOs\Resource;
 
 $resource = new Resource(type: 'post', id: $post->id);
 $user->canDo('posts.update', scope: $group, resource: $resource);
@@ -153,4 +153,4 @@ $result->trace;             // array of string trace entries
 
 Each entry in `matchedStatements` is a `PolicyStatement` with `effect`, `action`, `source`, and optional `conditions`. The `trace` array contains human-readable strings describing each step of the evaluation.
 
-> The `matchedStatements` and `trace` arrays are only populated when the `trace` config key is `true`. Set `POLICY_ENGINE_TRACE=true` in your `.env` or `config('policy-engine.trace', true)` to enable it. When disabled, `explain()` still returns the `decision` and `decidedBy` fields, but the arrays are empty.
+> The `matchedStatements` and `trace` arrays are only populated when the `trace` config key is `true`. Set `MARQUE_TRACE=true` in your `.env` or `config('marque.trace', true)` to enable it. When disabled, `explain()` still returns the `decision` and `decidedBy` fields, but the arrays are empty.

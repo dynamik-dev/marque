@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Stores;
+namespace DynamikDev\Marque\Stores;
 
-use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
-use DynamikDev\PolicyEngine\DTOs\Condition;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\Models\ResourcePolicy;
+use DynamikDev\Marque\Contracts\ResourcePolicyStore;
+use DynamikDev\Marque\DTOs\Condition;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\Models\ResourcePolicy;
 use Illuminate\Support\Collection;
 
 class EloquentResourcePolicyStore implements ResourcePolicyStore

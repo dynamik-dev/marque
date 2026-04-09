@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Stores;
+namespace DynamikDev\Marque\Stores;
 
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\Events\RoleCreated;
-use DynamikDev\PolicyEngine\Events\RoleDeleted;
-use DynamikDev\PolicyEngine\Events\RoleUpdated;
-use DynamikDev\PolicyEngine\Models\Role;
-use DynamikDev\PolicyEngine\Models\RolePermission;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Events\RoleCreated;
+use DynamikDev\Marque\Events\RoleDeleted;
+use DynamikDev\Marque\Events\RoleUpdated;
+use DynamikDev\Marque\Models\Role;
+use DynamikDev\Marque\Models\RolePermission;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 
@@ -28,7 +28,7 @@ class EloquentRoleStore implements RoleStore
 
         $existing = Role::query()->find($id);
 
-        if ($existing !== null && $existing->is_system && config('policy-engine.protect_system_roles')) {
+        if ($existing !== null && $existing->is_system && config('marque.protect_system_roles')) {
             if (! $system) {
                 throw new \RuntimeException("Cannot remove system flag from protected role [{$id}].");
             }
@@ -86,7 +86,7 @@ class EloquentRoleStore implements RoleStore
     {
         $role = Role::query()->findOrFail($id);
 
-        if ($role->is_system && config('policy-engine.protect_system_roles')) {
+        if ($role->is_system && config('marque.protect_system_roles')) {
             throw new \RuntimeException("Cannot delete system role [{$id}].");
         }
 

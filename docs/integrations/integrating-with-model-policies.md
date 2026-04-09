@@ -1,6 +1,6 @@
 # Integrating with Model Policies
 
-Policy Engine handles permission data — which roles have which permissions in which scopes. Laravel model policies handle business logic — ownership checks, time-based rules, state flags. Use them together: the policy delegates permission questions to `canDo()` and handles the business rules itself.
+Marque handles permission data — which roles have which permissions in which scopes. Laravel model policies handle business logic — ownership checks, time-based rules, state flags. Use them together: the policy delegates permission questions to `canDo()` and handles the business rules itself.
 
 ## Deciding when to use a policy
 
@@ -86,7 +86,7 @@ Standard Laravel authorization — `$this->authorize()`, `Gate::allows()`, `@can
 The Gate hook only intercepts dot-notated abilities (like `posts.create`). Non-dot abilities (like `update`, `delete`, `create`) pass through to your model policies as usual.
 
 ```php
-$user->can('posts.create');       // Gate hook → Policy Engine
+$user->can('posts.create');       // Gate hook → Marque
 $user->can('update', $post);     // Standard Gate → PostPolicy::update()
 $this->authorize('delete', $post); // Standard Gate → PostPolicy::delete()
 ```
@@ -98,7 +98,7 @@ When a policy method internally calls `canDo()`, it goes directly to the `HasPer
 Models that use the `HasResourcePolicies` trait are automatically detected as resources when passed to `can()`.
 
 ```php
-use DynamikDev\PolicyEngine\Concerns\HasResourcePolicies;
+use DynamikDev\Marque\Concerns\HasResourcePolicies;
 
 class Post extends Model
 {
@@ -153,6 +153,6 @@ Or use automatic policy discovery if your policy follows Laravel's naming conven
 @endcan
 ```
 
-`@can` handles both cases. Dot-notated abilities route through the Gate hook to Policy Engine. Non-dot abilities route through model policies. Both work in the same template.
+`@can` handles both cases. Dot-notated abilities route through the Gate hook to Marque. Non-dot abilities route through model policies. Both work in the same template.
 
 > Policies should never contain role names (`if ($user->hasRole('admin'))`). Use permission checks with `canDo()` instead. Roles are a way to group permissions — policies should only care about what a user can do, not what role they hold.

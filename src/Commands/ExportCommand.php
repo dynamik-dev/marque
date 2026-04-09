@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Commands;
+namespace DynamikDev\Marque\Commands;
 
-use DynamikDev\PolicyEngine\PolicyEngineManager;
+use DynamikDev\Marque\MarqueManager;
 use Illuminate\Console\Command;
 
 class ExportCommand extends Command
 {
-    protected $signature = 'policy-engine:export {--scope=} {--path=}';
+    protected $signature = 'marque:export {--scope=} {--path=}';
 
     protected $description = 'Export the current authorization state to JSON';
 
-    public function handle(PolicyEngineManager $manager): int
+    public function handle(MarqueManager $manager): int
     {
         $scopeOption = $this->option('scope');
         $scope = is_string($scopeOption) ? $scopeOption : null;

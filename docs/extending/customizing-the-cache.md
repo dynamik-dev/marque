@@ -7,20 +7,20 @@ The `CachedEvaluator` wraps the `DefaultEvaluator` with Laravel's cache. It cach
 Every permission check generates a cache key based on the subject type, subject ID, and permission string:
 
 ```
-policy-engine:{subject_type}:{subject_id}:{permission}
+marque:{subject_type}:{subject_id}:{permission}
 ```
 
-For example: `policy-engine:App\Models\User:42:posts.create:group::5`.
+For example: `marque:App\Models\User:42:posts.create:group::5`.
 
 The cached value is a boolean. On cache hit, the evaluator skips all database queries and returns the stored result.
 
 ## Configuring the cache store
 
 ```php
-// config/policy-engine.php
+// config/marque.php
 'cache' => [
     'enabled' => true,
-    'store' => env('POLICY_ENGINE_CACHE_STORE', 'default'),
+    'store' => env('MARQUE_CACHE_STORE', 'default'),
     'ttl' => 60 * 5,
 ],
 ```
@@ -58,7 +58,7 @@ The package registers an `InvalidatePermissionCache` listener that responds to a
 
 These are the high-frequency events (users joining and leaving groups). The listener calls `CacheStoreResolver::flushSubject()`, which on tagged stores flushes only entries tagged with that subject. On non-tagged stores, it increments a per-subject generation counter so previously cached entries become unreachable.
 
-**Global invalidation** — all other events flush the entire policy-engine cache:
+**Global invalidation** — all other events flush the entire marque cache:
 
 - `RoleUpdated` — a role's permissions changed
 - `RoleDeleted` — a role was deleted
@@ -68,26 +68,26 @@ These are the high-frequency events (users joining and leaving groups). The list
 - `BoundaryRemoved` — a scope boundary was removed
 - `DocumentImported` — a policy document was imported
 
-These are rare admin operations that can affect any subject. The listener calls `CacheStoreResolver::flush()`, which on tagged stores flushes the `policy-engine` tag. On non-tagged stores, it increments a global generation counter so all previously cached entries become unreachable and expire via TTL.
+These are rare admin operations that can affect any subject. The listener calls `CacheStoreResolver::flush()`, which on tagged stores flushes the `marque` tag. On non-tagged stores, it increments a global generation counter so all previously cached entries become unreachable and expire via TTL.
 
-> On tagged stores (Redis, Memcached), flushes are scoped to policy-engine tags — no collateral damage to unrelated cache entries. On non-tagged stores (file, database), generation counter increments make old entries unreachable without clearing unrelated cache data.
+> On tagged stores (Redis, Memcached), flushes are scoped to marque tags — no collateral damage to unrelated cache entries. On non-tagged stores (file, database), generation counter increments make old entries unreachable without clearing unrelated cache data.
 
 ## Clearing the cache manually
 
 ```bash
-php artisan policy-engine:cache-clear
+php artisan marque:cache-clear
 ```
 
 Or programmatically:
 
 ```php
-use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
+use DynamikDev\Marque\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 
 CacheStoreResolver::flush(app(CacheManager::class));
 ```
 
-On tagged stores, this flushes only the `policy-engine` tag. On non-tagged stores, it increments a generation counter so old entries expire naturally via TTL without clearing unrelated cache data.
+On tagged stores, this flushes only the `marque` tag. On non-tagged stores, it increments a generation counter so old entries expire naturally via TTL without clearing unrelated cache data.
 
 ## Understanding the cache race window
 
@@ -119,7 +119,7 @@ If your application uses a non-tagged store and you need immediate deletion, use
 A shorter TTL limits how long a stale result can persist after the race occurs.
 
 ```php
-// config/policy-engine.php
+// config/marque.php
 'cache' => [
     'ttl' => 60 * 5, // 5 minutes
 ],
@@ -129,7 +129,7 @@ For security-critical applications, 5 minutes or less keeps the exposure window 
 
 ### Using a dedicated cache store
 
-A dedicated Redis database (or separate store) for policy-engine cache isolates invalidation from your application cache. This prevents a `flush()` on a non-tagged store from clearing unrelated entries, and keeps policy-engine cache behavior predictable.
+A dedicated Redis database (or separate store) for marque cache isolates invalidation from your application cache. This prevents a `flush()` on a non-tagged store from clearing unrelated entries, and keeps marque cache behavior predictable.
 
 ```php
 // config/cache.php
@@ -152,21 +152,21 @@ A dedicated Redis database (or separate store) for policy-engine cache isolates 
 ```
 
 ```php
-// config/policy-engine.php
+// config/marque.php
 'cache' => [
     'store' => 'policy',
 ],
 ```
 
-> If your cache driver supports tags (Redis, Memcached), the package already uses a `policy-engine` tag for scoped invalidation. A dedicated store is most useful for drivers that do not support tags, like the `file` or `database` drivers.
+> If your cache driver supports tags (Redis, Memcached), the package already uses a `marque` tag for scoped invalidation. A dedicated store is most useful for drivers that do not support tags, like the `file` or `database` drivers.
 
 ### Implementing a version-counter strategy
 
 For workloads where even a millisecond-level race is unacceptable, implement a custom `Evaluator` that uses a version counter. The counter increments on every authorization change, so a stale write from a pre-increment evaluation is never read.
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Evaluators\DefaultEvaluator;
 use Illuminate\Cache\CacheManager;
 
 class VersionedCachedEvaluator implements Evaluator
@@ -179,8 +179,8 @@ class VersionedCachedEvaluator implements Evaluator
     public function can(string $subjectType, string|int $subjectId, string $permission): bool
     {
         $store = $this->cache->store();
-        $version = (int) $store->get('policy-engine:version', 0);
-        $cacheKey = "policy-engine:v{$version}:{$subjectType}:{$subjectId}:{$permission}";
+        $version = (int) $store->get('marque:version', 0);
+        $cacheKey = "marque:v{$version}:{$subjectType}:{$subjectId}:{$permission}";
 
         return $store->remember($cacheKey, 3600, function () use ($subjectType, $subjectId, $permission): bool {
             return $this->inner->can($subjectType, $subjectId, $permission);
@@ -194,7 +194,7 @@ class VersionedCachedEvaluator implements Evaluator
 Increment the version counter in your event listener whenever authorization state changes:
 
 ```php
-Cache::increment('policy-engine:version');
+Cache::increment('marque:version');
 ```
 
 Old versioned keys expire naturally via TTL. New evaluations always read the current version, so stale writes under a previous version number are invisible.
@@ -216,7 +216,7 @@ The default 5-minute TTL with event-based invalidation covers the vast majority 
 If you need per-subject cache keys, tagged caches, or a completely different strategy, bind your own `Evaluator`:
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\Evaluator;
 
 $this->app->bind(Evaluator::class, MyCustomCachedEvaluator::class);
 ```
@@ -224,7 +224,7 @@ $this->app->bind(Evaluator::class, MyCustomCachedEvaluator::class);
 Your evaluator implements the `Evaluator` contract and handles caching however you need. The `DefaultEvaluator` is still available for the actual evaluation logic:
 
 ```php
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
+use DynamikDev\Marque\Evaluators\DefaultEvaluator;
 
 class MyCustomCachedEvaluator implements Evaluator
 {
@@ -248,8 +248,8 @@ class MyCustomCachedEvaluator implements Evaluator
 Bind the `DefaultEvaluator` directly to bypass the `CachedEvaluator` wrapper entirely:
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Evaluators\DefaultEvaluator;
 
 $this->app->bind(Evaluator::class, DefaultEvaluator::class);
 ```

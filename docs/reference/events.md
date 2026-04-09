@@ -1,6 +1,6 @@
 # Events Reference
 
-All events live in `DynamikDev\PolicyEngine\Events\` and use readonly constructor properties. Custom stores should dispatch them too for cache invalidation.
+All events live in `DynamikDev\Marque\Events\` and use readonly constructor properties. Custom stores should dispatch them too for cache invalidation.
 
 ---
 

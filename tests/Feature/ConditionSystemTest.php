@@ -3,24 +3,24 @@
 declare(strict_types=1);
 
 use Carbon\Carbon;
-use DynamikDev\PolicyEngine\Conditions\AttributeEqualsEvaluator;
-use DynamikDev\PolicyEngine\Conditions\AttributeInEvaluator;
-use DynamikDev\PolicyEngine\Conditions\DefaultConditionRegistry;
-use DynamikDev\PolicyEngine\Conditions\EnvironmentEqualsEvaluator;
-use DynamikDev\PolicyEngine\Conditions\IpRangeEvaluator;
-use DynamikDev\PolicyEngine\Conditions\TimeBetweenEvaluator;
-use DynamikDev\PolicyEngine\Contracts\ConditionRegistry;
-use DynamikDev\PolicyEngine\Contracts\Matcher;
-use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
-use DynamikDev\PolicyEngine\DTOs\Condition;
-use DynamikDev\PolicyEngine\DTOs\Context;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\DTOs\Principal;
-use DynamikDev\PolicyEngine\DTOs\Resource;
-use DynamikDev\PolicyEngine\Enums\Decision;
-use DynamikDev\PolicyEngine\Enums\Effect;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
+use DynamikDev\Marque\Conditions\AttributeEqualsEvaluator;
+use DynamikDev\Marque\Conditions\AttributeInEvaluator;
+use DynamikDev\Marque\Conditions\DefaultConditionRegistry;
+use DynamikDev\Marque\Conditions\EnvironmentEqualsEvaluator;
+use DynamikDev\Marque\Conditions\IpRangeEvaluator;
+use DynamikDev\Marque\Conditions\TimeBetweenEvaluator;
+use DynamikDev\Marque\Contracts\ConditionRegistry;
+use DynamikDev\Marque\Contracts\Matcher;
+use DynamikDev\Marque\Contracts\PolicyResolver;
+use DynamikDev\Marque\DTOs\Condition;
+use DynamikDev\Marque\DTOs\Context;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\DTOs\Principal;
+use DynamikDev\Marque\DTOs\Resource;
+use DynamikDev\Marque\Enums\Decision;
+use DynamikDev\Marque\Enums\Effect;
+use DynamikDev\Marque\Evaluators\DefaultEvaluator;
 use Illuminate\Support\Collection;
 
 /* Helpers */

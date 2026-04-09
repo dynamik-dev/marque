@@ -11,7 +11,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $prefix = config('policy-engine.table_prefix', '');
+        $prefix = config('marque.table_prefix', '');
         $table = $prefix.'assignments';
 
         Schema::table($table, function (Blueprint $blueprint): void {
@@ -30,7 +30,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        $prefix = config('policy-engine.table_prefix', '');
+        $prefix = config('marque.table_prefix', '');
         $table = $prefix.'assignments';
 
         match (DB::getDriverName()) {

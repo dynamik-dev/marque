@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Stores;
+namespace DynamikDev\Marque\Stores;
 
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Events\AssignmentCreated;
-use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
-use DynamikDev\PolicyEngine\Models\Assignment;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Events\AssignmentCreated;
+use DynamikDev\Marque\Events\AssignmentRevoked;
+use DynamikDev\Marque\Models\Assignment;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 

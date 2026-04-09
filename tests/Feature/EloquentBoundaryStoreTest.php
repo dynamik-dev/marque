@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Models\Boundary;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Models\Boundary;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);

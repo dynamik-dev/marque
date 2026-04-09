@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Support;
+namespace DynamikDev\Marque\Support;
 
 use InvalidArgumentException;
 
@@ -11,7 +11,7 @@ class PathValidator
     /**
      * Validate that a file path is within the configured allowed directory.
      *
-     * When `policy-engine.document_path` is set, paths are restricted to that directory.
+     * When `marque.document_path` is set, paths are restricted to that directory.
      * When null (default), no restriction is applied.
      *
      * @throws InvalidArgumentException If the path is outside the allowed directory.
@@ -19,7 +19,7 @@ class PathValidator
     public static function validate(string $path): string
     {
         /** @var string|null $allowedBase */
-        $allowedBase = config('policy-engine.document_path');
+        $allowedBase = config('marque.document_path');
 
         if ($allowedBase === null) {
             return $path;

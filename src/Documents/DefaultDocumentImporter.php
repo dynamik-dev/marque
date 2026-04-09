@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Documents;
+namespace DynamikDev\Marque\Documents;
 
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\DTOs\Condition;
-use DynamikDev\PolicyEngine\DTOs\ImportOptions;
-use DynamikDev\PolicyEngine\DTOs\ImportResult;
-use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\Enums\Effect;
-use DynamikDev\PolicyEngine\Events\DocumentImported;
-use DynamikDev\PolicyEngine\Models\Permission;
-use DynamikDev\PolicyEngine\Models\ResourcePolicy;
-use DynamikDev\PolicyEngine\Support\SubjectParser;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\DocumentImporter;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\ResourcePolicyStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\Condition;
+use DynamikDev\Marque\DTOs\ImportOptions;
+use DynamikDev\Marque\DTOs\ImportResult;
+use DynamikDev\Marque\DTOs\PolicyDocument;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\Enums\Effect;
+use DynamikDev\Marque\Events\DocumentImported;
+use DynamikDev\Marque\Models\Permission;
+use DynamikDev\Marque\Models\ResourcePolicy;
+use DynamikDev\Marque\Support\SubjectParser;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
 use InvalidArgumentException;
@@ -153,7 +153,7 @@ class DefaultDocumentImporter implements DocumentImporter
             $existing = $this->roleStore->find($role['id']);
             $isNew = $isReplace || $existing === null;
 
-            if ($existing !== null && $existing->is_system && config('policy-engine.protect_system_roles')) {
+            if ($existing !== null && $existing->is_system && config('marque.protect_system_roles')) {
                 $warnings[] = "Skipped protected system role '{$role['id']}' during import";
 
                 continue;
@@ -356,7 +356,7 @@ class DefaultDocumentImporter implements DocumentImporter
     {
         $morphMap = Relation::morphMap();
         /** @var array<int, string> $whitelist */
-        $whitelist = config('policy-engine.import_subject_types', []);
+        $whitelist = config('marque.import_subject_types', []);
 
         return [
             ...array_keys($morphMap),

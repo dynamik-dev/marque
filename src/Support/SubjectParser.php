@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Support;
+namespace DynamikDev\Marque\Support;
 
 use InvalidArgumentException;
 

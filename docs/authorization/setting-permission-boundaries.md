@@ -5,9 +5,9 @@ Boundaries define the maximum permissions available within a scope. They act as 
 ## Setting a boundary on a scope
 
 ```php
-use DynamikDev\PolicyEngine\Facades\PolicyEngine;
+use DynamikDev\Marque\Facades\Marque;
 
-PolicyEngine::boundary('org::acme', [
+Marque::boundary('org::acme', [
     'posts.*',
     'comments.*',
 ]);
@@ -27,9 +27,9 @@ The effective order is:
 4. Deny wins — the evaluator merges all statements and denies if any Deny matches
 
 ```php
-PolicyEngine::boundary('org::acme', ['posts.*', 'comments.*']);
+Marque::boundary('org::acme', ['posts.*', 'comments.*']);
 
-PolicyEngine::role('admin', 'Admin')->grant(['*.*']);
+Marque::role('admin', 'Admin')->grant(['*.*']);
 $user->assign('admin', scope: 'org::acme');
 
 $user->can('posts.create', 'org::acme');    // true — within boundary
@@ -50,7 +50,7 @@ $user->can('members.remove', 'org::acme');          // false — blocked by boun
 ## Updating a boundary
 
 ```php
-PolicyEngine::boundary('org::acme', [
+Marque::boundary('org::acme', [
     'posts.*',
     'comments.*',
     'members.invite',
@@ -62,7 +62,7 @@ Calling `boundary()` again replaces the entire permission set. There is no merge
 ## Removing a boundary
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\BoundaryStore;
 
 app(BoundaryStore::class)->remove('org::acme');
 ```
@@ -103,12 +103,12 @@ Boundary patterns use the same wildcard matching as permissions:
 By default, if a scope has no boundary defined, permissions are unrestricted in that scope. The `deny_unbounded_scopes` config option changes this to fail-closed: scoped permission checks are denied when no boundary exists for the scope.
 
 ```php
-// config/policy-engine.php
+// config/marque.php
 'deny_unbounded_scopes' => true,
 ```
 
 ```php
-PolicyEngine::boundary('team::5', ['posts.*']);
+Marque::boundary('team::5', ['posts.*']);
 
 $user->can('posts.create', 'team::5');  // true — boundary exists and allows it
 $user->can('posts.create', 'team::99'); // false — no boundary for team::99
@@ -123,17 +123,17 @@ By default, global (unscoped) assignments bypass all boundary checks. A user wit
 The `enforce_boundaries_on_global` config option changes this behavior. When enabled, unscoped permission checks must pass at least one boundary's `max_permissions` to be allowed.
 
 ```php
-// config/policy-engine.php
+// config/marque.php
 'enforce_boundaries_on_global' => true,
 ```
 
 With this enabled:
 
 ```php
-PolicyEngine::boundary('team::5', ['posts.*']);
-PolicyEngine::boundary('org::acme', ['billing.*']);
+Marque::boundary('team::5', ['posts.*']);
+Marque::boundary('org::acme', ['billing.*']);
 
-PolicyEngine::role('admin', 'Admin')->grant(['*.*']);
+Marque::role('admin', 'Admin')->grant(['*.*']);
 $user->assign('admin'); // global assignment, no scope
 
 $user->can('posts.create');     // true — matches team::5 boundary

@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Concerns\HasPermissions;
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
-use DynamikDev\PolicyEngine\Events\RoleDeleted;
-use DynamikDev\PolicyEngine\Models\Assignment;
-use DynamikDev\PolicyEngine\Models\Role;
-use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
+use DynamikDev\Marque\Concerns\HasPermissions;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Events\AssignmentRevoked;
+use DynamikDev\Marque\Events\RoleDeleted;
+use DynamikDev\Marque\Models\Assignment;
+use DynamikDev\Marque\Models\Role;
+use DynamikDev\Marque\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -214,17 +214,17 @@ it('removeAll handles empty tables without error', function (): void {
 // --- CacheStoreResolver::flush() on non-tagged stores ---
 
 it('flush on non-tagged store does not clear unrelated cache keys', function (): void {
-    config()->set('policy-engine.cache.store', 'file');
+    config()->set('marque.cache.store', 'file');
 
     $cache = app(CacheManager::class);
     CacheStoreResolver::reset();
 
     $store = CacheStoreResolver::store($cache);
 
-    // Put a non-policy-engine key in the same store.
+    // Put a non-marque key in the same store.
     $store->put('my-app-session', 'session-data', 3600);
 
-    // Flush policy-engine cache.
+    // Flush marque cache.
     CacheStoreResolver::flush($cache);
 
     // The unrelated key must survive.
@@ -236,7 +236,7 @@ it('flush on non-tagged store does not clear unrelated cache keys', function ():
 });
 
 it('flush on non-tagged store increments the global generation counter', function (): void {
-    config()->set('policy-engine.cache.store', 'file');
+    config()->set('marque.cache.store', 'file');
 
     $cache = app(CacheManager::class);
     CacheStoreResolver::reset();
@@ -253,15 +253,15 @@ it('flush on non-tagged store increments the global generation counter', functio
 });
 
 it('flush on tagged store still uses tag-scoped flush', function (): void {
-    config()->set('policy-engine.cache.store', 'array');
+    config()->set('marque.cache.store', 'array');
 
     $cache = app(CacheManager::class);
     CacheStoreResolver::reset();
 
     $store = CacheStoreResolver::store($cache);
 
-    // Put a tagged policy-engine key.
-    $store->tags(['policy-engine'])->put('policy-engine:test-key', 'value', 3600);
+    // Put a tagged marque key.
+    $store->tags(['marque'])->put('marque:test-key', 'value', 3600);
 
     // Put a non-tagged key.
     $store->put('app-key', 'preserved', 3600);
@@ -269,7 +269,7 @@ it('flush on tagged store still uses tag-scoped flush', function (): void {
     CacheStoreResolver::flush($cache);
 
     // Tagged key should be gone.
-    expect($store->tags(['policy-engine'])->get('policy-engine:test-key'))->toBeNull();
+    expect($store->tags(['marque'])->get('marque:test-key'))->toBeNull();
 
     // Non-tagged key should survive.
     expect($store->get('app-key'))->toBe('preserved');
@@ -281,7 +281,7 @@ it('flush on tagged store still uses tag-scoped flush', function (): void {
 });
 
 it('globalGeneration returns 0 for tagged stores', function (): void {
-    config()->set('policy-engine.cache.store', 'array');
+    config()->set('marque.cache.store', 'array');
 
     $cache = app(CacheManager::class);
     CacheStoreResolver::reset();

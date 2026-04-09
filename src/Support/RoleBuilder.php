@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Support;
+namespace DynamikDev\Marque\Support;
 
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
+use DynamikDev\Marque\Contracts\RoleStore;
 
 class RoleBuilder
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Tests\TestCase;
+use DynamikDev\Marque\Tests\TestCase;
 
 uses(TestCase::class)->in('Feature');
 uses(TestCase::class)->in('Benchmark');

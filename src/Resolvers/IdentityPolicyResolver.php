@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Resolvers;
+namespace DynamikDev\Marque\Resolvers;
 
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\Enums\Effect;
-use DynamikDev\PolicyEngine\Models\Assignment;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\PolicyResolver;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\Enums\Effect;
+use DynamikDev\Marque\Models\Assignment;
 use Illuminate\Support\Collection;
 
 class IdentityPolicyResolver implements PolicyResolver

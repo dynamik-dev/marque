@@ -3,18 +3,18 @@
 
 ## Listing permissions
 
-### `policy-engine:permissions`
+### `marque:permissions`
 
 Display all registered permissions.
 
 ```bash
-php artisan policy-engine:permissions
+php artisan marque:permissions
 ```
 
 Outputs a table with `ID` and `Description` columns.
 
 ```bash
-php artisan policy-engine:permissions
+php artisan marque:permissions
 ```
 
 ```
@@ -30,24 +30,24 @@ php artisan policy-engine:permissions
 
 ## Listing roles
 
-### `policy-engine:roles`
+### `marque:roles`
 
 Display all roles and their permissions.
 
 ```bash
-php artisan policy-engine:roles
+php artisan marque:roles
 ```
 
 Outputs a table with `ID`, `Name`, `System`, and `Permissions` columns.
 
 ## Listing assignments
 
-### `policy-engine:assignments`
+### `marque:assignments`
 
 Display role assignments for a subject or scope.
 
 ```bash
-php artisan policy-engine:assignments {subject?} {--scope=}
+php artisan marque:assignments {subject?} {--scope=}
 ```
 
 | Argument/Option | Description |
@@ -57,25 +57,25 @@ php artisan policy-engine:assignments {subject?} {--scope=}
 
 ```bash
 # All assignments for a user
-php artisan policy-engine:assignments user::42
+php artisan marque:assignments user::42
 
 # Scoped assignments for a user
-php artisan policy-engine:assignments user::42 --scope="group::5"
+php artisan marque:assignments user::42 --scope="group::5"
 
 # All assignments in a scope (no subject)
-php artisan policy-engine:assignments --scope="group::5"
+php artisan marque:assignments --scope="group::5"
 ```
 
 Outputs a table with `Subject Type`, `Subject ID`, `Role`, and `Scope` columns.
 
 ## Debugging a permission decision
 
-### `policy-engine:explain`
+### `marque:explain`
 
 Show the evaluation result for a specific permission check.
 
 ```bash
-php artisan policy-engine:explain {subject} {permission} {--scope=}
+php artisan marque:explain {subject} {permission} {--scope=}
 ```
 
 | Argument/Option | Description |
@@ -85,7 +85,7 @@ php artisan policy-engine:explain {subject} {permission} {--scope=}
 | `--scope` | Optional scope string |
 
 ```bash
-php artisan policy-engine:explain user::42 "posts.delete" --scope="group::5"
+php artisan marque:explain user::42 "posts.delete" --scope="group::5"
 ```
 
 Displays the decision (`ALLOW` or `DENY`), the resolver that decided it (`decidedBy`), and any matched policy statements with their effect, action, and source.
@@ -108,12 +108,12 @@ Displays the decision (`ALLOW` or `DENY`), the resolver that decided it (`decide
 
 ## Importing a policy document
 
-### `policy-engine:import`
+### `marque:import`
 
 Import a policy document from a JSON file.
 
 ```bash
-php artisan policy-engine:import {path} [options]
+php artisan marque:import {path} [options]
 ```
 
 | Option | Description |
@@ -125,26 +125,26 @@ php artisan policy-engine:import {path} [options]
 
 ```bash
 # Standard import (merge)
-php artisan policy-engine:import policies/community.json
+php artisan marque:import policies/community.json
 
 # Preview changes
-php artisan policy-engine:import policies/community.json --dry-run
+php artisan marque:import policies/community.json --dry-run
 
 # Roles and permissions only
-php artisan policy-engine:import policies/community.json --skip-assignments
+php artisan marque:import policies/community.json --skip-assignments
 
 # Full replace (destructive)
-php artisan policy-engine:import policies/community.json --replace --force
+php artisan marque:import policies/community.json --replace --force
 ```
 
 ## Exporting the current state
 
-### `policy-engine:export`
+### `marque:export`
 
 Export the current authorization config as JSON.
 
 ```bash
-php artisan policy-engine:export {--scope=} {--path=} {--stdout}
+php artisan marque:export {--scope=} {--path=} {--stdout}
 ```
 
 | Option | Description |
@@ -152,46 +152,46 @@ php artisan policy-engine:export {--scope=} {--path=} {--stdout}
 | `--scope` | Export only data relevant to this scope |
 | `--path` | Write to a file instead of stdout |
 
-When `--path` is omitted, the command prints JSON to stdout. If `policy-engine.document_path` is set, `--path` must resolve inside that directory. Otherwise the command fails with an error and exit code `1`.
+When `--path` is omitted, the command prints JSON to stdout. If `marque.document_path` is set, `--path` must resolve inside that directory. Otherwise the command fails with an error and exit code `1`.
 
 ```bash
 # Export to file
-php artisan policy-engine:export --path=policies/backup.json
+php artisan marque:export --path=policies/backup.json
 
 # Export scoped
-php artisan policy-engine:export --scope="group::5" --path=policies/group-5.json
+php artisan marque:export --scope="group::5" --path=policies/group-5.json
 
 # Export to stdout (pipe to jq, diff, etc.)
-php artisan policy-engine:export | jq '.roles[] | .id'
+php artisan marque:export | jq '.roles[] | .id'
 ```
 
 ## Validating a document
 
-### `policy-engine:validate`
+### `marque:validate`
 
 Check a policy document for errors without importing it.
 
 ```bash
-php artisan policy-engine:validate {path}
+php artisan marque:validate {path}
 ```
 
 ```bash
-php artisan policy-engine:validate policies/community.json
+php artisan marque:validate policies/community.json
 ```
 
 Prints "Policy document is valid." on success, or lists validation errors.
 
 ## Clearing the permission cache
 
-### `policy-engine:cache-clear`
+### `marque:cache-clear`
 
 Flush the permission evaluation cache.
 
 ```bash
-php artisan policy-engine:cache-clear
+php artisan marque:cache-clear
 ```
 
-On tagged stores (Redis, Memcached), flushes only the `policy-engine` tag. On non-tagged stores (file, database), increments the global generation counter so all previously cached entries become unreachable and expire via TTL.
+On tagged stores (Redis, Memcached), flushes only the `marque` tag. On non-tagged stores (file, database), increments the global generation counter so all previously cached entries become unreachable and expire via TTL.
 
 The command reports which mechanism was used:
 
@@ -205,12 +205,12 @@ Policy engine cache cleared (generation counter incremented — stale entries ex
 
 ## Syncing permissions from your seeder
 
-### `policy-engine:sync`
+### `marque:sync`
 
 Re-run your `PermissionSeeder` idempotently.
 
 ```bash
-php artisan policy-engine:sync
+php artisan marque:sync
 ```
 
 Calls `db:seed --class=PermissionSeeder`. Use this after modifying your seeder to apply changes without a full database refresh.

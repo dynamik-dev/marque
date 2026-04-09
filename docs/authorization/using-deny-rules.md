@@ -5,9 +5,9 @@ Deny rules let you explicitly block specific permissions within a role, even whe
 ## Adding a deny rule to a role
 
 ```php
-use DynamikDev\PolicyEngine\Facades\PolicyEngine;
+use DynamikDev\Marque\Facades\Marque;
 
-PolicyEngine::role('moderator', 'Moderator')
+Marque::role('moderator', 'Moderator')
     ->grant(['posts.*', 'comments.*'])
     ->deny(['members.remove']);
 ```
@@ -32,10 +32,10 @@ Deny wins. If both `posts.*` and `!posts.delete` are present, `posts.delete` is 
 ## Deny rules work across roles
 
 ```php
-PolicyEngine::role('content-creator', 'Content Creator')
+Marque::role('content-creator', 'Content Creator')
     ->grant(['posts.*']);
 
-PolicyEngine::role('restricted', 'Restricted')
+Marque::role('restricted', 'Restricted')
     ->deny(['posts.delete.any']);
 
 $user->assign('content-creator');
@@ -52,7 +52,7 @@ $user->can('posts.delete.any');  // false — denied
 ## Deny rules support wildcards
 
 ```php
-PolicyEngine::role('read-only', 'Read Only')
+Marque::role('read-only', 'Read Only')
     ->grant(['posts.read', 'comments.read'])
     ->deny(['*.create', '*.update.*', '*.delete.*']);
 ```

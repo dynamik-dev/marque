@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Concerns\HasResourcePolicies;
-use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\DTOs\Resource;
-use DynamikDev\PolicyEngine\Enums\Effect;
+use DynamikDev\Marque\Concerns\HasResourcePolicies;
+use DynamikDev\Marque\Contracts\ResourcePolicyStore;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\DTOs\Resource;
+use DynamikDev\Marque\Enums\Effect;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;

@@ -7,7 +7,7 @@ Resource policies attach authorization rules directly to a resource instead of (
 Add the `HasResourcePolicies` trait to your model, then call `attachPolicy()` with a `PolicyStatement`.
 
 ```php
-use DynamikDev\PolicyEngine\Concerns\HasResourcePolicies;
+use DynamikDev\Marque\Concerns\HasResourcePolicies;
 use Illuminate\Database\Eloquent\Model;
 
 class Post extends Model
@@ -19,8 +19,8 @@ class Post extends Model
 ```
 
 ```php
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\Enums\Effect;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\Enums\Effect;
 
 $post->attachPolicy(new PolicyStatement(
     effect: Effect::Allow,
@@ -106,7 +106,7 @@ The first argument is resolved as the scope, the second as the resource. Use thi
 ### Resource DTO directly
 
 ```php
-use DynamikDev\PolicyEngine\DTOs\Resource;
+use DynamikDev\Marque\DTOs\Resource;
 
 $resource = new Resource(
     type: 'posts',
@@ -132,9 +132,9 @@ $user->canDo('posts.update', resource: $post->toPolicyResource());
 Pass `null` as the resource ID to create a policy that applies to all instances of a resource type.
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\Enums\Effect;
+use DynamikDev\Marque\Contracts\ResourcePolicyStore;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\Enums\Effect;
 
 app(ResourcePolicyStore::class)->attach(
     'App\\Models\\Post',
@@ -258,4 +258,4 @@ Contract for the resource policy persistence layer.
 | `attach(string $resourceType, string\|int\|null $resourceId, PolicyStatement $statement)` | `void`               | Attach a policy to a resource               |
 | `detach(string $resourceType, string\|int\|null $resourceId, string $action)` | `void`               | Remove a policy by action                   |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Stores\EloquentResourcePolicyStore`
+**Default implementation:** `DynamikDev\Marque\Stores\EloquentResourcePolicyStore`

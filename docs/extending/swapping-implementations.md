@@ -5,7 +5,7 @@ Every component is behind a contract. Replace any implementation by rebinding in
 ## Replacing a store
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\PermissionStore;
 use App\Auth\RedisPermissionStore;
 
 // In a service provider's register() method
@@ -36,8 +36,8 @@ Everything that touches permissions now uses your Redis store.
 Add behavior without replacing the underlying implementation. Wrap the default in a decorator.
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Stores\EloquentAssignmentStore;
 
 $this->app->bind(AssignmentStore::class, function ($app) {
     return new AuditingAssignmentStore(
@@ -54,7 +54,7 @@ Your `AuditingAssignmentStore` implements `AssignmentStore`, logs every call, an
 Implement the contract interface. All methods are documented with their expected behavior in the contract.
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\PermissionStore;
 use Illuminate\Support\Collection;
 
 class ConfigPermissionStore implements PermissionStore
@@ -90,7 +90,7 @@ class ConfigPermissionStore implements PermissionStore
 The default stores dispatch events (`PermissionCreated`, `RoleUpdated`, `AssignmentCreated`, etc.) that drive cache invalidation. If your custom store modifies authorization state, dispatch the same events to keep the cache in sync.
 
 ```php
-use DynamikDev\PolicyEngine\Events\AssignmentCreated;
+use DynamikDev\Marque\Events\AssignmentCreated;
 use Illuminate\Support\Facades\Event;
 
 Event::dispatch(new AssignmentCreated($assignment));
@@ -103,7 +103,7 @@ See [listening to events](listening-to-events.md) for the full event list.
 If your custom `Evaluator` handles its own caching, bind it directly to skip the `CachedEvaluator` wrapper:
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\Evaluator;
 
 $this->app->bind(Evaluator::class, MyEvaluator::class);
 ```
@@ -111,8 +111,8 @@ $this->app->bind(Evaluator::class, MyEvaluator::class);
 Or bind the `DefaultEvaluator` directly to use the built-in evaluation logic without any caching:
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Evaluators\DefaultEvaluator;
 
 $this->app->bind(Evaluator::class, DefaultEvaluator::class);
 ```
@@ -122,7 +122,7 @@ $this->app->bind(Evaluator::class, DefaultEvaluator::class);
 Replace the `DocumentParser` to support YAML, TOML, or any format:
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
+use DynamikDev\Marque\Contracts\DocumentParser;
 
 class YamlDocumentParser implements DocumentParser
 {
@@ -141,10 +141,10 @@ Your YAML format works everywhere the parser contract is used.
 Extend the evaluation pipeline by adding a `PolicyResolver` to the `resolvers` config array. Each resolver receives an `EvaluationRequest` and returns a collection of `PolicyStatement` objects.
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\Enums\Effect;
+use DynamikDev\Marque\Contracts\PolicyResolver;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\Enums\Effect;
 use Illuminate\Support\Collection;
 
 class MaintenanceModeResolver implements PolicyResolver
@@ -166,14 +166,14 @@ class MaintenanceModeResolver implements PolicyResolver
 }
 ```
 
-Register it in `config/policy-engine.php`:
+Register it in `config/marque.php`:
 
 ```php
 'resolvers' => [
-    \DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver::class,
-    \DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver::class,
-    \DynamikDev\PolicyEngine\Resolvers\ResourcePolicyResolver::class,
-    \DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver::class,
+    \DynamikDev\Marque\Resolvers\IdentityPolicyResolver::class,
+    \DynamikDev\Marque\Resolvers\BoundaryPolicyResolver::class,
+    \DynamikDev\Marque\Resolvers\ResourcePolicyResolver::class,
+    \DynamikDev\Marque\Resolvers\SanctumPolicyResolver::class,
     \App\Auth\MaintenanceModeResolver::class,
 ],
 ```

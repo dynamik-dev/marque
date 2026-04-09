@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Models\Assignment;
-use DynamikDev\PolicyEngine\Models\Boundary;
-use DynamikDev\PolicyEngine\Models\Permission;
-use DynamikDev\PolicyEngine\Models\Role;
-use DynamikDev\PolicyEngine\Models\RolePermission;
+use DynamikDev\Marque\Models\Assignment;
+use DynamikDev\Marque\Models\Boundary;
+use DynamikDev\Marque\Models\Permission;
+use DynamikDev\Marque\Models\Role;
+use DynamikDev\Marque\Models\RolePermission;
 
 it('models use default table names when prefix is empty', function (): void {
-    config()->set('policy-engine.table_prefix', '');
+    config()->set('marque.table_prefix', '');
 
     expect((new Permission)->getTable())->toBe('permissions')
         ->and((new Role)->getTable())->toBe('roles')
@@ -19,7 +19,7 @@ it('models use default table names when prefix is empty', function (): void {
 });
 
 it('models use prefixed table names when prefix is set', function (): void {
-    config()->set('policy-engine.table_prefix', 'pe_');
+    config()->set('marque.table_prefix', 'pe_');
 
     expect((new Permission)->getTable())->toBe('pe_permissions')
         ->and((new Role)->getTable())->toBe('pe_roles')
@@ -29,7 +29,7 @@ it('models use prefixed table names when prefix is set', function (): void {
 });
 
 it('role permissions relationship uses prefixed pivot table', function (): void {
-    config()->set('policy-engine.table_prefix', 'pe_');
+    config()->set('marque.table_prefix', 'pe_');
 
     $relation = (new Role)->permissions();
 

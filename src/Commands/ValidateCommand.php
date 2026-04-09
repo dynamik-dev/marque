@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Commands;
+namespace DynamikDev\Marque\Commands;
 
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
-use DynamikDev\PolicyEngine\Support\PathValidator;
+use DynamikDev\Marque\Contracts\DocumentParser;
+use DynamikDev\Marque\Support\PathValidator;
 use Illuminate\Console\Command;
 use InvalidArgumentException;
 
 class ValidateCommand extends Command
 {
-    protected $signature = 'policy-engine:validate {path}';
+    protected $signature = 'marque:validate {path}';
 
     protected $description = 'Validate a policy document without importing it';
 

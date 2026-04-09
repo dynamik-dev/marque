@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Contracts;
+namespace DynamikDev\Marque\Contracts;
 
-use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
-use DynamikDev\PolicyEngine\DTOs\ValidationResult;
+use DynamikDev\Marque\DTOs\PolicyDocument;
+use DynamikDev\Marque\DTOs\ValidationResult;
 
 interface DocumentParser
 {

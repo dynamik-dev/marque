@@ -1,8 +1,8 @@
-# Policy Engine for Laravel
+<img src="./marque.png" width="600"/>
 
-[![Pint](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/lint.yml?branch=main&label=Pint&logo=laravel)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/lint.yml)
-[![Larastan](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/static.yml?branch=main&label=Larastan&logo=php)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/static.yml)
-[![Pest](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-policy-engine/tests.yml?branch=main&label=Pest&logo=php)](https://github.com/dynamik-dev/laravel-policy-engine/actions/workflows/tests.yml)
+[![Pint](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/lint.yml?branch=main&label=Pint&logo=laravel)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/lint.yml)
+[![Larastan](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/static.yml?branch=main&label=Larastan&logo=php)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/static.yml)
+[![Pest](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/tests.yml?branch=main&label=Pest&logo=php)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/tests.yml)
 
 An IAM-style policy engine for Laravel. Define your authorization as declarative JSON documents and import them the way you'd manage AWS IAM policies.
 
@@ -41,13 +41,13 @@ An IAM-style policy engine for Laravel. Define your authorization as declarative
 ```
 
 ```bash
-php artisan policy-engine:import policies/production.json
-php artisan policy-engine:export --path=policies/backup.json
+php artisan marque:import policies/production.json
+php artisan marque:export --path=policies/backup.json
 ```
 
 ### Wired into the Gate
 
-Policy Engine hooks into Laravel's Gate, so `$user->can()`, `@can`, `$this->authorize()`, and `can:` middleware all work without learning a custom API.
+Marque hooks into Laravel's Gate, so `$user->can()`, `@can`, `$this->authorize()`, and `can:` middleware all work without learning a custom API.
 
 ```php
 $user->assign('editor', $acmeOrg);
@@ -70,7 +70,7 @@ Route::middleware('can:posts.create')->post('/posts', [PostController::class, 's
 Prefix any permission with `!` and the denial wins, no matter how many other roles allow it.
 
 ```php
-PolicyEngine::role('editor', 'Editor')
+Marque::role('editor', 'Editor')
     ->grant(['posts.*', 'comments.*'])
     ->deny(['posts.delete']);
 
@@ -83,8 +83,8 @@ $editor->can('posts.delete');  // false -- deny wins
 Boundaries cap what's possible in a scope. Even if a user holds `admin`, the boundary has final say.
 
 ```php
-PolicyEngine::boundary('plan::free', ['posts.read', 'comments.read']);
-PolicyEngine::boundary('plan::pro', ['posts.*', 'comments.*', 'analytics.*']);
+Marque::boundary('plan::free', ['posts.read', 'comments.read']);
+Marque::boundary('plan::pro', ['posts.*', 'comments.*', 'analytics.*']);
 
 $user->assign('admin', $freeOrg);
 $user->can('analytics.view', $freeOrg);  // false -- boundary blocks it
@@ -106,7 +106,7 @@ Every component is coded to a PHP interface. Swap any implementation via the ser
 
 ### Why not Spatie?
 
-[Spatie laravel-permission](https://github.com/spatie/laravel-permission) is a good package for flat RBAC. Policy Engine covers the cases where Spatie runs out of road: polymorphic scoping, deny rules, permission boundaries, and declarative policy documents. See [Comparison with Spatie](docs/comparison-with-spatie.md).
+[Spatie laravel-permission](https://github.com/spatie/laravel-permission) is a good package for flat RBAC. Marque covers the cases where Spatie runs out of road: polymorphic scoping, deny rules, permission boundaries, and declarative policy documents. See [Comparison with Spatie](docs/comparison-with-spatie.md).
 
 ## Requirements
 

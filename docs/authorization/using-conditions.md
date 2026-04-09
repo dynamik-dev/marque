@@ -7,9 +7,9 @@ Conditions add runtime checks to permissions. A permission with conditions only 
 Attach conditions to a `PolicyStatement` to make it context-dependent. The evaluator checks all conditions during permission evaluation, and the statement is only applied when every condition passes.
 
 ```php
-use DynamikDev\PolicyEngine\DTOs\Condition;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\Enums\Effect;
+use DynamikDev\Marque\DTOs\Condition;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\Enums\Effect;
 
 $statement = new PolicyStatement(
     effect: Effect::Allow,
@@ -160,7 +160,7 @@ Conditions read attributes from the `Principal` and `Resource` DTOs. Override th
 On any model using `HasPermissions`, override `principalAttributes()`:
 
 ```php
-use DynamikDev\PolicyEngine\Concerns\HasPermissions;
+use DynamikDev\Marque\Concerns\HasPermissions;
 use Illuminate\Database\Eloquent\Model;
 
 class User extends Model
@@ -184,7 +184,7 @@ These attributes are embedded in the `Principal` DTO whenever `toPrincipal()` is
 On any model using `HasResourcePolicies`, override `resourceAttributes()`:
 
 ```php
-use DynamikDev\PolicyEngine\Concerns\HasResourcePolicies;
+use DynamikDev\Marque\Concerns\HasResourcePolicies;
 use Illuminate\Database\Eloquent\Model;
 
 class Document extends Model
@@ -238,9 +238,9 @@ class AdminController extends Controller
 Implement the `ConditionEvaluator` interface and register it with the `ConditionRegistry`.
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\ConditionEvaluator;
-use DynamikDev\PolicyEngine\DTOs\Condition;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
+use DynamikDev\Marque\Contracts\ConditionEvaluator;
+use DynamikDev\Marque\DTOs\Condition;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
 
 class OwnershipEvaluator implements ConditionEvaluator
 {
@@ -261,7 +261,7 @@ class OwnershipEvaluator implements ConditionEvaluator
 ### Registering in a service provider
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\ConditionRegistry;
+use DynamikDev\Marque\Contracts\ConditionRegistry;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -290,7 +290,7 @@ new Condition('ownership', ['owner_key' => 'created_by']);
 | `ip_range`           | `IpRangeEvaluator`           | CIDR range check on `environment['ip']`          |
 | `time_between`       | `TimeBetweenEvaluator`       | Current time within a window                     |
 
-All evaluator classes are in the `DynamikDev\PolicyEngine\Conditions\` namespace.
+All evaluator classes are in the `DynamikDev\Marque\Conditions\` namespace.
 
 ### `ConditionEvaluator`
 
@@ -309,4 +309,4 @@ Manages the mapping from condition type strings to evaluator classes.
 | `register(string $type, string $evaluatorClass)`      | `void`               | Register an evaluator for a type         |
 | `evaluatorFor(string $type)`                          | `ConditionEvaluator` | Resolve the evaluator for a type         |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Conditions\DefaultConditionRegistry`
+**Default implementation:** `DynamikDev\Marque\Conditions\DefaultConditionRegistry`

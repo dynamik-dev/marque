@@ -3,10 +3,10 @@
 Publish the config file with:
 
 ```bash
-php artisan vendor:publish --tag=policy-engine-config
+php artisan vendor:publish --tag=marque-config
 ```
 
-This creates `config/policy-engine.php`.
+This creates `config/marque.php`.
 
 ---
 
@@ -26,7 +26,7 @@ When disabled, every permission check queries the database directly. Disable in 
 The Laravel cache store to use for permission caching.
 
 - **Type:** `string`
-- **Default:** `env('POLICY_ENGINE_CACHE_STORE', 'default')`
+- **Default:** `env('MARQUE_CACHE_STORE', 'default')`
 
 Maps to a store defined in `config/cache.php`. The value `'default'` uses your application's default cache driver.
 
@@ -70,11 +70,11 @@ Useful for audit logging and monitoring. Disable if denial events create too muc
 Enable populated trace data in `EvaluationResult`.
 
 - **Type:** `bool`
-- **Default:** `env('POLICY_ENGINE_TRACE', false)`
+- **Default:** `env('MARQUE_TRACE', false)`
 
 When enabled, `explain()` returns `matchedStatements` and `trace` arrays in the `EvaluationResult`. When disabled, `explain()` still returns the `decision` and `decidedBy` fields, but the arrays are empty. Enable in development and staging for debugging. Disable in production — the trace adds overhead and may expose internal authorization structure.
 
-> **Security:** When enabled, trace data exposes the full authorization decision tree — roles, permissions, boundaries, resolver sources, and scope context. Never enable this in production unless access is restricted. The `policy-engine:explain` Artisan command reads this config at runtime; lock down Artisan access in production environments.
+> **Security:** When enabled, trace data exposes the full authorization decision tree — roles, permissions, boundaries, resolver sources, and scope context. Never enable this in production unless access is restricted. The `marque:explain` Artisan command reads this config at runtime; lock down Artisan access in production environments.
 
 ---
 
@@ -104,7 +104,7 @@ Enable this in multi-tenant applications where global roles should not bypass sc
 
 ### `table_prefix`
 
-Prefix prepended to all policy-engine database table names.
+Prefix prepended to all marque database table names.
 
 - **Type:** `string`
 - **Default:** `''` (empty string)
@@ -127,10 +127,10 @@ The ordered list of `PolicyResolver` classes that form the evaluation chain.
 - **Default:**
 ```php
 'resolvers' => [
-    \DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver::class,
-    \DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver::class,
-    \DynamikDev\PolicyEngine\Resolvers\ResourcePolicyResolver::class,
-    \DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver::class,
+    \DynamikDev\Marque\Resolvers\IdentityPolicyResolver::class,
+    \DynamikDev\Marque\Resolvers\BoundaryPolicyResolver::class,
+    \DynamikDev\Marque\Resolvers\ResourcePolicyResolver::class,
+    \DynamikDev\Marque\Resolvers\SanctumPolicyResolver::class,
 ],
 ```
 
@@ -149,7 +149,7 @@ Add custom resolvers to this array. Remove `SanctumPolicyResolver` if you do not
 
 ### `seeder_class`
 
-The seeder class invoked by `policy-engine:sync`.
+The seeder class invoked by `marque:sync`.
 
 - **Type:** `string`
 - **Default:** `'PermissionSeeder'`
@@ -165,7 +165,7 @@ Restrict import/export file paths to a specific directory.
 - **Type:** `?string`
 - **Default:** `null`
 
-When set, paths used by `PolicyEngineManager::import()`, `PolicyEngineManager::exportToFile()`, and `php artisan policy-engine:export --path=...` must resolve inside this directory. Paths outside it throw `InvalidArgumentException`.
+When set, paths used by `MarqueManager::import()`, `MarqueManager::exportToFile()`, and `php artisan marque:export --path=...` must resolve inside this directory. Paths outside it throw `InvalidArgumentException`.
 
 ---
 
@@ -176,7 +176,7 @@ Dot-notated abilities that the Gate hook should skip.
 - **Type:** `array`
 - **Default:** `[]`
 
-The Gate hook intercepts all dot-notated abilities (anything containing a `.`) and routes them through Policy Engine. Abilities listed here are excluded from that interception, allowing other Gate definitions or model policies to handle them instead.
+The Gate hook intercepts all dot-notated abilities (anything containing a `.`) and routes them through Marque. Abilities listed here are excluded from that interception, allowing other Gate definitions or model policies to handle them instead.
 
 ```php
 'gate_passthrough' => [
@@ -185,7 +185,7 @@ The Gate hook intercepts all dot-notated abilities (anything containing a `.`) a
 ],
 ```
 
-Use this when you have dot-notated abilities that are not managed by Policy Engine.
+Use this when you have dot-notated abilities that are not managed by Marque.
 
 ---
 
@@ -212,22 +212,22 @@ When both the morph map and this config are empty, subject type validation is sk
 ## Full default config
 
 ```php
-// config/policy-engine.php
+// config/marque.php
 
-use DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver;
-use DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver;
-use DynamikDev\PolicyEngine\Resolvers\ResourcePolicyResolver;
-use DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver;
+use DynamikDev\Marque\Resolvers\BoundaryPolicyResolver;
+use DynamikDev\Marque\Resolvers\IdentityPolicyResolver;
+use DynamikDev\Marque\Resolvers\ResourcePolicyResolver;
+use DynamikDev\Marque\Resolvers\SanctumPolicyResolver;
 
 return [
     'cache' => [
         'enabled' => true,
-        'store' => env('POLICY_ENGINE_CACHE_STORE', 'default'),
+        'store' => env('MARQUE_CACHE_STORE', 'default'),
         'ttl' => 60 * 5,
     ],
     'protect_system_roles' => true,
     'log_denials' => true,
-    'trace' => env('POLICY_ENGINE_TRACE', false),
+    'trace' => env('MARQUE_TRACE', false),
     'deny_unbounded_scopes' => false,
     'enforce_boundaries_on_global' => false,
     'table_prefix' => '',

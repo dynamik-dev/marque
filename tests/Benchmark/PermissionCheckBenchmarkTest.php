@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Concerns\HasPermissions;
-use DynamikDev\PolicyEngine\Concerns\Scopeable;
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\DTOs\Context;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\Principal;
-use DynamikDev\PolicyEngine\Enums\Decision;
-use DynamikDev\PolicyEngine\Models\Assignment;
+use DynamikDev\Marque\Concerns\HasPermissions;
+use DynamikDev\Marque\Concerns\Scopeable;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\Context;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\Principal;
+use DynamikDev\Marque\Enums\Decision;
+use DynamikDev\Marque\Models\Assignment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -70,9 +70,9 @@ beforeEach(function (): void {
     $innerProp = $reflection->getProperty('inner');
     $this->defaultEvaluator = $innerProp->getValue($this->cachedEvaluator);
 
-    config()->set('policy-engine.cache.enabled', true);
-    config()->set('policy-engine.cache.store', 'array');
-    config()->set('policy-engine.cache.ttl', 3600);
+    config()->set('marque.cache.enabled', true);
+    config()->set('marque.cache.store', 'array');
+    config()->set('marque.cache.ttl', 3600);
 });
 
 afterEach(function (): void {
@@ -234,26 +234,26 @@ it('benchmarks small scale: 100 users, 20 groups', function (): void {
     echo '  '.str_repeat('-', 75)."\n";
 
     // evaluate() — cache miss (first call, evaluates from DB)
-    config()->set('policy-engine.cache.enabled', false);
+    config()->set('marque.cache.enabled', false);
     benchReport('evaluate() uncached', benchmark(
         fn () => benchCan($this->defaultEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
     // evaluate() — cache hit
-    config()->set('policy-engine.cache.enabled', true);
+    config()->set('marque.cache.enabled', true);
     benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope); // warm
     benchReport('evaluate() cached', benchmark(
         fn () => benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
     // hasRole() via AssignmentStore — uncached
-    config()->set('policy-engine.cache.enabled', false);
+    config()->set('marque.cache.enabled', false);
     benchReport('hasRole() uncached', benchmark(
         fn () => benchHasRole($this->assignmentStore, BenchUser::class, 1, 'member', $scope),
     ));
 
     // effectivePermissions() — uncached via BenchUser model
-    config()->set('policy-engine.cache.enabled', false);
+    config()->set('marque.cache.enabled', false);
     $benchUser = BenchUser::query()->find(1);
     benchReport('effectivePermissions() uncached', benchmark(
         fn () => $benchUser->effectivePermissions($scope),
@@ -261,7 +261,7 @@ it('benchmarks small scale: 100 users, 20 groups', function (): void {
     ));
 
     // Wildcard match
-    config()->set('policy-engine.cache.enabled', false);
+    config()->set('marque.cache.enabled', false);
     benchReport('evaluate() wildcard posts.* uncached', benchmark(
         fn () => benchCan($this->defaultEvaluator, BenchUser::class, 1, 'posts.delete.own', $scope),
     ));
@@ -286,19 +286,19 @@ it('benchmarks medium scale: 1,000 users, 100 groups', function (): void {
 
     $scope = 'benchgroup::1';
 
-    config()->set('policy-engine.cache.enabled', false);
+    config()->set('marque.cache.enabled', false);
     benchReport('evaluate() uncached', benchmark(
         fn () => benchCan($this->defaultEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
-    config()->set('policy-engine.cache.enabled', true);
+    config()->set('marque.cache.enabled', true);
     benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope);
     benchReport('evaluate() cached', benchmark(
         fn () => benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
     // Simulate write pressure: assign + invalidate + re-evaluate
-    config()->set('policy-engine.cache.enabled', false);
+    config()->set('marque.cache.enabled', false);
     $assignCount = 0;
     benchReport('assign() + evaluate() cycle', benchmark(function () use (&$assignCount, $scope): void {
         $assignCount++;
@@ -324,7 +324,7 @@ it('benchmarks large scale: 10,000 users, 500 groups', function (): void {
     $scope = 'benchgroup::1';
 
     // Uncached reads
-    config()->set('policy-engine.cache.enabled', false);
+    config()->set('marque.cache.enabled', false);
     benchReport('evaluate() uncached', benchmark(
         fn () => benchCan($this->defaultEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
@@ -340,14 +340,14 @@ it('benchmarks large scale: 10,000 users, 500 groups', function (): void {
     ));
 
     // Cached reads
-    config()->set('policy-engine.cache.enabled', true);
+    config()->set('marque.cache.enabled', true);
     benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope);
     benchReport('evaluate() cached', benchmark(
         fn () => benchCan($this->cachedEvaluator, BenchUser::class, 1, 'posts.create', $scope),
     ));
 
     // Different users (cold cache per user, warm DB)
-    config()->set('policy-engine.cache.enabled', false);
+    config()->set('marque.cache.enabled', false);
     $userCycle = 0;
     benchReport('evaluate() across 100 different users', benchmark(function () use (&$userCycle, $scope): void {
         $userCycle++;
@@ -361,7 +361,7 @@ it('benchmarks large scale: 10,000 users, 500 groups', function (): void {
         'comments.create', 'comments.delete', 'members.invite', 'members.remove',
         'settings.manage', 'posts.update.any',
     ];
-    config()->set('policy-engine.cache.enabled', true);
+    config()->set('marque.cache.enabled', true);
     benchReport('10 evaluate() checks same user (page render)', benchmark(function () use ($permissions, $scope): void {
         foreach ($permissions as $perm) {
             benchCan($this->cachedEvaluator, BenchUser::class, 1, $perm, $scope);

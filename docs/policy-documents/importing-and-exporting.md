@@ -5,9 +5,9 @@ Import JSON documents to apply authorization config. Export your current state t
 ## Importing a document from a file
 
 ```php
-use DynamikDev\PolicyEngine\Facades\PolicyEngine;
+use DynamikDev\Marque\Facades\Marque;
 
-$result = PolicyEngine::import(storage_path('policies/community.json'));
+$result = Marque::import(storage_path('policies/community.json'));
 ```
 
 If the argument is a file path that exists on disk, the content is read from the file. Otherwise it's treated as a raw JSON string.
@@ -15,7 +15,7 @@ If the argument is a file path that exists on disk, the content is read from the
 ## Importing from a JSON string
 
 ```php
-$result = PolicyEngine::import($jsonString);
+$result = Marque::import($jsonString);
 ```
 
 Returns an `ImportResult` with details on what was created or changed.
@@ -31,9 +31,9 @@ $result->warnings;             // ['Permission "posts.archive" not registered']
 ## Importing with options
 
 ```php
-use DynamikDev\PolicyEngine\DTOs\ImportOptions;
+use DynamikDev\Marque\DTOs\ImportOptions;
 
-$result = PolicyEngine::import($jsonString, new ImportOptions(
+$result = Marque::import($jsonString, new ImportOptions(
     validate: true,
     merge: true,
     dryRun: false,
@@ -51,7 +51,7 @@ $result = PolicyEngine::import($jsonString, new ImportOptions(
 ## Previewing changes with a dry run
 
 ```php
-$result = PolicyEngine::import($jsonString, new ImportOptions(dryRun: true));
+$result = Marque::import($jsonString, new ImportOptions(dryRun: true));
 
 $result->permissionsCreated;   // what would be created
 $result->rolesCreated;         // what would be created
@@ -63,7 +63,7 @@ No data is written. Use this to preview the impact before a real import.
 ## Replacing all existing data
 
 ```php
-$result = PolicyEngine::import($jsonString, new ImportOptions(merge: false));
+$result = Marque::import($jsonString, new ImportOptions(merge: false));
 ```
 
 When `merge` is `false`, the importer deletes all existing assignments, role permissions, boundaries, roles, and permissions before importing the document. This is destructive — use `dryRun: true` first.
@@ -71,7 +71,7 @@ When `merge` is `false`, the importer deletes all existing assignments, role per
 ## Skipping assignments
 
 ```php
-$result = PolicyEngine::import($jsonString, new ImportOptions(skipAssignments: true));
+$result = Marque::import($jsonString, new ImportOptions(skipAssignments: true));
 ```
 
 Imports permissions, roles, and boundaries but ignores the `assignments` section. Useful when sharing role templates between environments where the users differ.
@@ -79,7 +79,7 @@ Imports permissions, roles, and boundaries but ignores the `assignments` section
 ## Exporting the full state
 
 ```php
-$json = PolicyEngine::export();
+$json = Marque::export();
 ```
 
 Returns a JSON string containing all permissions, roles, assignments, boundaries, and resource policies. Export always produces v2 format (`"version": "2.0"`), even when the data was originally imported from a v1 document.
@@ -87,13 +87,13 @@ Returns a JSON string containing all permissions, roles, assignments, boundaries
 ## Exporting to a file
 
 ```php
-PolicyEngine::exportToFile(storage_path('policies/backup.json'));
+Marque::exportToFile(storage_path('policies/backup.json'));
 ```
 
 ## Exporting a specific scope
 
 ```php
-$json = PolicyEngine::export(scope: 'group::5');
+$json = Marque::export(scope: 'group::5');
 ```
 
 Scoped export includes:
@@ -104,7 +104,7 @@ Scoped export includes:
 - **Resource policies** — excluded from scoped exports (only included in full exports)
 
 ```php
-PolicyEngine::exportToFile(
+Marque::exportToFile(
     storage_path('policies/group-alpha.json'),
     scope: 'group::alpha',
 );
@@ -114,28 +114,28 @@ PolicyEngine::exportToFile(
 
 ```bash
 # Import
-php artisan policy-engine:import policies/community.json
+php artisan marque:import policies/community.json
 
 # Dry run
-php artisan policy-engine:import policies/community.json --dry-run
+php artisan marque:import policies/community.json --dry-run
 
 # Import roles/permissions only
-php artisan policy-engine:import policies/community.json --skip-assignments
+php artisan marque:import policies/community.json --skip-assignments
 
 # Replace mode (destructive — requires --force)
-php artisan policy-engine:import policies/community.json --replace --force
+php artisan marque:import policies/community.json --replace --force
 
 # Export to file
-php artisan policy-engine:export --path=policies/backup.json
+php artisan marque:export --path=policies/backup.json
 
 # Export scoped
-php artisan policy-engine:export --scope="group::alpha" --path=policies/group-alpha.json
+php artisan marque:export --scope="group::alpha" --path=policies/group-alpha.json
 
 # Export to stdout
-php artisan policy-engine:export
+php artisan marque:export
 
 # Validate without importing
-php artisan policy-engine:validate policies/community.json
+php artisan marque:validate policies/community.json
 ```
 
 See [Artisan commands](../cli/artisan-commands.md) for the full command reference.
@@ -145,7 +145,7 @@ See [Artisan commands](../cli/artisan-commands.md) for the full command referenc
 | Workflow | How |
 | --- | --- |
 | Version control | Commit JSON documents to git alongside code |
-| CI/CD deploy | `php artisan policy-engine:import` in your deploy pipeline |
+| CI/CD deploy | `php artisan marque:import` in your deploy pipeline |
 | Environment sync | Export from staging, import to production |
 | Tenant onboarding | Per-plan JSON templates applied on org creation |
 | Role sharing | Share a role document as a gist or in docs |
@@ -169,7 +169,7 @@ The importer accepts v1-format documents without any changes. V1 roles (array of
 ```
 
 ```php
-$result = PolicyEngine::import($v1JsonString);
+$result = Marque::import($v1JsonString);
 ```
 
 Missing v2 sections like `resource_policies` default to empty. When you re-export after importing a v1 document, the output is v2 format.

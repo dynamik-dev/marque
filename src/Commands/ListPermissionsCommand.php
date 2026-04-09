@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Commands;
+namespace DynamikDev\Marque\Commands;
 
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\PermissionStore;
 use Illuminate\Console\Command;
 
 class ListPermissionsCommand extends Command
 {
-    protected $signature = 'policy-engine:permissions';
+    protected $signature = 'marque:permissions';
 
     protected $description = 'List all registered permissions';
 

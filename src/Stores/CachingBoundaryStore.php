@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Stores;
+namespace DynamikDev\Marque\Stores;
 
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Models\Boundary;
-use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Models\Boundary;
+use DynamikDev\Marque\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Cache\Repository;
 use Illuminate\Contracts\Cache\Repository as CacheRepository;
@@ -21,7 +21,7 @@ use Illuminate\Support\Collection;
  */
 class CachingBoundaryStore implements BoundaryStore
 {
-    private const ALL_CACHE_KEY = 'policy-engine:boundaries:all';
+    private const ALL_CACHE_KEY = 'marque:boundaries:all';
 
     public function __construct(
         private readonly BoundaryStore $inner,
@@ -46,7 +46,7 @@ class CachingBoundaryStore implements BoundaryStore
     /**
      * Return all boundaries, serving from cache when the cache is enabled.
      *
-     * The cached entry is stored under the 'policy-engine' tag (when the driver
+     * The cached entry is stored under the 'marque' tag (when the driver
      * supports tags) so that `CacheStoreResolver::flush()` — triggered by
      * `BoundarySet`/`BoundaryRemoved` events — automatically invalidates it.
      *
@@ -58,7 +58,7 @@ class CachingBoundaryStore implements BoundaryStore
      */
     public function all(): Collection
     {
-        if (! config('policy-engine.cache.enabled')) {
+        if (! config('marque.cache.enabled')) {
             return $this->inner->all();
         }
 
@@ -73,7 +73,7 @@ class CachingBoundaryStore implements BoundaryStore
         $result = $this->inner->all();
 
         /** @var int $ttl */
-        $ttl = config('policy-engine.cache.ttl', 300);
+        $ttl = config('marque.cache.ttl', 300);
         $store->put($cacheKey, $result, $ttl);
 
         return $result;
@@ -98,17 +98,17 @@ class CachingBoundaryStore implements BoundaryStore
     }
 
     /**
-     * Resolve the cache store, applying the 'policy-engine' tag when supported.
+     * Resolve the cache store, applying the 'marque' tag when supported.
      *
      * This ensures the boundary cache is flushed together with all other
-     * policy-engine entries during `CacheStoreResolver::flush()`.
+     * marque entries during `CacheStoreResolver::flush()`.
      */
     private function resolveStore(): CacheRepository
     {
         $store = CacheStoreResolver::store($this->cache);
 
         if ($store instanceof Repository && $store->supportsTags()) {
-            return $store->tags(['policy-engine']);
+            return $store->tags(['marque']);
         }
 
         return $store;

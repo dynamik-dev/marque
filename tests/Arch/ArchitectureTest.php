@@ -5,7 +5,7 @@ declare(strict_types=1);
 // --- Strict types ---
 
 it('enforces strict types across the package', function (): void {
-    expect('DynamikDev\PolicyEngine')
+    expect('DynamikDev\Marque')
         ->toUseStrictTypes();
 });
 
@@ -18,30 +18,30 @@ it('enforces strict types in tests', function (): void {
 
 it('only allows known namespaces', function (): void {
     $allowed = [
-        'DynamikDev\PolicyEngine\Attributes',
-        'DynamikDev\PolicyEngine\Commands',
-        'DynamikDev\PolicyEngine\Concerns',
-        'DynamikDev\PolicyEngine\Conditions',
-        'DynamikDev\PolicyEngine\Contracts',
-        'DynamikDev\PolicyEngine\Documents',
-        'DynamikDev\PolicyEngine\DTOs',
-        'DynamikDev\PolicyEngine\Enums',
-        'DynamikDev\PolicyEngine\Evaluators',
-        'DynamikDev\PolicyEngine\Events',
-        'DynamikDev\PolicyEngine\Facades',
-        'DynamikDev\PolicyEngine\Listeners',
-        'DynamikDev\PolicyEngine\Matchers',
-        'DynamikDev\PolicyEngine\Middleware',
-        'DynamikDev\PolicyEngine\Models',
-        'DynamikDev\PolicyEngine\Resolvers',
-        'DynamikDev\PolicyEngine\Stores',
-        'DynamikDev\PolicyEngine\Support',
+        'DynamikDev\Marque\Attributes',
+        'DynamikDev\Marque\Commands',
+        'DynamikDev\Marque\Concerns',
+        'DynamikDev\Marque\Conditions',
+        'DynamikDev\Marque\Contracts',
+        'DynamikDev\Marque\Documents',
+        'DynamikDev\Marque\DTOs',
+        'DynamikDev\Marque\Enums',
+        'DynamikDev\Marque\Evaluators',
+        'DynamikDev\Marque\Events',
+        'DynamikDev\Marque\Facades',
+        'DynamikDev\Marque\Listeners',
+        'DynamikDev\Marque\Matchers',
+        'DynamikDev\Marque\Middleware',
+        'DynamikDev\Marque\Models',
+        'DynamikDev\Marque\Resolvers',
+        'DynamikDev\Marque\Stores',
+        'DynamikDev\Marque\Support',
     ];
 
     // Root namespace files (ServiceProvider, Manager) are also allowed.
     $allowedRoots = [
-        'DynamikDev\PolicyEngine\PolicyEngineServiceProvider',
-        'DynamikDev\PolicyEngine\PolicyEngineManager',
+        'DynamikDev\Marque\MarqueServiceProvider',
+        'DynamikDev\Marque\MarqueManager',
     ];
 
     $classes = getNamespacedClasses('src');
@@ -95,42 +95,42 @@ function getNamespacedClasses(string $srcDir): array
 // --- Namespace contents: each namespace contains the right kind of thing ---
 
 it('requires contracts to be interfaces', function (): void {
-    expect('DynamikDev\PolicyEngine\Contracts')
+    expect('DynamikDev\Marque\Contracts')
         ->toBeInterfaces();
 });
 
 it('requires concerns to be traits', function (): void {
-    expect('DynamikDev\PolicyEngine\Concerns')
+    expect('DynamikDev\Marque\Concerns')
         ->toBeTraits();
 });
 
 it('requires enums to be enums', function (): void {
-    expect('DynamikDev\PolicyEngine\Enums')
+    expect('DynamikDev\Marque\Enums')
         ->toBeEnums();
 });
 
 it('requires events to be readonly classes', function (): void {
-    expect('DynamikDev\PolicyEngine\Events')
+    expect('DynamikDev\Marque\Events')
         ->toBeReadonly();
 });
 
 it('requires DTOs to be readonly classes', function (): void {
-    expect('DynamikDev\PolicyEngine\DTOs')
+    expect('DynamikDev\Marque\DTOs')
         ->toBeReadonly();
 });
 
 it('requires commands to extend Illuminate Command', function (): void {
-    expect('DynamikDev\PolicyEngine\Commands')
+    expect('DynamikDev\Marque\Commands')
         ->toExtend('Illuminate\Console\Command');
 });
 
 it('requires models to extend Eloquent Model', function (): void {
-    expect('DynamikDev\PolicyEngine\Models')
+    expect('DynamikDev\Marque\Models')
         ->toExtend('Illuminate\Database\Eloquent\Model');
 });
 
 it('requires facades to extend Illuminate Facade', function (): void {
-    expect('DynamikDev\PolicyEngine\Facades')
+    expect('DynamikDev\Marque\Facades')
         ->toExtend('Illuminate\Support\Facades\Facade');
 });
 
@@ -139,65 +139,65 @@ it('requires facades to extend Illuminate Facade', function (): void {
 it('requires each store to implement its contract', function (string $class, string $contract): void {
     expect($class)->toImplement($contract);
 })->with([
-    ['DynamikDev\PolicyEngine\Stores\EloquentPermissionStore', 'DynamikDev\PolicyEngine\Contracts\PermissionStore'],
-    ['DynamikDev\PolicyEngine\Stores\EloquentRoleStore', 'DynamikDev\PolicyEngine\Contracts\RoleStore'],
-    ['DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore', 'DynamikDev\PolicyEngine\Contracts\AssignmentStore'],
-    ['DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore', 'DynamikDev\PolicyEngine\Contracts\BoundaryStore'],
-    ['DynamikDev\PolicyEngine\Stores\CachingBoundaryStore', 'DynamikDev\PolicyEngine\Contracts\BoundaryStore'],
+    ['DynamikDev\Marque\Stores\EloquentPermissionStore', 'DynamikDev\Marque\Contracts\PermissionStore'],
+    ['DynamikDev\Marque\Stores\EloquentRoleStore', 'DynamikDev\Marque\Contracts\RoleStore'],
+    ['DynamikDev\Marque\Stores\EloquentAssignmentStore', 'DynamikDev\Marque\Contracts\AssignmentStore'],
+    ['DynamikDev\Marque\Stores\EloquentBoundaryStore', 'DynamikDev\Marque\Contracts\BoundaryStore'],
+    ['DynamikDev\Marque\Stores\CachingBoundaryStore', 'DynamikDev\Marque\Contracts\BoundaryStore'],
 ]);
 
 it('requires evaluators to implement the Evaluator contract', function (): void {
-    expect('DynamikDev\PolicyEngine\Evaluators')
-        ->toImplement('DynamikDev\PolicyEngine\Contracts\Evaluator');
+    expect('DynamikDev\Marque\Evaluators')
+        ->toImplement('DynamikDev\Marque\Contracts\Evaluator');
 });
 
 it('requires matchers to implement the Matcher contract', function (): void {
-    expect('DynamikDev\PolicyEngine\Matchers')
-        ->toImplement('DynamikDev\PolicyEngine\Contracts\Matcher');
+    expect('DynamikDev\Marque\Matchers')
+        ->toImplement('DynamikDev\Marque\Contracts\Matcher');
 });
 
 it('requires policy resolvers to implement the PolicyResolver contract', function (): void {
-    expect('DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver')->toImplement('DynamikDev\PolicyEngine\Contracts\PolicyResolver');
-    expect('DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver')->toImplement('DynamikDev\PolicyEngine\Contracts\PolicyResolver');
-    expect('DynamikDev\PolicyEngine\Resolvers\ResourcePolicyResolver')->toImplement('DynamikDev\PolicyEngine\Contracts\PolicyResolver');
-    expect('DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver')->toImplement('DynamikDev\PolicyEngine\Contracts\PolicyResolver');
-    expect('DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver')->toImplement('DynamikDev\PolicyEngine\Contracts\ScopeResolver');
+    expect('DynamikDev\Marque\Resolvers\IdentityPolicyResolver')->toImplement('DynamikDev\Marque\Contracts\PolicyResolver');
+    expect('DynamikDev\Marque\Resolvers\BoundaryPolicyResolver')->toImplement('DynamikDev\Marque\Contracts\PolicyResolver');
+    expect('DynamikDev\Marque\Resolvers\ResourcePolicyResolver')->toImplement('DynamikDev\Marque\Contracts\PolicyResolver');
+    expect('DynamikDev\Marque\Resolvers\SanctumPolicyResolver')->toImplement('DynamikDev\Marque\Contracts\PolicyResolver');
+    expect('DynamikDev\Marque\Resolvers\ModelScopeResolver')->toImplement('DynamikDev\Marque\Contracts\ScopeResolver');
 });
 
 it('requires document classes to implement a document contract', function (string $class, string $contract): void {
     expect($class)->toImplement($contract);
 })->with([
-    ['DynamikDev\PolicyEngine\Documents\JsonDocumentParser', 'DynamikDev\PolicyEngine\Contracts\DocumentParser'],
-    ['DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter', 'DynamikDev\PolicyEngine\Contracts\DocumentImporter'],
-    ['DynamikDev\PolicyEngine\Documents\DefaultDocumentExporter', 'DynamikDev\PolicyEngine\Contracts\DocumentExporter'],
+    ['DynamikDev\Marque\Documents\JsonDocumentParser', 'DynamikDev\Marque\Contracts\DocumentParser'],
+    ['DynamikDev\Marque\Documents\DefaultDocumentImporter', 'DynamikDev\Marque\Contracts\DocumentImporter'],
+    ['DynamikDev\Marque\Documents\DefaultDocumentExporter', 'DynamikDev\Marque\Contracts\DocumentExporter'],
 ]);
 
 // --- Dependency boundaries: DX layer uses contracts, not concrete implementations ---
 
 it('prevents traits from depending on concrete stores', function (): void {
-    expect('DynamikDev\PolicyEngine\Concerns')
-        ->not->toUse('DynamikDev\PolicyEngine\Stores');
+    expect('DynamikDev\Marque\Concerns')
+        ->not->toUse('DynamikDev\Marque\Stores');
 });
 
 it('prevents middleware from depending on concrete stores', function (): void {
-    expect('DynamikDev\PolicyEngine\Middleware')
-        ->not->toUse('DynamikDev\PolicyEngine\Stores');
+    expect('DynamikDev\Marque\Middleware')
+        ->not->toUse('DynamikDev\Marque\Stores');
 });
 
 it('prevents commands from depending on concrete stores', function (): void {
-    expect('DynamikDev\PolicyEngine\Commands')
-        ->not->toUse('DynamikDev\PolicyEngine\Stores');
+    expect('DynamikDev\Marque\Commands')
+        ->not->toUse('DynamikDev\Marque\Stores');
 });
 
 it('prevents facades from depending on concrete stores', function (): void {
-    expect('DynamikDev\PolicyEngine\Facades')
-        ->not->toUse('DynamikDev\PolicyEngine\Stores');
+    expect('DynamikDev\Marque\Facades')
+        ->not->toUse('DynamikDev\Marque\Stores');
 });
 
 // --- No DB facade ---
 
 it('prevents use of DB facade', function (): void {
-    expect('DynamikDev\PolicyEngine')
+    expect('DynamikDev\Marque')
         ->not->toUse('Illuminate\Support\Facades\DB');
 });
 

@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Commands;
+namespace DynamikDev\Marque\Commands;
 
 use Illuminate\Console\Command;
 
 class SyncCommand extends Command
 {
-    protected $signature = 'policy-engine:sync';
+    protected $signature = 'marque:sync';
 
     protected $description = 'Re-run the permission seeder to sync permissions';
 
     public function handle(): int
     {
         /** @var string $seederClass */
-        $seederClass = config('policy-engine.seeder_class', 'PermissionSeeder');
+        $seederClass = config('marque.seeder_class', 'PermissionSeeder');
 
         try {
             $this->call('db:seed', ['--class' => $seederClass]);

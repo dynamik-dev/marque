@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Tests;
+namespace DynamikDev\Marque\Tests;
 
-use DynamikDev\PolicyEngine\PolicyEngineServiceProvider;
+use DynamikDev\Marque\MarqueServiceProvider;
 use Orchestra\Testbench\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
@@ -19,7 +19,7 @@ abstract class TestCase extends BaseTestCase
             'driver' => 'pgsql',
             'host' => '127.0.0.1',
             'port' => 5432,
-            'database' => 'policy_engine_test',
+            'database' => 'marque_test',
             'username' => 'test',
             'password' => 'test',
         ],
@@ -27,7 +27,7 @@ abstract class TestCase extends BaseTestCase
             'driver' => 'mysql',
             'host' => '127.0.0.1',
             'port' => 3306,
-            'database' => 'policy_engine_test',
+            'database' => 'marque_test',
             'username' => 'test',
             'password' => 'test',
         ],
@@ -36,7 +36,7 @@ abstract class TestCase extends BaseTestCase
     protected function getPackageProviders($app): array
     {
         return [
-            PolicyEngineServiceProvider::class,
+            MarqueServiceProvider::class,
         ];
     }
 

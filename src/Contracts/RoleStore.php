@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Contracts;
+namespace DynamikDev\Marque\Contracts;
 
-use DynamikDev\PolicyEngine\Models\Role;
+use DynamikDev\Marque\Models\Role;
 use Illuminate\Support\Collection;
 
 interface RoleStore

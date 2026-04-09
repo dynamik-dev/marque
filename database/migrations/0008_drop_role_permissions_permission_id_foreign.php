@@ -10,7 +10,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $prefix = config('policy-engine.table_prefix', '');
+        $prefix = config('marque.table_prefix', '');
 
         Schema::table($prefix.'role_permissions', function (Blueprint $table): void {
             if (Schema::getConnection()->getDriverName() === 'sqlite') {
@@ -26,7 +26,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        $prefix = config('policy-engine.table_prefix', '');
+        $prefix = config('marque.table_prefix', '');
 
         Schema::table($prefix.'role_permissions', function (Blueprint $table) use ($prefix): void {
             if (Schema::getConnection()->getDriverName() === 'sqlite') {
