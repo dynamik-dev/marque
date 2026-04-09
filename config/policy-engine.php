@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver;
 use DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver;
+use DynamikDev\PolicyEngine\Resolvers\ResourcePolicyResolver;
 
 return [
     'cache' => [
@@ -25,5 +26,6 @@ return [
     'resolvers' => [
         IdentityPolicyResolver::class,
         BoundaryPolicyResolver::class,
+        ResourcePolicyResolver::class,
     ],
 ];
