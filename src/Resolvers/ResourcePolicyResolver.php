@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Resolvers;
+namespace DynamikDev\Marque\Resolvers;
 
-use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
-use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
+use DynamikDev\Marque\Contracts\PolicyResolver;
+use DynamikDev\Marque\Contracts\ResourcePolicyStore;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\PolicyStatement;
 use Illuminate\Support\Collection;
 
 class ResourcePolicyResolver implements PolicyResolver

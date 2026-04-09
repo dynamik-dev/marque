@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Stores;
+namespace DynamikDev\Marque\Stores;
 
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Events\BoundaryRemoved;
-use DynamikDev\PolicyEngine\Events\BoundarySet;
-use DynamikDev\PolicyEngine\Models\Boundary;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Events\BoundaryRemoved;
+use DynamikDev\Marque\Events\BoundarySet;
+use DynamikDev\Marque\Models\Boundary;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;

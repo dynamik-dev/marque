@@ -11,7 +11,7 @@ A scope is a `type::id` string like `group::5` or `org::acme`. When a user is as
 Add the `Scopeable` trait. The scope type is inferred from the class name by default:
 
 ```php
-use DynamikDev\PolicyEngine\Concerns\Scopeable;
+use DynamikDev\Marque\Concerns\Scopeable;
 
 class Team extends Model
 {
@@ -26,8 +26,8 @@ $team->toScope(); // "team::12"
 Use the `#[ScopeType]` attribute when you need a name that differs from the class:
 
 ```php
-use DynamikDev\PolicyEngine\Attributes\ScopeType;
-use DynamikDev\PolicyEngine\Concerns\Scopeable;
+use DynamikDev\Marque\Attributes\ScopeType;
+use DynamikDev\Marque\Concerns\Scopeable;
 
 #[ScopeType('org')]
 class Organization extends Model

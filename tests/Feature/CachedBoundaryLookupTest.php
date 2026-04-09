@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Concerns\HasPermissions;
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
+use DynamikDev\Marque\Concerns\HasPermissions;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\RoleStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,10 +32,10 @@ beforeEach(function (): void {
         $table->timestamps();
     });
 
-    config()->set('policy-engine.cache.enabled', true);
-    config()->set('policy-engine.cache.store', 'array');
-    config()->set('policy-engine.cache.ttl', 3600);
-    config()->set('policy-engine.enforce_boundaries_on_global', true);
+    config()->set('marque.cache.enabled', true);
+    config()->set('marque.cache.store', 'array');
+    config()->set('marque.cache.ttl', 3600);
+    config()->set('marque.enforce_boundaries_on_global', true);
 
     $this->permissionStore = app(PermissionStore::class);
     $this->roleStore = app(RoleStore::class);
@@ -108,7 +108,7 @@ it('refreshes cached boundaries after a BoundaryRemoved event fires', function (
 });
 
 it('skips boundary cache when cache is disabled', function (): void {
-    config()->set('policy-engine.cache.enabled', false);
+    config()->set('marque.cache.enabled', false);
 
     $user = BoundaryCacheUser::query()->create(['name' => 'Dave']);
 

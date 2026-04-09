@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Models;
+namespace DynamikDev\Marque\Models;
 
-use DynamikDev\PolicyEngine\Enums\Effect;
+use DynamikDev\Marque\Enums\Effect;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -27,7 +27,7 @@ class ResourcePolicy extends Model
     public function getTable(): string
     {
         /** @var string $prefix */
-        $prefix = config('policy-engine.table_prefix', '');
+        $prefix = config('marque.table_prefix', '');
 
         return $prefix.'resource_policies';
     }

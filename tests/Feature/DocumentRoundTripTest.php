@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\DTOs\ImportOptions;
-use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\Enums\Effect;
-use DynamikDev\PolicyEngine\Models\Assignment;
-use DynamikDev\PolicyEngine\Models\Boundary;
-use DynamikDev\PolicyEngine\Models\Permission;
-use DynamikDev\PolicyEngine\Models\ResourcePolicy;
-use DynamikDev\PolicyEngine\Models\Role;
-use DynamikDev\PolicyEngine\Models\RolePermission;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\DocumentExporter;
+use DynamikDev\Marque\Contracts\DocumentImporter;
+use DynamikDev\Marque\Contracts\DocumentParser;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\ResourcePolicyStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\ImportOptions;
+use DynamikDev\Marque\DTOs\PolicyDocument;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\Enums\Effect;
+use DynamikDev\Marque\Models\Assignment;
+use DynamikDev\Marque\Models\Boundary;
+use DynamikDev\Marque\Models\Permission;
+use DynamikDev\Marque\Models\ResourcePolicy;
+use DynamikDev\Marque\Models\Role;
+use DynamikDev\Marque\Models\RolePermission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);

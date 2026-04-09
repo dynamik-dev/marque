@@ -1,17 +1,17 @@
 # Seeding Permissions and Roles
 
-Define your permissions and roles in a seeder so they're consistent across environments. The `PolicyEngine` facade makes this declarative and idempotent.
+Define your permissions and roles in a seeder so they're consistent across environments. The `Marque` facade makes this declarative and idempotent.
 
 ## Registering permissions
 
 ```php
-use DynamikDev\PolicyEngine\Facades\PolicyEngine;
+use DynamikDev\Marque\Facades\Marque;
 
 class PermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        PolicyEngine::permissions([
+        Marque::permissions([
             'posts.read',
             'posts.create',
             'posts.update.own',
@@ -34,16 +34,16 @@ Permissions are dot-notated strings. The convention is `resource.verb` or `resou
 ## Creating roles with permissions
 
 ```php
-PolicyEngine::role('viewer', 'Viewer', system: true)
+Marque::role('viewer', 'Viewer', system: true)
     ->grant(['posts.read', 'comments.read']);
 
-PolicyEngine::role('member', 'Member', system: true)
+Marque::role('member', 'Member', system: true)
     ->grant([
         'posts.read', 'posts.create', 'posts.update.own', 'posts.delete.own',
         'comments.read', 'comments.create', 'comments.delete.own',
     ]);
 
-PolicyEngine::role('admin', 'Admin', system: true)
+Marque::role('admin', 'Admin', system: true)
     ->grant(['*.*']);
 ```
 
@@ -52,7 +52,7 @@ The `system: true` flag protects the role from being deleted at runtime.
 ### Adding deny rules to a role
 
 ```php
-PolicyEngine::role('moderator', 'Moderator', system: true)
+Marque::role('moderator', 'Moderator', system: true)
     ->grant(['posts.*', 'comments.*'])
     ->deny(['members.remove']);
 ```
@@ -76,7 +76,7 @@ $this->call(PermissionSeeder::class);
 When you add or modify permissions in your seeder, re-run it. The sync command does this for you:
 
 ```bash
-php artisan policy-engine:sync
+php artisan marque:sync
 ```
 
 This calls your `PermissionSeeder` idempotently. Existing permissions and roles are updated, not duplicated.
@@ -86,8 +86,8 @@ This calls your `PermissionSeeder` idempotently. Existing permissions and roles 
 List everything you just seeded:
 
 ```bash
-php artisan policy-engine:permissions
-php artisan policy-engine:roles
+php artisan marque:permissions
+php artisan marque:roles
 ```
 
 Next: [checking permissions](../authorization/checking-permissions.md).

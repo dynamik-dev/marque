@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Conditions;
+namespace DynamikDev\Marque\Conditions;
 
-use DynamikDev\PolicyEngine\Contracts\ConditionEvaluator;
-use DynamikDev\PolicyEngine\DTOs\Condition;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
+use DynamikDev\Marque\Contracts\ConditionEvaluator;
+use DynamikDev\Marque\DTOs\Condition;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
 
 class EnvironmentEqualsEvaluator implements ConditionEvaluator
 {

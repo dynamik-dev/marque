@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Attributes;
+namespace DynamikDev\Marque\Attributes;
 
 use Attribute;
 

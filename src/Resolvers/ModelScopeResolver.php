@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Resolvers;
+namespace DynamikDev\Marque\Resolvers;
 
-use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
+use DynamikDev\Marque\Contracts\ScopeResolver;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 

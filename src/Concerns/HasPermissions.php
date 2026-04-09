@@ -2,25 +2,25 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Concerns;
+namespace DynamikDev\Marque\Concerns;
 
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\Matcher;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
-use DynamikDev\PolicyEngine\DTOs\Context;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\EvaluationResult;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\DTOs\Principal;
-use DynamikDev\PolicyEngine\DTOs\Resource;
-use DynamikDev\PolicyEngine\Enums\Decision;
-use DynamikDev\PolicyEngine\Enums\Effect;
-use DynamikDev\PolicyEngine\Models\Assignment;
-use DynamikDev\PolicyEngine\Models\Role;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\Matcher;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\PolicyResolver;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Contracts\ScopeResolver;
+use DynamikDev\Marque\DTOs\Context;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\EvaluationResult;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\DTOs\Principal;
+use DynamikDev\Marque\DTOs\Resource;
+use DynamikDev\Marque\Enums\Decision;
+use DynamikDev\Marque\Enums\Effect;
+use DynamikDev\Marque\Models\Assignment;
+use DynamikDev\Marque\Models\Role;
 use Illuminate\Support\Collection;
 
 /**
@@ -285,7 +285,7 @@ trait HasPermissions
         );
 
         /** @var array<string, class-string<PolicyResolver>> $resolverClasses */
-        $resolverClasses = config('policy-engine.resolvers', []);
+        $resolverClasses = config('marque.resolvers', []);
 
         $statements = collect();
 

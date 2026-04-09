@@ -2,55 +2,55 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine;
+namespace DynamikDev\Marque;
 
-use DynamikDev\PolicyEngine\Conditions\AttributeEqualsEvaluator;
-use DynamikDev\PolicyEngine\Conditions\AttributeInEvaluator;
-use DynamikDev\PolicyEngine\Conditions\DefaultConditionRegistry;
-use DynamikDev\PolicyEngine\Conditions\EnvironmentEqualsEvaluator;
-use DynamikDev\PolicyEngine\Conditions\IpRangeEvaluator;
-use DynamikDev\PolicyEngine\Conditions\TimeBetweenEvaluator;
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\ConditionRegistry;
-use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\Matcher;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
-use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentExporter;
-use DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter;
-use DynamikDev\PolicyEngine\Documents\JsonDocumentParser;
-use DynamikDev\PolicyEngine\DTOs\Resource;
-use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
-use DynamikDev\PolicyEngine\Events\AssignmentCreated;
-use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
-use DynamikDev\PolicyEngine\Events\BoundaryRemoved;
-use DynamikDev\PolicyEngine\Events\BoundarySet;
-use DynamikDev\PolicyEngine\Events\DocumentImported;
-use DynamikDev\PolicyEngine\Events\PermissionCreated;
-use DynamikDev\PolicyEngine\Events\PermissionDeleted;
-use DynamikDev\PolicyEngine\Events\RoleDeleted;
-use DynamikDev\PolicyEngine\Events\RoleUpdated;
-use DynamikDev\PolicyEngine\Listeners\InvalidatePermissionCache;
-use DynamikDev\PolicyEngine\Matchers\WildcardMatcher;
-use DynamikDev\PolicyEngine\Middleware\RoleMiddleware;
-use DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver;
-use DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver;
-use DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver;
-use DynamikDev\PolicyEngine\Stores\CachingBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore;
-use DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore;
-use DynamikDev\PolicyEngine\Stores\EloquentPermissionStore;
-use DynamikDev\PolicyEngine\Stores\EloquentResourcePolicyStore;
-use DynamikDev\PolicyEngine\Stores\EloquentRoleStore;
-use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
+use DynamikDev\Marque\Conditions\AttributeEqualsEvaluator;
+use DynamikDev\Marque\Conditions\AttributeInEvaluator;
+use DynamikDev\Marque\Conditions\DefaultConditionRegistry;
+use DynamikDev\Marque\Conditions\EnvironmentEqualsEvaluator;
+use DynamikDev\Marque\Conditions\IpRangeEvaluator;
+use DynamikDev\Marque\Conditions\TimeBetweenEvaluator;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\ConditionRegistry;
+use DynamikDev\Marque\Contracts\DocumentExporter;
+use DynamikDev\Marque\Contracts\DocumentImporter;
+use DynamikDev\Marque\Contracts\DocumentParser;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\Matcher;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\PolicyResolver;
+use DynamikDev\Marque\Contracts\ResourcePolicyStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Contracts\ScopeResolver;
+use DynamikDev\Marque\Documents\DefaultDocumentExporter;
+use DynamikDev\Marque\Documents\DefaultDocumentImporter;
+use DynamikDev\Marque\Documents\JsonDocumentParser;
+use DynamikDev\Marque\DTOs\Resource;
+use DynamikDev\Marque\Evaluators\CachedEvaluator;
+use DynamikDev\Marque\Evaluators\DefaultEvaluator;
+use DynamikDev\Marque\Events\AssignmentCreated;
+use DynamikDev\Marque\Events\AssignmentRevoked;
+use DynamikDev\Marque\Events\BoundaryRemoved;
+use DynamikDev\Marque\Events\BoundarySet;
+use DynamikDev\Marque\Events\DocumentImported;
+use DynamikDev\Marque\Events\PermissionCreated;
+use DynamikDev\Marque\Events\PermissionDeleted;
+use DynamikDev\Marque\Events\RoleDeleted;
+use DynamikDev\Marque\Events\RoleUpdated;
+use DynamikDev\Marque\Listeners\InvalidatePermissionCache;
+use DynamikDev\Marque\Matchers\WildcardMatcher;
+use DynamikDev\Marque\Middleware\RoleMiddleware;
+use DynamikDev\Marque\Resolvers\BoundaryPolicyResolver;
+use DynamikDev\Marque\Resolvers\ModelScopeResolver;
+use DynamikDev\Marque\Resolvers\SanctumPolicyResolver;
+use DynamikDev\Marque\Stores\CachingBoundaryStore;
+use DynamikDev\Marque\Stores\EloquentAssignmentStore;
+use DynamikDev\Marque\Stores\EloquentBoundaryStore;
+use DynamikDev\Marque\Stores\EloquentPermissionStore;
+use DynamikDev\Marque\Stores\EloquentResourcePolicyStore;
+use DynamikDev\Marque\Stores\EloquentRoleStore;
+use DynamikDev\Marque\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Routing\Router;
@@ -60,11 +60,11 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Octane\Events\RequestTerminated;
 
-class PolicyEngineServiceProvider extends ServiceProvider
+class MarqueServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/policy-engine.php', 'policy-engine');
+        $this->mergeConfigFrom(__DIR__.'/../config/marque.php', 'marque');
 
         // Reset memoized cache store when the app is re-bootstrapped (testing).
         CacheStoreResolver::reset();
@@ -106,14 +106,14 @@ class PolicyEngineServiceProvider extends ServiceProvider
                 ),
                 matcher: $app->make(Matcher::class),
                 permissionStore: $app->make(PermissionStore::class),
-                denyUnboundedScopes: (bool) config('policy-engine.deny_unbounded_scopes', false),
-                enforceOnGlobal: (bool) config('policy-engine.enforce_boundaries_on_global', false),
+                denyUnboundedScopes: (bool) config('marque.deny_unbounded_scopes', false),
+                enforceOnGlobal: (bool) config('marque.enforce_boundaries_on_global', false),
             );
         });
 
         $this->app->singleton(Evaluator::class, function ($app): CachedEvaluator {
             /** @var array<int, string> $resolverClasses */
-            $resolverClasses = config('policy-engine.resolvers', []);
+            $resolverClasses = config('marque.resolvers', []);
             $resolvers = array_map(
                 fn (string $class): PolicyResolver => $app->make($class),
                 $resolverClasses,
@@ -129,7 +129,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
             );
         });
 
-        $this->app->singleton(PolicyEngineManager::class);
+        $this->app->singleton(MarqueManager::class);
     }
 
     public function boot(Router $router): void
@@ -156,12 +156,12 @@ class PolicyEngineServiceProvider extends ServiceProvider
             ]);
 
             $this->publishes([
-                __DIR__.'/../config/policy-engine.php' => config_path('policy-engine.php'),
-            ], 'policy-engine-config');
+                __DIR__.'/../config/marque.php' => config_path('marque.php'),
+            ], 'marque-config');
 
             $this->publishesMigrations([
                 __DIR__.'/../database/migrations' => database_path('migrations'),
-            ], 'policy-engine-migrations');
+            ], 'marque-migrations');
         }
     }
 
@@ -186,7 +186,7 @@ class PolicyEngineServiceProvider extends ServiceProvider
             }
 
             /** @var array<int, string> $passthrough */
-            $passthrough = config('policy-engine.gate_passthrough', []);
+            $passthrough = config('marque.gate_passthrough', []);
             if (in_array($ability, $passthrough, true)) {
                 return null;
             }

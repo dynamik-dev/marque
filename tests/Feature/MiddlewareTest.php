@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Concerns\HasPermissions;
-use DynamikDev\PolicyEngine\Concerns\Scopeable;
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
+use DynamikDev\Marque\Concerns\HasPermissions;
+use DynamikDev\Marque\Concerns\Scopeable;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\RoleStore;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;

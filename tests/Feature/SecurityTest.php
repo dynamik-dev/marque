@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\DTOs\Context;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\ImportOptions;
-use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
-use DynamikDev\PolicyEngine\DTOs\Principal;
-use DynamikDev\PolicyEngine\Enums\Decision;
-use DynamikDev\PolicyEngine\PolicyEngineManager;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\DocumentImporter;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\Context;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\ImportOptions;
+use DynamikDev\Marque\DTOs\PolicyDocument;
+use DynamikDev\Marque\DTOs\Principal;
+use DynamikDev\Marque\Enums\Decision;
+use DynamikDev\Marque\MarqueManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -29,7 +29,7 @@ beforeEach(function (): void {
 // --- Finding 1: System role protection in save() ---
 
 it('rejects permission changes on a protected system role', function (): void {
-    config()->set('policy-engine.protect_system_roles', true);
+    config()->set('marque.protect_system_roles', true);
 
     $this->permissionStore->register(['posts.create', 'posts.delete']);
     $this->roleStore->save('admin', 'Admin', ['posts.create', 'posts.delete'], system: true);
@@ -38,7 +38,7 @@ it('rejects permission changes on a protected system role', function (): void {
 })->throws(RuntimeException::class, 'Cannot modify permissions on protected system role');
 
 it('rejects flipping is_system flag off on a protected role', function (): void {
-    config()->set('policy-engine.protect_system_roles', true);
+    config()->set('marque.protect_system_roles', true);
 
     $this->roleStore->save('admin', 'Admin', [], system: true);
 
@@ -46,7 +46,7 @@ it('rejects flipping is_system flag off on a protected role', function (): void 
 })->throws(RuntimeException::class, 'Cannot remove system flag from protected role');
 
 it('allows modifying a system role when protection is disabled', function (): void {
-    config()->set('policy-engine.protect_system_roles', false);
+    config()->set('marque.protect_system_roles', false);
 
     $this->permissionStore->register(['posts.create', 'posts.delete']);
     $this->roleStore->save('admin', 'Admin', ['posts.create', 'posts.delete'], system: true);
@@ -58,7 +58,7 @@ it('allows modifying a system role when protection is disabled', function (): vo
 });
 
 it('allows updating the name of a protected system role', function (): void {
-    config()->set('policy-engine.protect_system_roles', true);
+    config()->set('marque.protect_system_roles', true);
 
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('admin', 'Admin', ['posts.create'], system: true);
@@ -71,7 +71,7 @@ it('allows updating the name of a protected system role', function (): void {
 // --- Finding 3: Document import skips protected system roles ---
 
 it('skips protected system roles during import', function (): void {
-    config()->set('policy-engine.protect_system_roles', true);
+    config()->set('marque.protect_system_roles', true);
 
     $this->permissionStore->register(['posts.create', 'posts.delete', 'billing.manage']);
     $this->roleStore->save('admin', 'Admin', ['posts.create', 'posts.delete', 'billing.manage'], system: true);
@@ -121,20 +121,20 @@ it('escapes underscore wildcard in permission prefix filter', function (): void 
         ->and($filtered->first()->id)->toBe('p_sts.create');
 });
 
-// --- Finding 5: Path validation in PolicyEngineManager ---
+// --- Finding 5: Path validation in MarqueManager ---
 
 it('rejects import from a path outside the allowed directory', function (): void {
-    config()->set('policy-engine.document_path', storage_path());
+    config()->set('marque.document_path', storage_path());
 
-    $manager = app(PolicyEngineManager::class);
+    $manager = app(MarqueManager::class);
 
     $manager->import('/etc/passwd');
 })->throws(InvalidArgumentException::class, 'Path must be within the allowed directory');
 
 it('rejects export to a path outside the allowed directory', function (): void {
-    config()->set('policy-engine.document_path', storage_path());
+    config()->set('marque.document_path', storage_path());
 
-    $manager = app(PolicyEngineManager::class);
+    $manager = app(MarqueManager::class);
 
     $manager->exportToFile('/tmp/evil.json');
 })->throws(InvalidArgumentException::class, 'Path must be within the allowed directory');
@@ -146,13 +146,13 @@ it('rejects export to a sibling directory that shares the allowed path prefix', 
         mkdir($storagePath, 0755, true);
     }
 
-    config()->set('policy-engine.document_path', $storagePath);
+    config()->set('marque.document_path', $storagePath);
 
     $sibling = $storagePath.'-sibling-'.uniqid('', true);
 
     mkdir($sibling, 0755, true);
 
-    $manager = app(PolicyEngineManager::class);
+    $manager = app(MarqueManager::class);
 
     try {
         $manager->exportToFile($sibling.'/evil.json');
@@ -174,7 +174,7 @@ it('allows import from a path within the allowed directory', function (): void {
         mkdir($storagePath, 0755, true);
     }
 
-    config()->set('policy-engine.document_path', $storagePath);
+    config()->set('marque.document_path', $storagePath);
 
     $path = $storagePath.'/test-policy.json';
     file_put_contents($path, json_encode([
@@ -183,7 +183,7 @@ it('allows import from a path within the allowed directory', function (): void {
         'roles' => [],
     ]));
 
-    $manager = app(PolicyEngineManager::class);
+    $manager = app(MarqueManager::class);
     $result = $manager->import($path);
 
     expect($result->permissionsCreated)->toBe(['posts.create']);
@@ -209,7 +209,7 @@ function securityEval(Evaluator $evaluator, string $type, string|int $id, string
 // --- Finding 6: deny_unbounded_scopes ---
 
 it('denies scoped permission when no boundary exists and deny_unbounded_scopes is enabled', function (): void {
-    config()->set('policy-engine.deny_unbounded_scopes', true);
+    config()->set('marque.deny_unbounded_scopes', true);
 
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
@@ -221,7 +221,7 @@ it('denies scoped permission when no boundary exists and deny_unbounded_scopes i
 });
 
 it('allows scoped permission when no boundary exists and deny_unbounded_scopes is disabled', function (): void {
-    config()->set('policy-engine.deny_unbounded_scopes', false);
+    config()->set('marque.deny_unbounded_scopes', false);
 
     $this->permissionStore->register(['posts.create']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
@@ -282,9 +282,9 @@ it('enforces boundary on scoped check even when user has global wildcard assignm
 // --- Finding 11: PathValidator rejects paths with non-existent parent directories ---
 
 it('rejects import from a path whose parent directory does not exist', function (): void {
-    config()->set('policy-engine.document_path', storage_path());
+    config()->set('marque.document_path', storage_path());
 
-    $manager = app(PolicyEngineManager::class);
+    $manager = app(MarqueManager::class);
 
     $manager->import(storage_path('nonexistent-dir/policy.json'));
 })->throws(InvalidArgumentException::class, 'Path must be within the allowed directory');

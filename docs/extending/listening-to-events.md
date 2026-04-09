@@ -18,12 +18,12 @@ The default stores dispatch events on every mutation — use them for audit logg
 | `AuthorizationDenied` | A permission check fails | `string $subject`, `string $permission`, `?string $scope` |
 | `DocumentImported` | A policy document is imported (not dry run) | `ImportResult $result` |
 
-All event classes live in `DynamikDev\PolicyEngine\Events\` and use readonly constructor properties.
+All event classes live in `DynamikDev\Marque\Events\` and use readonly constructor properties.
 
 ## Listening to an event
 
 ```php
-use DynamikDev\PolicyEngine\Events\AssignmentCreated;
+use DynamikDev\Marque\Events\AssignmentCreated;
 
 class LogAssignment
 {
@@ -44,7 +44,7 @@ Register the listener in your `EventServiceProvider` or use attribute-based disc
 ## Tracking denied authorization attempts
 
 ```php
-use DynamikDev\PolicyEngine\Events\AuthorizationDenied;
+use DynamikDev\Marque\Events\AuthorizationDenied;
 
 class TrackDenials
 {
@@ -64,7 +64,7 @@ class TrackDenials
 ## Reacting to document imports
 
 ```php
-use DynamikDev\PolicyEngine\Events\DocumentImported;
+use DynamikDev\Marque\Events\DocumentImported;
 
 class NotifyAdminsOfImport
 {
@@ -102,7 +102,7 @@ Cache is flushed automatically when any of these fire.
 If you [swap a store implementation](swapping-implementations.md), dispatch the same events from your custom store to keep cache invalidation and listeners working:
 
 ```php
-use DynamikDev\PolicyEngine\Events\AssignmentCreated;
+use DynamikDev\Marque\Events\AssignmentCreated;
 use Illuminate\Support\Facades\Event;
 
 Event::dispatch(new AssignmentCreated($assignment));

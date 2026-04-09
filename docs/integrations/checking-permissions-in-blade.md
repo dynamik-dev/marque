@@ -1,6 +1,6 @@
 # Checking Permissions in Blade Templates
 
-`@can` works with dot-notated permissions out of the box — the Gate hook routes them through Policy Engine automatically.
+`@can` works with dot-notated permissions out of the box — the Gate hook routes them through Marque automatically.
 
 ## Showing content when a permission is held
 
@@ -90,7 +90,7 @@ The first argument is the role ID, the second is an optional scope.
 `@can` now routes through the Gate hook for any dot-notated ability. Non-dot abilities (like `update` or `delete`) pass through to your model policies as usual.
 
 ```blade
-{{-- Dot-notated — handled by Policy Engine via Gate hook --}}
+{{-- Dot-notated — handled by Marque via Gate hook --}}
 @can('posts.create', $group)
     <button>New Post</button>
 @endcan

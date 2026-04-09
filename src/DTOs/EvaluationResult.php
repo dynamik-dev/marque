@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\DTOs;
+namespace DynamikDev\Marque\DTOs;
 
-use DynamikDev\PolicyEngine\Enums\Decision;
+use DynamikDev\Marque\Enums\Decision;
 
 readonly class EvaluationResult
 {

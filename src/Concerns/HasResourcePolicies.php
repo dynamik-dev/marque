@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Concerns;
+namespace DynamikDev\Marque\Concerns;
 
-use DynamikDev\PolicyEngine\Contracts\ResourcePolicyStore;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\DTOs\Resource;
+use DynamikDev\Marque\Contracts\ResourcePolicyStore;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\DTOs\Resource;
 
 trait HasResourcePolicies
 {

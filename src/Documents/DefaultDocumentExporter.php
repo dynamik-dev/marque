@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Documents;
+namespace DynamikDev\Marque\Documents;
 
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\DocumentExporter;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
-use DynamikDev\PolicyEngine\Models\Assignment;
-use DynamikDev\PolicyEngine\Models\Boundary;
-use DynamikDev\PolicyEngine\Models\ResourcePolicy;
-use DynamikDev\PolicyEngine\Models\Role;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\DocumentExporter;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\PolicyDocument;
+use DynamikDev\Marque\Models\Assignment;
+use DynamikDev\Marque\Models\Boundary;
+use DynamikDev\Marque\Models\ResourcePolicy;
+use DynamikDev\Marque\Models\Role;
 use Illuminate\Support\Collection;
 
 class DefaultDocumentExporter implements DocumentExporter

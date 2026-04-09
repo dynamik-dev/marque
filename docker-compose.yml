@@ -14,7 +14,7 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_DB: policy_engine_test
+      POSTGRES_DB: marque_test
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test
     healthcheck:

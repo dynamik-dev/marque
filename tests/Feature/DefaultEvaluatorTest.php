@@ -2,17 +2,17 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\Matcher;
-use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
-use DynamikDev\PolicyEngine\DTOs\Context;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\EvaluationResult;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\DTOs\Principal;
-use DynamikDev\PolicyEngine\DTOs\Resource;
-use DynamikDev\PolicyEngine\Enums\Decision;
-use DynamikDev\PolicyEngine\Enums\Effect;
-use DynamikDev\PolicyEngine\Evaluators\DefaultEvaluator;
+use DynamikDev\Marque\Contracts\Matcher;
+use DynamikDev\Marque\Contracts\PolicyResolver;
+use DynamikDev\Marque\DTOs\Context;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\EvaluationResult;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\DTOs\Principal;
+use DynamikDev\Marque\DTOs\Resource;
+use DynamikDev\Marque\Enums\Decision;
+use DynamikDev\Marque\Enums\Effect;
+use DynamikDev\Marque\Evaluators\DefaultEvaluator;
 use Illuminate\Support\Collection;
 
 function makeRequest(string $action, ?Resource $resource = null, ?string $scope = null): EvaluationRequest
@@ -162,10 +162,10 @@ it('returns default deny when statements exist but none match the requested acti
         ->and($result->decidedBy)->toBe('default-deny');
 });
 
-// g) Trace enabled — when `config('policy-engine.trace')` is true, matchedStatements populated
+// g) Trace enabled — when `config('marque.trace')` is true, matchedStatements populated
 
 it('populates matchedStatements when trace is enabled', function (): void {
-    config(['policy-engine.trace' => true]);
+    config(['marque.trace' => true]);
 
     $statement = new PolicyStatement(
         effect: Effect::Allow,
@@ -187,7 +187,7 @@ it('populates matchedStatements when trace is enabled', function (): void {
 // h) Trace disabled — when trace is false, matchedStatements is empty array
 
 it('leaves matchedStatements empty when trace is disabled', function (): void {
-    config(['policy-engine.trace' => false]);
+    config(['marque.trace' => false]);
 
     $statement = new PolicyStatement(
         effect: Effect::Allow,

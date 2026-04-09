@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Conditions;
+namespace DynamikDev\Marque\Conditions;
 
-use DynamikDev\PolicyEngine\Contracts\ConditionEvaluator;
-use DynamikDev\PolicyEngine\Contracts\ConditionRegistry;
+use DynamikDev\Marque\Contracts\ConditionEvaluator;
+use DynamikDev\Marque\Contracts\ConditionRegistry;
 use InvalidArgumentException;
 
 class DefaultConditionRegistry implements ConditionRegistry

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Concerns\HasPermissions;
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\DocumentImporter;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\DTOs\ImportOptions;
-use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
+use DynamikDev\Marque\Concerns\HasPermissions;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\DocumentImporter;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\ImportOptions;
+use DynamikDev\Marque\DTOs\PolicyDocument;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -35,9 +35,9 @@ beforeEach(function (): void {
         $table->timestamps();
     });
 
-    config()->set('policy-engine.cache.enabled', true);
-    config()->set('policy-engine.cache.store', 'array');
-    config()->set('policy-engine.cache.ttl', 3600);
+    config()->set('marque.cache.enabled', true);
+    config()->set('marque.cache.store', 'array');
+    config()->set('marque.cache.ttl', 3600);
 
     $this->permissionStore = app(PermissionStore::class);
     $this->roleStore = app(RoleStore::class);
@@ -135,7 +135,7 @@ it('invalidates cache when a permission is deleted so canDo reflects the removal
 });
 
 it('invalidates cache when a boundary is updated so canDo reflects tighter limits', function (): void {
-    config()->set('policy-engine.deny_unbounded_scopes', false);
+    config()->set('marque.deny_unbounded_scopes', false);
 
     $this->permissionStore->register(['posts.create', 'posts.delete']);
     $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.delete']);
@@ -168,10 +168,10 @@ it('invalidates cache when a boundary is removed so canDo reflects the removal',
     expect($this->user->canDo('posts.delete', 'org::acme'))->toBeTrue();
 });
 
-// --- Scoped cache invalidation preserves non-policy-engine keys ---
+// --- Scoped cache invalidation preserves non-marque keys ---
 
-it('does not clear non-policy-engine cache keys during invalidation', function (): void {
-    // Store a value in the same cache store but outside policy-engine tags.
+it('does not clear non-marque cache keys during invalidation', function (): void {
+    // Store a value in the same cache store but outside marque tags.
     cache()->store('array')->put('my-app-key', 'preserved', 3600);
 
     $this->permissionStore->register(['posts.create']);
@@ -184,20 +184,20 @@ it('does not clear non-policy-engine cache keys during invalidation', function (
     // Update the role — triggers cache invalidation via RoleUpdated event.
     $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.update']);
 
-    // The non-policy-engine cache key should survive the flush.
+    // The non-marque cache key should survive the flush.
     expect(cache()->store('array')->get('my-app-key'))->toBe('preserved');
 });
 
-it('clears only policy-engine tagged entries when flushing cache', function (): void {
-    // Store values both inside and outside the policy-engine tag.
+it('clears only marque tagged entries when flushing cache', function (): void {
+    // Store values both inside and outside the marque tag.
     cache()->store('array')->put('session-token', 'abc123', 3600);
-    cache()->store('array')->tags(['policy-engine'])->put('policy-engine:user:1:posts.create', true, 3600);
+    cache()->store('array')->tags(['marque'])->put('marque:user:1:posts.create', true, 3600);
 
-    // Flush the policy-engine tag.
-    cache()->store('array')->tags(['policy-engine'])->flush();
+    // Flush the marque tag.
+    cache()->store('array')->tags(['marque'])->flush();
 
     // Policy-engine key should be gone.
-    expect(cache()->store('array')->tags(['policy-engine'])->get('policy-engine:user:1:posts.create'))->toBeNull();
+    expect(cache()->store('array')->tags(['marque'])->get('marque:user:1:posts.create'))->toBeNull();
 
     // Non-tagged key should survive.
     expect(cache()->store('array')->get('session-token'))->toBe('abc123');

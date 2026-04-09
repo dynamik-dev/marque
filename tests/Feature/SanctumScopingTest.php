@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Concerns\HasPermissions;
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\DTOs\Context;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\Principal;
-use DynamikDev\PolicyEngine\Enums\Decision;
-use DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver;
+use DynamikDev\Marque\Concerns\HasPermissions;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\Context;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\Principal;
+use DynamikDev\Marque\Enums\Decision;
+use DynamikDev\Marque\Resolvers\SanctumPolicyResolver;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Foundation\Testing\RefreshDatabase;

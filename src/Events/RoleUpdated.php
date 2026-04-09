@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Events;
+namespace DynamikDev\Marque\Events;
 
-use DynamikDev\PolicyEngine\Models\Role;
+use DynamikDev\Marque\Models\Role;
 
 readonly class RoleUpdated
 {

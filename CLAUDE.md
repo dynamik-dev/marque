@@ -1,6 +1,6 @@
-# Laravel Policy Engine
+# Laravel Marque
 
-**Package:** `dynamik-dev/laravel-policy-engine`
+**Package:** `dynamik-dev/laravel-marque`
 **Spec:** See [spec.md](./spec.md) for the full specification.
 **Requires:** Laravel 12+, PHP 8.4+
 
@@ -26,7 +26,7 @@ A Laravel-native scoped permissions package. Composable, contract-driven authori
 
 ## Architecture (3 Layers)
 
-1. **DX Layer** — traits (`HasPermissions`, `Scopeable`), middleware (`role`), Blade directives (`@hasRole`), Artisan commands, `PolicyEngine` facade. Contains no logic — delegates to contracts.
+1. **DX Layer** — traits (`HasPermissions`, `Scopeable`), middleware (`role`), Blade directives (`@hasRole`), Artisan commands, `Marque` facade. Contains no logic — delegates to contracts.
 2. **Contracts** — `PermissionStore`, `RoleStore`, `AssignmentStore`, `BoundaryStore`, `Evaluator`, `Matcher`, `ScopeResolver`, `DocumentParser`, `DocumentImporter`, `DocumentExporter`.
 3. **Default Implementations** — Eloquent stores, `CachedEvaluator`, `WildcardMatcher`, `ModelScopeResolver`, `JsonDocumentParser`. All swappable via service container bindings.
 
@@ -44,7 +44,7 @@ Assignments → Roles → Permissions → Boundary check → Deny wins → Allow
 
 ## Package Namespace
 
-`DynamikDev\PolicyEngine\` — contracts in `DynamikDev\PolicyEngine\Contracts\`, default implementations in `DynamikDev\PolicyEngine\Stores\`, traits in `DynamikDev\PolicyEngine\Concerns\`, events in `DynamikDev\PolicyEngine\Events\`, facade in `DynamikDev\PolicyEngine\Facades\`.
+`DynamikDev\Marque\` — contracts in `DynamikDev\Marque\Contracts\`, default implementations in `DynamikDev\Marque\Stores\`, traits in `DynamikDev\Marque\Concerns\`, events in `DynamikDev\Marque\Events\`, facade in `DynamikDev\Marque\Facades\`.
 
 ## Testing
 

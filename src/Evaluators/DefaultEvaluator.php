@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Evaluators;
+namespace DynamikDev\Marque\Evaluators;
 
-use DynamikDev\PolicyEngine\Contracts\ConditionRegistry;
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\Contracts\Matcher;
-use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\EvaluationResult;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\DTOs\Principal;
-use DynamikDev\PolicyEngine\DTOs\Resource;
-use DynamikDev\PolicyEngine\Enums\Decision;
-use DynamikDev\PolicyEngine\Enums\Effect;
+use DynamikDev\Marque\Contracts\ConditionRegistry;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\Matcher;
+use DynamikDev\Marque\Contracts\PolicyResolver;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\EvaluationResult;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\DTOs\Principal;
+use DynamikDev\Marque\DTOs\Resource;
+use DynamikDev\Marque\Enums\Decision;
+use DynamikDev\Marque\Enums\Effect;
 use Illuminate\Support\Collection;
 
 class DefaultEvaluator implements Evaluator
@@ -32,7 +32,7 @@ class DefaultEvaluator implements Evaluator
     {
         $applicable = $this->collectApplicableStatements($request);
 
-        $traceEnabled = (bool) config('policy-engine.trace');
+        $traceEnabled = (bool) config('marque.trace');
         $matchedStatements = $traceEnabled ? $applicable->all() : [];
 
         $deny = $applicable->first(fn (PolicyStatement $s): bool => $s->effect === Effect::Deny);

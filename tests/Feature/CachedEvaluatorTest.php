@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\DTOs\Context;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\EvaluationResult;
-use DynamikDev\PolicyEngine\DTOs\Principal;
-use DynamikDev\PolicyEngine\Enums\Decision;
-use DynamikDev\PolicyEngine\Evaluators\CachedEvaluator;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\DTOs\Context;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\EvaluationResult;
+use DynamikDev\Marque\DTOs\Principal;
+use DynamikDev\Marque\Enums\Decision;
+use DynamikDev\Marque\Evaluators\CachedEvaluator;
 use Illuminate\Cache\CacheManager;
 
 function makeTestRequest(string $action, ?string $scope = null): EvaluationRequest
@@ -38,9 +38,9 @@ function makeDenyResult(): EvaluationResult
 }
 
 beforeEach(function (): void {
-    config()->set('policy-engine.cache.enabled', true);
-    config()->set('policy-engine.cache.store', 'array');
-    config()->set('policy-engine.cache.ttl', 300);
+    config()->set('marque.cache.enabled', true);
+    config()->set('marque.cache.store', 'array');
+    config()->set('marque.cache.ttl', 300);
 });
 
 // --- Delegates on miss ---
@@ -84,7 +84,7 @@ it('returns cached result on second call without calling inner again', function 
 // --- Bypasses cache when disabled ---
 
 it('bypasses cache when cache is disabled and calls inner twice', function (): void {
-    config()->set('policy-engine.cache.enabled', false);
+    config()->set('marque.cache.enabled', false);
 
     $inner = Mockery::mock(Evaluator::class);
     $request = makeTestRequest('posts.delete');

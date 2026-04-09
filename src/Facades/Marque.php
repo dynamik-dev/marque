@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Facades;
+namespace DynamikDev\Marque\Facades;
 
-use DynamikDev\PolicyEngine\DTOs\ImportOptions;
-use DynamikDev\PolicyEngine\DTOs\ImportResult;
-use DynamikDev\PolicyEngine\PolicyEngineManager;
-use DynamikDev\PolicyEngine\Support\RoleBuilder;
+use DynamikDev\Marque\DTOs\ImportOptions;
+use DynamikDev\Marque\DTOs\ImportResult;
+use DynamikDev\Marque\MarqueManager;
+use DynamikDev\Marque\Support\RoleBuilder;
 use Illuminate\Support\Facades\Facade;
 
 /**
@@ -18,12 +18,12 @@ use Illuminate\Support\Facades\Facade;
  * @method static string export(?string $scope = null)
  * @method static void exportToFile(string $path, ?string $scope = null)
  *
- * @see PolicyEngineManager
+ * @see MarqueManager
  */
-class PolicyEngine extends Facade
+class Marque extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return PolicyEngineManager::class;
+        return MarqueManager::class;
     }
 }

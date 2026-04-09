@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\Events\PermissionCreated;
-use DynamikDev\PolicyEngine\Events\PermissionDeleted;
-use DynamikDev\PolicyEngine\Models\Permission;
-use DynamikDev\PolicyEngine\Models\Role;
-use DynamikDev\PolicyEngine\Models\RolePermission;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Events\PermissionCreated;
+use DynamikDev\Marque\Events\PermissionDeleted;
+use DynamikDev\Marque\Models\Permission;
+use DynamikDev\Marque\Models\Role;
+use DynamikDev\Marque\Models\RolePermission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 

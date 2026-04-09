@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Models;
+namespace DynamikDev\Marque\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,7 +19,7 @@ class Assignment extends Model
     public function getTable(): string
     {
         /** @var string $prefix */
-        $prefix = config('policy-engine.table_prefix', '');
+        $prefix = config('marque.table_prefix', '');
 
         return $this->table ??= $prefix.'assignments';
     }

@@ -1,6 +1,6 @@
 # Scoping Sanctum Tokens
 
-When your app uses Laravel Sanctum for API authentication, Policy Engine automatically intersects token abilities with role-based permissions. A token can only exercise permissions that both the token and the user's roles allow.
+When your app uses Laravel Sanctum for API authentication, Marque automatically intersects token abilities with role-based permissions. A token can only exercise permissions that both the token and the user's roles allow.
 
 ## Creating a scoped token
 

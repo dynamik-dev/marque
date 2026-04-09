@@ -2,20 +2,20 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Commands;
+namespace DynamikDev\Marque\Commands;
 
-use DynamikDev\PolicyEngine\DTOs\ImportOptions;
-use DynamikDev\PolicyEngine\DTOs\ImportResult;
-use DynamikDev\PolicyEngine\PolicyEngineManager;
+use DynamikDev\Marque\DTOs\ImportOptions;
+use DynamikDev\Marque\DTOs\ImportResult;
+use DynamikDev\Marque\MarqueManager;
 use Illuminate\Console\Command;
 
 class ImportCommand extends Command
 {
-    protected $signature = 'policy-engine:import {path} {--dry-run} {--skip-assignments} {--replace} {--force}';
+    protected $signature = 'marque:import {path} {--dry-run} {--skip-assignments} {--replace} {--force}';
 
     protected $description = 'Import a policy document from a JSON file';
 
-    public function handle(PolicyEngineManager $manager): int
+    public function handle(MarqueManager $manager): int
     {
         $pathArg = $this->argument('path');
 

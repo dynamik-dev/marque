@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\BoundaryStore;
-use DynamikDev\PolicyEngine\Contracts\Matcher;
-use DynamikDev\PolicyEngine\Contracts\PermissionStore;
-use DynamikDev\PolicyEngine\DTOs\Context;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\DTOs\Principal;
-use DynamikDev\PolicyEngine\Enums\Effect;
-use DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver;
+use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Contracts\Matcher;
+use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\DTOs\Context;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\DTOs\Principal;
+use DynamikDev\Marque\Enums\Effect;
+use DynamikDev\Marque\Resolvers\BoundaryPolicyResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);

@@ -1,5 +1,5 @@
 {
-    "name": "dynamik-dev/laravel-policy-engine",
+    "name": "dynamik-dev/laravel-marque",
     "description": "A Laravel-native scoped permissions package. Composable, contract-driven authorization that integrates with Gates, Policies, middleware, and Blade.",
     "type": "library",
     "license": "MIT",
@@ -29,18 +29,18 @@
     },
     "autoload": {
         "psr-4": {
-            "DynamikDev\\PolicyEngine\\": "src/"
+            "DynamikDev\\Marque\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "DynamikDev\\PolicyEngine\\Tests\\": "tests/"
+            "DynamikDev\\Marque\\Tests\\": "tests/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "DynamikDev\\PolicyEngine\\PolicyEngineServiceProvider"
+                "DynamikDev\\Marque\\MarqueServiceProvider"
             ]
         }
     },

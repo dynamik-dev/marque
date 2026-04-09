@@ -219,13 +219,13 @@ Missing fields default to empty arrays. A v1 document without `resource_policies
 Use the Artisan command to check a document before importing:
 
 ```bash
-php artisan policy-engine:validate policies/community.json
+php artisan marque:validate policies/community.json
 ```
 
 Or validate programmatically:
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
+use DynamikDev\Marque\Contracts\DocumentParser;
 
 $result = app(DocumentParser::class)->validate($jsonString);
 
@@ -240,7 +240,7 @@ Validation checks: `version` is present, `permissions` are strings, roles have `
 When you export a document, the JSON is pretty-printed with unescaped slashes for readability:
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
+use DynamikDev\Marque\Contracts\DocumentParser;
 
 $json = app(DocumentParser::class)->serialize($document);
 ```

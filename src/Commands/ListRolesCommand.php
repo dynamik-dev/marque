@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Commands;
+namespace DynamikDev\Marque\Commands;
 
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
+use DynamikDev\Marque\Contracts\RoleStore;
 use Illuminate\Console\Command;
 
 class ListRolesCommand extends Command
 {
-    protected $signature = 'policy-engine:roles';
+    protected $signature = 'marque:roles';
 
     protected $description = 'List all roles and their permissions';
 

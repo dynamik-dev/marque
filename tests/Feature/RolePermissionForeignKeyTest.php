@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
-use DynamikDev\PolicyEngine\Models\Permission;
-use DynamikDev\PolicyEngine\Models\RolePermission;
+use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Models\Permission;
+use DynamikDev\Marque\Models\RolePermission;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 

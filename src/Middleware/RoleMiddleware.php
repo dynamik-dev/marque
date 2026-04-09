@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Middleware;
+namespace DynamikDev\Marque\Middleware;
 
 use Closure;
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\ScopeResolver;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 

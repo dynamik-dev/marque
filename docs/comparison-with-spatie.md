@@ -1,10 +1,10 @@
-# Comparing Policy Engine with Spatie Permission
+# Comparing Marque with Spatie Permission
 
-Both `dynamik-dev/laravel-policy-engine` and `spatie/laravel-permission` solve role-based access control in Laravel. They make different trade-offs. This page lays out the differences so you can pick the right tool for your project.
+Both `dynamik-dev/laravel-marque` and `spatie/laravel-permission` solve role-based access control in Laravel. They make different trade-offs. This page lays out the differences so you can pick the right tool for your project.
 
 ## Quick comparison
 
-| Feature | Policy Engine | Spatie Permission |
+| Feature | Marque | Spatie Permission |
 | --- | --- | --- |
 | Scoping model | Polymorphic `type::id` per assignment | Single `team_id` column, global mutable state |
 | Deny rules | `!posts.delete` with deny-wins semantics | Not supported |
@@ -21,21 +21,21 @@ Both `dynamik-dev/laravel-policy-engine` and `spatie/laravel-permission` solve r
 | Direct permissions | Via hidden internal roles | Separate pivot table |
 | Community | New package | 11k+ stars, large ecosystem |
 
-## Choosing Policy Engine
+## Choosing Marque
 
-Pick Policy Engine when your authorization model goes beyond flat role-permission lookups.
+Pick Marque when your authorization model goes beyond flat role-permission lookups.
 
-**You need real scoping.** Policy Engine scopes assignments to any model via polymorphic `type::id` strings. A user can be an `admin` in one organization and a `viewer` in another, stored as separate assignments. Spatie uses a single `team_id` column set via global mutable state (`setPermissionsTeamId()`), which is error-prone in queued jobs, middleware ordering, and Octane's persistent worker processes.
+**You need real scoping.** Marque scopes assignments to any model via polymorphic `type::id` strings. A user can be an `admin` in one organization and a `viewer` in another, stored as separate assignments. Spatie uses a single `team_id` column set via global mutable state (`setPermissionsTeamId()`), which is error-prone in queued jobs, middleware ordering, and Octane's persistent worker processes.
 
-**You need deny rules.** Policy Engine supports deny permissions (`!posts.delete`) with deny-wins semantics. If any role in a user's assignments denies a permission, the denial stands regardless of other roles that allow it. Spatie has no deny concept -- you can only grant, not explicitly forbid.
+**You need deny rules.** Marque supports deny permissions (`!posts.delete`) with deny-wins semantics. If any role in a user's assignments denies a permission, the denial stands regardless of other roles that allow it. Spatie has no deny concept -- you can only grant, not explicitly forbid.
 
 **You need permission ceilings.** Boundaries let you cap what any role can do within a scope. Even if a user has `admin` globally, a boundary on `group::5` can restrict them to `posts.read` within that group. Spatie has no equivalent.
 
 **You need portable authorization config.** Policy documents let you define roles, permissions, and boundaries in JSON, version them in git, and import them across environments. Spatie stores everything in the database with no built-in export format.
 
-**You want swappable internals.** Every piece of Policy Engine is coded to a contract. Swap the evaluator, the permission store, the scope resolver, or the cache layer without touching application code. Spatie's logic lives in traits and concrete Eloquent models.
+**You want swappable internals.** Every piece of Marque is coded to a contract. Swap the evaluator, the permission store, the scope resolver, or the cache layer without touching application code. Spatie's logic lives in traits and concrete Eloquent models.
 
-**You run Laravel Octane.** Policy Engine's `CacheStoreResolver` uses `spl_object_id` for safe per-request memoization. Spatie has [documented singleton state issues](https://github.com/spatie/laravel-permission/issues/2575) in long-running processes.
+**You run Laravel Octane.** Marque's `CacheStoreResolver` uses `spl_object_id` for safe per-request memoization. Spatie has [documented singleton state issues](https://github.com/spatie/laravel-permission/issues/2575) in long-running processes.
 
 ## Choosing Spatie Permission
 
@@ -43,21 +43,21 @@ Pick Spatie when simplicity and ecosystem matter more than advanced authorizatio
 
 **Your RBAC is flat.** If you need roles and permissions without scoping, deny rules, or boundaries, Spatie is simpler. Fewer concepts means less to learn and less to misconfigure.
 
-**You need multiple auth guards.** Spatie separates permissions by guard (`web`, `api`, `admin`). Each guard maintains its own permission set. Policy Engine does not distinguish between guards.
+**You need multiple auth guards.** Spatie separates permissions by guard (`web`, `api`, `admin`). Each guard maintains its own permission set. Marque does not distinguish between guards.
 
-**You need route macros.** Spatie provides `Route::role('admin')` and `Route::permission('posts.edit')` as convenience methods. Policy Engine uses Laravel's standard `can:` middleware and a dedicated `role:` middleware.
+**You need route macros.** Spatie provides `Route::role('admin')` and `Route::permission('posts.edit')` as convenience methods. Marque uses Laravel's standard `can:` middleware and a dedicated `role:` middleware.
 
-**Ecosystem trust matters.** Spatie has 11k+ GitHub stars, years of production use, and a large community answering questions. Policy Engine is newer with a smaller community.
+**Ecosystem trust matters.** Spatie has 11k+ GitHub stars, years of production use, and a large community answering questions. Marque is newer with a smaller community.
 
-**You need exact role matching.** Spatie's `hasExactRoles()` checks whether a user has precisely a given set of roles, no more and no less. Policy Engine does not have this method.
+**You need exact role matching.** Spatie's `hasExactRoles()` checks whether a user has precisely a given set of roles, no more and no less. Marque does not have this method.
 
-**You want extensive migration tooling.** Spatie ships commands for upgrading between major versions of its own schema. Policy Engine's migration story is simpler but less mature.
+**You want extensive migration tooling.** Spatie ships commands for upgrading between major versions of its own schema. Marque's migration story is simpler but less mature.
 
 ## Comparing scoping models
 
 This is the largest architectural difference between the two packages.
 
-### Policy Engine: polymorphic scopes
+### Marque: polymorphic scopes
 
 ```php
 $user->assign('editor', scope: $organization);
@@ -86,7 +86,7 @@ Spatie uses a single global `team_id` that affects all permission operations. Yo
 
 ### Deny rules
 
-Policy Engine lets you attach deny permissions to roles:
+Marque lets you attach deny permissions to roles:
 
 ```php
 $role->addPermissions(['posts.*', '!posts.delete']);
@@ -98,10 +98,10 @@ Spatie has no deny concept. To restrict a permission, you must remove it from ev
 
 ### Boundaries
 
-Policy Engine lets you set maximum permission ceilings per scope:
+Marque lets you set maximum permission ceilings per scope:
 
 ```php
-PolicyEngine::boundaries()->set('group::5', ['posts.read', 'posts.comment']);
+Marque::boundaries()->set('group::5', ['posts.read', 'posts.comment']);
 ```
 
 Even if a user holds a role that grants `posts.delete`, the boundary on `group::5` caps their effective permissions to `posts.read` and `posts.comment` within that scope.
@@ -110,14 +110,14 @@ Spatie has no equivalent feature.
 
 ## Comparing caching strategies
 
-**Policy Engine** caches individual evaluation results (can-check, hasRole, effectivePermissions). Cache keys are scoped to the specific subject, permission, and scope being checked. Invalidation is granular -- changing a role's permissions only busts the cache entries that depend on that role.
+**Marque** caches individual evaluation results (can-check, hasRole, effectivePermissions). Cache keys are scoped to the specific subject, permission, and scope being checked. Invalidation is granular -- changing a role's permissions only busts the cache entries that depend on that role.
 
 **Spatie** loads all of a user's permissions into a single cached collection on the first permission check of each request. This is fast for repeated checks within one request but means every request pays the cost of loading the full permission set, even if only one permission is checked. For users with many roles across many teams, this collection can grow large.
 
 ## Comparing Gate integration
 
-**Policy Engine** hooks into Laravel's Gate with a two-lane model. Dot-notated abilities (`posts.create`, `comments.delete`) route to the policy engine. Non-dot abilities (`update`, `viewAny`) pass through to standard Laravel Policies. Both systems coexist without conflict.
+**Marque** hooks into Laravel's Gate with a two-lane model. Dot-notated abilities (`posts.create`, `comments.delete`) route to the policy engine. Non-dot abilities (`update`, `viewAny`) pass through to standard Laravel Policies. Both systems coexist without conflict.
 
 **Spatie** registers every permission as a Gate ability. This means `$user->can('edit articles')` works directly, but custom Policies for the same ability name can conflict. Spatie provides a `GateRegistrar` to customize this behavior, but the default registration is global.
 
-> For a deeper look at how Policy Engine integrates with Laravel's Gate and Policies, see [Integrating with model policies](integrations/integrating-with-model-policies.md).
+> For a deeper look at how Marque integrates with Laravel's Gate and Policies, see [Integrating with model policies](integrations/integrating-with-model-policies.md).

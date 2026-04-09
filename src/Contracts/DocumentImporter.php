@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Contracts;
+namespace DynamikDev\Marque\Contracts;
 
-use DynamikDev\PolicyEngine\DTOs\ImportOptions;
-use DynamikDev\PolicyEngine\DTOs\ImportResult;
-use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
+use DynamikDev\Marque\DTOs\ImportOptions;
+use DynamikDev\Marque\DTOs\ImportResult;
+use DynamikDev\Marque\DTOs\PolicyDocument;
 
 interface DocumentImporter
 {

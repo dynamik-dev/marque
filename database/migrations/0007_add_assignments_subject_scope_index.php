@@ -10,7 +10,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $prefix = config('policy-engine.table_prefix', '');
+        $prefix = config('marque.table_prefix', '');
 
         Schema::table($prefix.'assignments', function (Blueprint $table) use ($prefix): void {
             $table->index(
@@ -22,7 +22,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        $prefix = config('policy-engine.table_prefix', '');
+        $prefix = config('marque.table_prefix', '');
 
         Schema::table($prefix.'assignments', function (Blueprint $table) use ($prefix): void {
             $table->dropIndex($prefix.'assignments_subject_scope_index');

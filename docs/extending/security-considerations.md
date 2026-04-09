@@ -13,11 +13,11 @@ This is valuable for debugging but dangerous in production. If exposed via an AP
 
 ### Hardening explain() for production
 
-Keep `policy-engine.explain` set to `false` (the default) in production:
+Keep `marque.explain` set to `false` (the default) in production:
 
 ```php
-// config/policy-engine.php
-'explain' => env('POLICY_ENGINE_EXPLAIN', false),
+// config/marque.php
+'explain' => env('MARQUE_EXPLAIN', false),
 ```
 
 When disabled, calling `explain()` throws a `RuntimeException` immediately.
@@ -34,7 +34,7 @@ Route::get('/debug/permissions/{user}/{permission}', function (User $user, strin
 })->middleware('auth:sanctum');
 ```
 
-The `policy-engine:explain` Artisan command reads the config at runtime. Restrict Artisan access in production using environment guards or deployment tooling.
+The `marque:explain` Artisan command reads the config at runtime. Restrict Artisan access in production using environment guards or deployment tooling.
 
 See [the `explain` config reference](../reference/configuration.md#explain) for details on the config option.
 
@@ -43,7 +43,7 @@ See [the `explain` config reference](../reference/configuration.md#explain) for 
 The `removeAll()` methods on `RoleStore`, `AssignmentStore`, `BoundaryStore`, and `PermissionStore` delete all records without checking system role protection.
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\RoleStore;
+use DynamikDev\Marque\Contracts\RoleStore;
 
 // This deletes ALL roles, including system-locked ones
 app(RoleStore::class)->removeAll();
@@ -52,7 +52,7 @@ app(RoleStore::class)->removeAll();
 This is by design. `removeAll()` powers the replace-mode import pipeline, which needs to clear all data before importing a fresh policy document:
 
 ```bash
-php artisan policy-engine:import policies/fresh.json --replace --force
+php artisan marque:import policies/fresh.json --replace --force
 ```
 
 ### Guarding removeAll() in application code
@@ -71,7 +71,7 @@ class PolicyAdminController extends Controller
 }
 ```
 
-For standard usage through the import command or `PolicyEngineManager::import()`, this is safe — the command handles confirmation prompts and the `--force` flag.
+For standard usage through the import command or `MarqueManager::import()`, this is safe — the command handles confirmation prompts and the `--force` flag.
 
 > The `remove()` method on `RoleStore` does respect `protect_system_roles`. Only `removeAll()` bypasses it.
 
@@ -98,7 +98,7 @@ The service container is the correct abstraction here. The trait delegates to co
 In tests, the trait works automatically because the service provider binds all contracts. To swap an implementation for a test, rebind in the container:
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
+use DynamikDev\Marque\Contracts\Evaluator;
 
 $this->app->instance(Evaluator::class, $mockEvaluator);
 

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Concerns;
+namespace DynamikDev\Marque\Concerns;
 
-use DynamikDev\PolicyEngine\Attributes\ScopeType;
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Models\Assignment;
+use DynamikDev\Marque\Attributes\ScopeType;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Models\Assignment;
 use Illuminate\Support\Collection;
 use ReflectionClass;
 

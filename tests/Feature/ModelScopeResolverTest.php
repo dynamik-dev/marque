@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\ScopeResolver;
+use DynamikDev\Marque\Contracts\ScopeResolver;
 use Illuminate\Database\Eloquent\Model;
 
 beforeEach(function (): void {

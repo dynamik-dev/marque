@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Commands;
+namespace DynamikDev\Marque\Commands;
 
-use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
+use DynamikDev\Marque\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 use Illuminate\Cache\Repository;
 use Illuminate\Console\Command;
 
 class CacheClearCommand extends Command
 {
-    protected $signature = 'policy-engine:cache-clear';
+    protected $signature = 'marque:cache-clear';
 
     protected $description = 'Clear the policy engine permission cache';
 

@@ -7,7 +7,7 @@ Policy resolvers are the sources of authorization statements. The evaluator coll
 The evaluator runs each resolver in the order defined by the `resolvers` config array. Every resolver returns a `Collection` of `PolicyStatement` objects. The evaluator merges all statements, filters them by action/principal/resource/condition matching, then checks for denies before allows.
 
 ```php
-// config/policy-engine.php
+// config/marque.php
 
 'resolvers' => [
     IdentityPolicyResolver::class,
@@ -24,10 +24,10 @@ A deny from any resolver blocks the action regardless of allows from other resol
 Implement the `PolicyResolver` interface. The `resolve()` method receives an `EvaluationRequest` and returns a `Collection` of `PolicyStatement` objects.
 
 ```php
-use DynamikDev\PolicyEngine\Contracts\PolicyResolver;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\PolicyStatement;
-use DynamikDev\PolicyEngine\Enums\Effect;
+use DynamikDev\Marque\Contracts\PolicyResolver;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\Enums\Effect;
 use Illuminate\Support\Collection;
 
 class MaintenanceModeResolver implements PolicyResolver
@@ -83,14 +83,14 @@ class GeoRestrictionResolver implements PolicyResolver
 
 ## Registering your resolver
 
-Add your resolver class to the `resolvers` array in `config/policy-engine.php`:
+Add your resolver class to the `resolvers` array in `config/marque.php`:
 
 ```php
 use App\Auth\MaintenanceModeResolver;
-use DynamikDev\PolicyEngine\Resolvers\BoundaryPolicyResolver;
-use DynamikDev\PolicyEngine\Resolvers\IdentityPolicyResolver;
-use DynamikDev\PolicyEngine\Resolvers\ResourcePolicyResolver;
-use DynamikDev\PolicyEngine\Resolvers\SanctumPolicyResolver;
+use DynamikDev\Marque\Resolvers\BoundaryPolicyResolver;
+use DynamikDev\Marque\Resolvers\IdentityPolicyResolver;
+use DynamikDev\Marque\Resolvers\ResourcePolicyResolver;
+use DynamikDev\Marque\Resolvers\SanctumPolicyResolver;
 
 'resolvers' => [
     IdentityPolicyResolver::class,
@@ -165,7 +165,7 @@ $this->app->singleton(FeatureFlagResolver::class, function ($app) {
 | `ResourcePolicyResolver`  | Policies attached to resources via the `ResourcePolicyStore`. |
 | `SanctumPolicyResolver`   | Restricts permissions to the current Sanctum token's abilities. Emits denies for anything outside the token scope. |
 
-All resolver classes are in the `DynamikDev\PolicyEngine\Resolvers\` namespace.
+All resolver classes are in the `DynamikDev\Marque\Resolvers\` namespace.
 
 ### `PolicyResolver`
 

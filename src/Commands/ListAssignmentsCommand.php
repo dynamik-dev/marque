@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Commands;
+namespace DynamikDev\Marque\Commands;
 
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Models\Assignment;
-use DynamikDev\PolicyEngine\Support\SubjectParser;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Models\Assignment;
+use DynamikDev\Marque\Support\SubjectParser;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 
 class ListAssignmentsCommand extends Command
 {
-    protected $signature = 'policy-engine:assignments {subject?} {--scope=}';
+    protected $signature = 'marque:assignments {subject?} {--scope=}';
 
     protected $description = 'List role assignments for a subject or scope';
 
@@ -84,8 +84,8 @@ class ListAssignmentsCommand extends Command
     private function showUsage(): void
     {
         $this->line('Usage:');
-        $this->line('  policy-engine:assignments user::42          List assignments for a subject');
-        $this->line('  policy-engine:assignments user::42 --scope=group::5  List scoped assignments');
-        $this->line('  policy-engine:assignments --scope=group::5  List all assignments in a scope');
+        $this->line('  marque:assignments user::42          List assignments for a subject');
+        $this->line('  marque:assignments user::42 --scope=group::5  List scoped assignments');
+        $this->line('  marque:assignments --scope=group::5  List all assignments in a scope');
     }
 }

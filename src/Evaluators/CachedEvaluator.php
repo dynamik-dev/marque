@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Evaluators;
+namespace DynamikDev\Marque\Evaluators;
 
-use DynamikDev\PolicyEngine\Contracts\Evaluator;
-use DynamikDev\PolicyEngine\DTOs\EvaluationRequest;
-use DynamikDev\PolicyEngine\DTOs\EvaluationResult;
-use DynamikDev\PolicyEngine\Enums\Decision;
-use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
+use DynamikDev\Marque\Contracts\Evaluator;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\EvaluationResult;
+use DynamikDev\Marque\Enums\Decision;
+use DynamikDev\Marque\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 
 class CachedEvaluator implements Evaluator
@@ -20,7 +20,7 @@ class CachedEvaluator implements Evaluator
 
     public function evaluate(EvaluationRequest $request): EvaluationResult
     {
-        if (! config('policy-engine.cache.enabled')) {
+        if (! config('marque.cache.enabled')) {
             return $this->inner->evaluate($request);
         }
 
@@ -49,7 +49,7 @@ class CachedEvaluator implements Evaluator
     /**
      * Build a namespaced cache key for an EvaluationRequest.
      *
-     * Format: policy-engine:eval:{principalType}:{principalId}[:g{combinedGen}]:{md5hash}
+     * Format: marque:eval:{principalType}:{principalId}[:g{combinedGen}]:{md5hash}
      * The hash encodes the full request identity (principal, action, resource, scope)
      * to prevent collisions across different request shapes sharing the same subject.
      *
@@ -62,7 +62,7 @@ class CachedEvaluator implements Evaluator
     public static function key(EvaluationRequest $request, int $generation = 0, int $globalGeneration = 0): string
     {
         $principal = $request->principal;
-        $key = "policy-engine:eval:{$principal->type}:{$principal->id}";
+        $key = "marque:eval:{$principal->type}:{$principal->id}";
 
         $combinedGeneration = $globalGeneration + $generation;
 
@@ -85,7 +85,7 @@ class CachedEvaluator implements Evaluator
     private function ttl(): int
     {
         /** @var int $ttl */
-        $ttl = config('policy-engine.cache.ttl', 300);
+        $ttl = config('marque.cache.ttl', 300);
 
         return $ttl;
     }

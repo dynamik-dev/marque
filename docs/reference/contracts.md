@@ -1,6 +1,6 @@
 # Contracts Reference
 
-All contracts live in `DynamikDev\PolicyEngine\Contracts\`. Each has one default implementation that can be [swapped via the service container](../extending/swapping-implementations.md).
+All contracts live in `DynamikDev\Marque\Contracts\`. Each has one default implementation that can be [swapped via the service container](../extending/swapping-implementations.md).
 
 ---
 
@@ -15,7 +15,7 @@ Manages the registry of permission identifiers.
 | `all(?string $prefix = null)` | `Collection` | List all permissions, optionally filtered by prefix. |
 | `exists(string $id)` | `bool` | Check if a permission is registered. |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Stores\EloquentPermissionStore`
+**Default implementation:** `DynamikDev\Marque\Stores\EloquentPermissionStore`
 
 ---
 
@@ -32,7 +32,7 @@ Creates, updates, and queries roles and their permissions.
 | `permissionsFor(string $roleId)` | `array` | Get permission strings for a role. |
 | `permissionsForRoles(array $roleIds)` | `array` | Get permissions for multiple roles in one call. Keyed by role ID. |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Stores\EloquentRoleStore`
+**Default implementation:** `DynamikDev\Marque\Stores\EloquentRoleStore`
 
 ---
 
@@ -51,7 +51,7 @@ Links subjects to roles, optionally within a scope.
 | `subjectsInScope(string $scope, ?string $roleId = null)` | `Collection` | All subjects assigned in a scope, optionally filtered by role. |
 | `all()` | `Collection` | Get all assignments. |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Stores\EloquentAssignmentStore`
+**Default implementation:** `DynamikDev\Marque\Stores\EloquentAssignmentStore`
 
 ---
 
@@ -66,7 +66,7 @@ Manages permission ceilings per scope.
 | `find(string $scope)` | `?Boundary` | Get the boundary for a scope. |
 | `all()` | `Collection` | Get all boundaries. |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Stores\EloquentBoundaryStore`
+**Default implementation:** `DynamikDev\Marque\Stores\EloquentBoundaryStore`
 
 ---
 
@@ -80,7 +80,7 @@ The core authorization engine. Accepts a single `EvaluationRequest` DTO and retu
 
 The `EvaluationRequest` bundles a `Principal`, an action string, an optional `Resource`, and a `Context` (scope + environment). The `EvaluationResult` contains the `Decision` enum, a `decidedBy` string, and optional `matchedStatements` and `trace` arrays (populated when the `trace` config is enabled).
 
-**Default implementation:** `DynamikDev\PolicyEngine\Evaluators\CachedEvaluator` (wraps `DefaultEvaluator`)
+**Default implementation:** `DynamikDev\Marque\Evaluators\CachedEvaluator` (wraps `DefaultEvaluator`)
 
 ---
 
@@ -119,7 +119,7 @@ Maps condition type strings to their `ConditionEvaluator` implementations.
 | `register(string $type, string $evaluatorClass)` | `void` | Register an evaluator class for a condition type. |
 | `evaluatorFor(string $type)` | `ConditionEvaluator` | Retrieve the evaluator for a condition type. |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Conditions\DefaultConditionRegistry`
+**Default implementation:** `DynamikDev\Marque\Conditions\DefaultConditionRegistry`
 
 ---
 
@@ -133,7 +133,7 @@ Manages policy statements attached directly to resource models.
 | `attach(string $resourceType, string\|int\|null $resourceId, PolicyStatement $statement)` | `void` | Attach a statement to a resource. |
 | `detach(string $resourceType, string\|int\|null $resourceId, string $action)` | `void` | Detach statements matching an action from a resource. |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Stores\EloquentResourcePolicyStore`
+**Default implementation:** `DynamikDev\Marque\Stores\EloquentResourcePolicyStore`
 
 ---
 
@@ -145,7 +145,7 @@ Determines whether a granted permission covers a required permission, including 
 | --- | --- | --- |
 | `matches(string $granted, string $required)` | `bool` | Does the granted permission cover the required one? |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Matchers\WildcardMatcher`
+**Default implementation:** `DynamikDev\Marque\Matchers\WildcardMatcher`
 
 **Matching rules:**
 
@@ -170,7 +170,7 @@ Converts scope arguments into `type::id` strings.
 | --- | --- | --- |
 | `resolve(mixed $scope)` | `?string` | Resolve a scope parameter. |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Resolvers\ModelScopeResolver`
+**Default implementation:** `DynamikDev\Marque\Resolvers\ModelScopeResolver`
 
 **Resolution rules:**
 
@@ -193,7 +193,7 @@ Parses and serializes policy documents.
 | `serialize(PolicyDocument $document)` | `string` | Serialize a DTO back to string format. |
 | `validate(string $content)` | `ValidationResult` | Validate without importing. |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Documents\JsonDocumentParser`
+**Default implementation:** `DynamikDev\Marque\Documents\JsonDocumentParser`
 
 ---
 
@@ -205,7 +205,7 @@ Applies a parsed policy document to the stores.
 | --- | --- | --- |
 | `import(PolicyDocument $document, ImportOptions $options)` | `ImportResult` | Import a document with the given options. |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Documents\DefaultDocumentImporter`
+**Default implementation:** `DynamikDev\Marque\Documents\DefaultDocumentImporter`
 
 ---
 
@@ -217,4 +217,4 @@ Reads current authorization state and builds a policy document.
 | --- | --- | --- |
 | `export(?string $scope = null)` | `PolicyDocument` | Export current state, optionally scoped. |
 
-**Default implementation:** `DynamikDev\PolicyEngine\Documents\DefaultDocumentExporter`
+**Default implementation:** `DynamikDev\Marque\Documents\DefaultDocumentExporter`

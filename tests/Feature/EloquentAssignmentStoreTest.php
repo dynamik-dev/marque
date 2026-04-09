@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\AssignmentStore;
-use DynamikDev\PolicyEngine\Events\AssignmentCreated;
-use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
-use DynamikDev\PolicyEngine\Models\Assignment;
-use DynamikDev\PolicyEngine\Models\Role;
+use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Events\AssignmentCreated;
+use DynamikDev\Marque\Events\AssignmentRevoked;
+use DynamikDev\Marque\Models\Assignment;
+use DynamikDev\Marque\Models\Role;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 

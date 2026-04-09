@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Matchers;
+namespace DynamikDev\Marque\Matchers;
 
-use DynamikDev\PolicyEngine\Contracts\Matcher;
+use DynamikDev\Marque\Contracts\Matcher;
 
 class WildcardMatcher implements Matcher
 {

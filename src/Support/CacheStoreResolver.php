@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Support;
+namespace DynamikDev\Marque\Support;
 
 use Illuminate\Cache\CacheManager;
 use Illuminate\Cache\Repository;
@@ -27,7 +27,7 @@ class CacheStoreResolver
     /**
      * Resolve a tagged store scoped to a specific subject.
      *
-     * Tagged stores get both 'policy-engine' (global) and per-subject tags,
+     * Tagged stores get both 'marque' (global) and per-subject tags,
      * allowing either per-subject or full invalidation.
      * Non-tagged stores return the raw store.
      */
@@ -37,7 +37,7 @@ class CacheStoreResolver
 
         if ($store instanceof Repository && $store->supportsTags()) {
             return $store->tags([
-                'policy-engine',
+                'marque',
                 "pe:{$subjectType}:{$subjectId}",
             ]);
         }
@@ -90,11 +90,11 @@ class CacheStoreResolver
 
     private static function generationKey(string $subjectType, string|int $subjectId): string
     {
-        return "policy-engine:gen:{$subjectType}:{$subjectId}";
+        return "marque:gen:{$subjectType}:{$subjectId}";
     }
 
     /**
-     * Flush all policy-engine cache entries.
+     * Flush all marque cache entries.
      *
      * Uses tag-scoped flush when available. On non-tagged stores, increments
      * a global generation counter so all previously cached entries (keyed with
@@ -105,12 +105,12 @@ class CacheStoreResolver
         $store = self::store($cache);
 
         if ($store instanceof Repository && $store->supportsTags()) {
-            $store->tags(['policy-engine'])->flush();
+            $store->tags(['marque'])->flush();
 
             return;
         }
 
-        $genKey = 'policy-engine:gen:global';
+        $genKey = 'marque:gen:global';
         /** @var int $current */
         $current = $store->get($genKey, 0);
         $store->forever($genKey, $current + 1);
@@ -132,7 +132,7 @@ class CacheStoreResolver
         }
 
         /** @var int */
-        return $store->get('policy-engine:gen:global', 0);
+        return $store->get('marque:gen:global', 0);
     }
 
     /**
@@ -157,7 +157,7 @@ class CacheStoreResolver
     private static function buildStore(CacheManager $cache): CacheRepository
     {
         /** @var string $storeName */
-        $storeName = config('policy-engine.cache.store', 'default');
+        $storeName = config('marque.cache.store', 'default');
 
         return $cache->store($storeName === 'default' ? null : $storeName);
     }

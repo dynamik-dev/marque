@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use DynamikDev\PolicyEngine\Contracts\DocumentParser;
-use DynamikDev\PolicyEngine\DTOs\PolicyDocument;
+use DynamikDev\Marque\Contracts\DocumentParser;
+use DynamikDev\Marque\DTOs\PolicyDocument;
 
 beforeEach(function (): void {
     $this->parser = app(DocumentParser::class);

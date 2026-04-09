@@ -2,18 +2,18 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Listeners;
+namespace DynamikDev\Marque\Listeners;
 
-use DynamikDev\PolicyEngine\Events\AssignmentCreated;
-use DynamikDev\PolicyEngine\Events\AssignmentRevoked;
-use DynamikDev\PolicyEngine\Events\BoundaryRemoved;
-use DynamikDev\PolicyEngine\Events\BoundarySet;
-use DynamikDev\PolicyEngine\Events\DocumentImported;
-use DynamikDev\PolicyEngine\Events\PermissionCreated;
-use DynamikDev\PolicyEngine\Events\PermissionDeleted;
-use DynamikDev\PolicyEngine\Events\RoleDeleted;
-use DynamikDev\PolicyEngine\Events\RoleUpdated;
-use DynamikDev\PolicyEngine\Support\CacheStoreResolver;
+use DynamikDev\Marque\Events\AssignmentCreated;
+use DynamikDev\Marque\Events\AssignmentRevoked;
+use DynamikDev\Marque\Events\BoundaryRemoved;
+use DynamikDev\Marque\Events\BoundarySet;
+use DynamikDev\Marque\Events\DocumentImported;
+use DynamikDev\Marque\Events\PermissionCreated;
+use DynamikDev\Marque\Events\PermissionDeleted;
+use DynamikDev\Marque\Events\RoleDeleted;
+use DynamikDev\Marque\Events\RoleUpdated;
+use DynamikDev\Marque\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
 
 class InvalidatePermissionCache
@@ -24,7 +24,7 @@ class InvalidatePermissionCache
 
     public function handle(AssignmentCreated|AssignmentRevoked|RoleUpdated|RoleDeleted|PermissionCreated|PermissionDeleted|BoundarySet|BoundaryRemoved|DocumentImported $event): void
     {
-        if (! config('policy-engine.cache.enabled')) {
+        if (! config('marque.cache.enabled')) {
             return;
         }
 

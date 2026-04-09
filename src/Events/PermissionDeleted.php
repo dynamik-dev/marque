@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace DynamikDev\PolicyEngine\Events;
+namespace DynamikDev\Marque\Events;
 
 readonly class PermissionDeleted
 {
