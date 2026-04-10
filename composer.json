@@ -1,5 +1,5 @@
 {
-    "name": "dynamik-dev/laravel-marque",
+    "name": "dynamik-dev/marque",
     "description": "A Laravel-native scoped permissions package. Composable, contract-driven authorization that integrates with Gates, Policies, middleware, and Blade.",
     "type": "library",
     "license": "MIT",
