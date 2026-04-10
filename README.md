@@ -1,60 +1,63 @@
-<img src="./marque.png" width="600"/>
+<p align="center">
+  <img src="./marque.png" width="600"/>
+</p>
 
-[![Pint](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/lint.yml?branch=main&label=Pint&logo=laravel)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/lint.yml)
-[![Larastan](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/static.yml?branch=main&label=Larastan&logo=php)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/static.yml)
-[![Pest](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/tests.yml?branch=main&label=Pest&logo=php)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/tests.yml)
+[![Pint](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/lint.yml?branch=main&label=Pint&logo=laravel&style=flat-square)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/lint.yml)
+[![Larastan](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/static.yml?branch=main&label=Larastan&logo=php&style=flat-square)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/static.yml)
+[![Pest](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/tests.yml?branch=main&label=Pest&logo=php&style=flat-square)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/tests.yml)
+[![PHPStan Level 9](https://img.shields.io/badge/PHPStan-level%209-2a5099?style=flat-square&logo=php)](https://phpstan.org/)
 
-An IAM-style policy engine for Laravel. Define your authorization as declarative JSON documents and import them the way you'd manage AWS IAM policies.
+A [letter of marque](https://en.wikipedia.org/wiki/Letter_of_marque) was a government-issued document granting scoped permission to operate in specific waters. This package does the same thing for Laravel. A user can be an admin in one team and a viewer in another. Deny rules, permission boundaries, and JSON policy documents are built in. The whole thing plugs into Laravel's Gate.
+
+```bash
+composer require dynamik-dev/laravel-marque
+```
+
+---
+
+## Quick look
+
+```php
+$user->assignRole('admin', scope: $acmeTeam);
+$user->assignRole('viewer', scope: $widgetTeam);
+
+$user->can('members.remove', $acmeTeam);  // true
+$user->can('members.remove', $widgetTeam); // false
+```
+
+Roles, boundaries, and deny rules can live in JSON files you import at deploy time:
 
 ```json
 {
-  "version": "1.0",
-  "permissions": [
-    "posts.read",
-    "posts.create",
-    "posts.update.own",
-    "posts.delete.any"
-  ],
   "roles": [
     {
       "id": "editor",
-      "name": "Editor",
-      "permissions": [
-        "posts.read",
-        "posts.create",
-        "posts.update.own",
-        "!posts.delete.any"
-      ]
+      "permissions": ["posts.*", "comments.create", "!posts.delete"]
     }
   ],
   "boundaries": [
-    {
-      "scope": "plan::free",
-      "max_permissions": ["posts.read", "comments.read"]
-    },
-    {
-      "scope": "plan::pro",
-      "max_permissions": ["posts.*", "comments.*", "analytics.*"]
-    }
+    { "scope": "plan::free", "max_permissions": ["posts.read", "comments.read"] },
+    { "scope": "plan::pro", "max_permissions": ["posts.*", "comments.*", "analytics.*"] }
   ]
 }
 ```
 
 ```bash
 php artisan marque:import policies/production.json
-php artisan marque:export --path=policies/backup.json
 ```
+
+---
+
+## Features
 
 ### Wired into the Gate
 
-Marque hooks into Laravel's Gate, so `$user->can()`, `@can`, `$this->authorize()`, and `can:` middleware all work without learning a custom API.
+`$user->can()`, `@can`, `$this->authorize()`, and `can:` middleware all work without any extra wiring.
 
 ```php
-$user->assign('editor', $acmeOrg);
-$user->assign('viewer', $personalOrg);
+$user->assignRole('editor', $acmeOrg);
 
-$user->can('posts.create', $acmeOrg);     // true
-$user->can('posts.create', $personalOrg); // false
+$user->can('posts.create', $acmeOrg); // true
 
 Route::middleware('can:posts.create')->post('/posts', [PostController::class, 'store']);
 ```
@@ -67,7 +70,7 @@ Route::middleware('can:posts.create')->post('/posts', [PostController::class, 's
 
 ### Deny rules
 
-Prefix any permission with `!` and the denial wins, no matter how many other roles allow it.
+Prefix any permission with `!`. The denial overrides every other role that grants it.
 
 ```php
 Marque::role('editor', 'Editor')
@@ -80,13 +83,13 @@ $editor->can('posts.delete');  // false -- deny wins
 
 ### Permission boundaries
 
-Boundaries cap what's possible in a scope. Even if a user holds `admin`, the boundary has final say.
+Boundaries set a ceiling on what any role can do inside a scope. A user with `admin` in a free-tier org still can't access pro-tier features.
 
 ```php
 Marque::boundary('plan::free', ['posts.read', 'comments.read']);
 Marque::boundary('plan::pro', ['posts.*', 'comments.*', 'analytics.*']);
 
-$user->assign('admin', $freeOrg);
+$user->assignRole('admin', $freeOrg);
 $user->can('analytics.view', $freeOrg);  // false -- boundary blocks it
 $user->can('analytics.view', $proOrg);   // true
 ```
@@ -97,16 +100,20 @@ $user->can('analytics.view', $proOrg);   // true
 'posts.*'           // all post actions
 '*.read'            // read anything
 '*.*'               // superadmin
-'posts.update.own'  // fine-grained ownership
+'posts.update.own'  // fine-grained qualifiers
 ```
 
 ### Contract-driven
 
-Every component is coded to a PHP interface. Swap any implementation via the service container. See [Swapping implementations](docs/extending/swapping-implementations.md).
+Every component implements a PHP interface. You can swap any implementation through the service container. See [Swapping implementations](docs/extending/swapping-implementations.md).
 
-### Why not Spatie?
+---
 
-[Spatie laravel-permission](https://github.com/spatie/laravel-permission) is a good package for flat RBAC. Marque covers the cases where Spatie runs out of road: polymorphic scoping, deny rules, permission boundaries, and declarative policy documents. See [Comparison with Spatie](docs/comparison-with-spatie.md).
+## Why not Spatie?
+
+[Spatie laravel-permission](https://github.com/spatie/laravel-permission) works well for flat RBAC. Marque adds scoped roles, deny rules, permission boundaries, and declarative policy documents. See the [full comparison](docs/comparison-with-spatie.md).
+
+---
 
 ## Requirements
 
@@ -120,46 +127,18 @@ Every component is coded to a PHP interface. Swap any implementation via the ser
 
 SQLite works out of the box for development. PostgreSQL and Valkey are optional — the package tests against both in CI. MySQL is not officially supported but should work fine since Laravel's query builder abstracts the differences.
 
+---
+
 ## Documentation
 
-### Getting Started
+**Getting Started** &mdash; [Installation](docs/getting-started/installing-the-package.md) | [Seeding permissions and roles](docs/getting-started/seeding-permissions-and-roles.md)
 
-- [Installing the package](docs/getting-started/installing-the-package.md)
-- [Seeding permissions and roles](docs/getting-started/seeding-permissions-and-roles.md)
+**Authorization** &mdash; [Checking permissions](docs/authorization/checking-permissions.md) | [Roles](docs/authorization/working-with-roles.md) | [Scoped permissions](docs/authorization/scoping-permissions.md) | [Deny rules](docs/authorization/using-deny-rules.md) | [Boundaries](docs/authorization/setting-permission-boundaries.md)
 
-### Authorization
+**Integrations** &mdash; [Middleware](docs/integrations/restricting-routes-with-middleware.md) | [Blade](docs/integrations/checking-permissions-in-blade.md) | [Model policies](docs/integrations/integrating-with-model-policies.md) | [Sanctum](docs/integrations/scoping-sanctum-tokens.md)
 
-- [Checking permissions](docs/authorization/checking-permissions.md)
-- [Working with roles](docs/authorization/working-with-roles.md)
-- [Scoping permissions](docs/authorization/scoping-permissions.md)
-- [Using deny rules](docs/authorization/using-deny-rules.md)
-- [Setting permission boundaries](docs/authorization/setting-permission-boundaries.md)
+**Policy Documents** &mdash; [Document format](docs/policy-documents/document-format.md) | [Import / Export](docs/policy-documents/importing-and-exporting.md)
 
-### Integrations
+**Extending** &mdash; [Swapping implementations](docs/extending/swapping-implementations.md) | [Events](docs/extending/listening-to-events.md) | [Cache](docs/extending/customizing-the-cache.md)
 
-- [Restricting routes with middleware](docs/integrations/restricting-routes-with-middleware.md)
-- [Checking permissions in Blade templates](docs/integrations/checking-permissions-in-blade.md)
-- [Integrating with model policies](docs/integrations/integrating-with-model-policies.md)
-- [Scoping Sanctum tokens](docs/integrations/scoping-sanctum-tokens.md)
-
-### Policy Documents
-
-- [Understanding the document format](docs/policy-documents/document-format.md)
-- [Importing and exporting](docs/policy-documents/importing-and-exporting.md)
-
-### Extending
-
-- [Swapping implementations](docs/extending/swapping-implementations.md)
-- [Listening to events](docs/extending/listening-to-events.md)
-- [Customizing the cache](docs/extending/customizing-the-cache.md)
-
-### CLI
-
-- [Using the Artisan commands](docs/cli/artisan-commands.md)
-
-### Reference
-
-- [Configuration](docs/reference/configuration.md)
-- [Contracts](docs/reference/contracts.md)
-- [Events](docs/reference/events.md)
-- [Comparison with Spatie](docs/comparison-with-spatie.md)
+**Reference** &mdash; [Configuration](docs/reference/configuration.md) | [Contracts](docs/reference/contracts.md) | [Events](docs/reference/events.md) | [Artisan commands](docs/cli/artisan-commands.md) | [Comparison with Spatie](docs/comparison-with-spatie.md)
