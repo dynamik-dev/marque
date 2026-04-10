@@ -2,15 +2,15 @@
   <img src="./marque.png" width="600"/>
 </p>
 
-[![Pint](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/lint.yml?branch=main&label=Pint&logo=laravel&style=flat-square)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/lint.yml)
-[![Larastan](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/static.yml?branch=main&label=Larastan&logo=php&style=flat-square)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/static.yml)
-[![Pest](https://img.shields.io/github/actions/workflow/status/dynamik-dev/laravel-marque/tests.yml?branch=main&label=Pest&logo=php&style=flat-square)](https://github.com/dynamik-dev/laravel-marque/actions/workflows/tests.yml)
+[![Pint](https://img.shields.io/github/actions/workflow/status/dynamik-dev/marque/lint.yml?branch=main&label=Pint&logo=laravel&style=flat-square)](https://github.com/dynamik-dev/marque/actions/workflows/lint.yml)
+[![Larastan](https://img.shields.io/github/actions/workflow/status/dynamik-dev/marque/static.yml?branch=main&label=Larastan&logo=php&style=flat-square)](https://github.com/dynamik-dev/marque/actions/workflows/static.yml)
+[![Pest](https://img.shields.io/github/actions/workflow/status/dynamik-dev/marque/tests.yml?branch=main&label=Pest&logo=php&style=flat-square)](https://github.com/dynamik-dev/marque/actions/workflows/tests.yml)
 [![PHPStan Level 9](https://img.shields.io/badge/PHPStan-level%209-2a5099?style=flat-square&logo=php)](https://phpstan.org/)
 
 A [letter of marque](https://en.wikipedia.org/wiki/Letter_of_marque) was a government-issued document granting scoped permission to operate in specific waters. This package does the same thing for Laravel. A user can be an admin in one team and a viewer in another. Deny rules, permission boundaries, and JSON policy documents are built in. The whole thing plugs into Laravel's Gate.
 
 ```bash
-composer require dynamik-dev/laravel-marque
+composer require dynamik-dev/marque
 ```
 
 ---
