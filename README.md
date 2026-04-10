@@ -7,7 +7,7 @@
 [![Pest](https://img.shields.io/github/actions/workflow/status/dynamik-dev/marque/tests.yml?branch=main&label=Pest&logo=php&style=flat-square)](https://github.com/dynamik-dev/marque/actions/workflows/tests.yml)
 [![PHPStan Level 9](https://img.shields.io/badge/PHPStan-level%209-2a5099?style=flat-square&logo=php)](https://phpstan.org/)
 
-A [letter of marque](https://en.wikipedia.org/wiki/Letter_of_marque) was a government-issued document granting scoped permission to operate in specific waters. This package does the same thing for Laravel. A user can be an admin in one team and a viewer in another. Deny rules, permission boundaries, and JSON policy documents are built in. The whole thing plugs into Laravel's Gate.
+A [letter of marque](https://en.wikipedia.org/wiki/Letter_of_marque) was a document issued by a government that turned pirates into privateers, granting them scoped permission to plunder in specific waters. This package does the same thing for Laravel (minus the plundering). A user can be an admin in one team and a viewer in another. Deny rules, permission boundaries, and JSON policy documents are built in. The whole thing plugs into Laravel's Gate.
 
 ```bash
 composer require dynamik-dev/marque
