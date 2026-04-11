@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use DynamikDev\Marque\Contracts\PermissionStore;
 use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Facades\Marque;
 use DynamikDev\Marque\Support\RoleBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -88,3 +89,48 @@ it('throws RuntimeException when ungranting permissions from a non-existent role
 
     $builder->ungrant(['posts.create']);
 })->throws(RuntimeException::class, 'Role [non-existent] not found.');
+
+it('auto-registers literal permissions when passed to grant through the facade', function (): void {
+    Marque::role('editor', 'Editor')->grant(['posts.create', 'posts.read']);
+
+    expect($this->permissionStore->exists('posts.create'))->toBeTrue()
+        ->and($this->permissionStore->exists('posts.read'))->toBeTrue();
+});
+
+it('does not register wildcard patterns passed to grant', function (): void {
+    Marque::role('admin', 'Admin')->grant(['posts.*', '*.*']);
+
+    expect($this->permissionStore->exists('posts.*'))->toBeFalse()
+        ->and($this->permissionStore->exists('*.*'))->toBeFalse();
+});
+
+it('strips the deny prefix and registers the base permission', function (): void {
+    Marque::role('moderator', 'Moderator')->deny(['posts.delete']);
+
+    expect($this->permissionStore->exists('posts.delete'))->toBeTrue();
+});
+
+it('does not re-register permissions that are already present', function (): void {
+    $this->permissionStore->register(['posts.create']);
+
+    Marque::role('author', 'Author')->grant(['posts.create', 'posts.read']);
+
+    $all = $this->permissionStore->all()->pluck('id')->all();
+
+    expect($all)->toContain('posts.create', 'posts.read');
+    expect(array_count_values($all)['posts.create'] ?? 0)->toBe(1);
+});
+
+it('does not auto-register when the PermissionStore is not provided', function (): void {
+    $builder = new RoleBuilder(
+        roleStore: $this->roleStore,
+        roleId: 'standalone',
+    );
+
+    $this->roleStore->save('standalone', 'Standalone', []);
+
+    $builder->grant(['posts.create']);
+
+    expect($this->permissionStore->exists('posts.create'))->toBeFalse();
+    expect($this->roleStore->permissionsFor('standalone'))->toContain('posts.create');
+});
