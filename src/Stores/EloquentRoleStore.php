@@ -21,8 +21,9 @@ class EloquentRoleStore implements RoleStore
      * Create or update a role with the given permissions.
      *
      * @param  array<int, string>  $permissions
+     * @param  array<string, array<int, array{type: string, parameters: array<string, mixed>}>>  $conditions
      */
-    public function save(string $id, string $name, array $permissions, bool $system = false): Role
+    public function save(string $id, string $name, array $permissions, bool $system = false, array $conditions = []): Role
     {
         $this->validateIdentifier($id);
 
@@ -35,17 +36,19 @@ class EloquentRoleStore implements RoleStore
 
             $currentPermissions = $this->permissionsFor($id);
 
-            $sortedCurrent = array_unique($currentPermissions);
-            $sortedNew = array_unique($permissions);
-            sort($sortedCurrent);
-            sort($sortedNew);
+            if ($currentPermissions !== []) {
+                $sortedCurrent = array_unique($currentPermissions);
+                $sortedNew = array_unique($permissions);
+                sort($sortedCurrent);
+                sort($sortedNew);
 
-            if ($sortedNew !== $sortedCurrent) {
-                throw new \RuntimeException("Cannot modify permissions on protected system role [{$id}].");
+                if ($sortedNew !== $sortedCurrent) {
+                    throw new \RuntimeException("Cannot modify permissions on protected system role [{$id}].");
+                }
             }
         }
 
-        $role = Role::query()->getConnection()->transaction(function () use ($id, $name, $permissions, $system): Role {
+        $role = Role::query()->getConnection()->transaction(function () use ($id, $name, $permissions, $system, $conditions): Role {
             $role = Role::query()->updateOrCreate(
                 ['id' => $id],
                 ['name' => $name, 'is_system' => $system],
@@ -58,7 +61,11 @@ class EloquentRoleStore implements RoleStore
             if ($uniquePermissions !== []) {
                 RolePermission::query()->insert(
                     array_map(
-                        static fn (string $perm): array => ['role_id' => $id, 'permission_id' => $perm],
+                        static fn (string $perm): array => [
+                            'role_id' => $id,
+                            'permission_id' => $perm,
+                            'conditions' => isset($conditions[$perm]) ? json_encode($conditions[$perm]) : null,
+                        ],
                         $uniquePermissions,
                     ),
                 );
@@ -182,6 +189,40 @@ class EloquentRoleStore implements RoleStore
             ->get(['role_id', 'permission_id'])
             ->groupBy('role_id')
             ->map(static fn (Collection $rows): array => $rows->pluck('permission_id')->all())
+            ->all();
+
+        $result = [];
+
+        foreach ($uniqueRoleIds as $roleId) {
+            $result[$roleId] = $grouped[$roleId] ?? [];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get permissions with their conditions for multiple roles in one query.
+     *
+     * @param  array<int, string>  $roleIds
+     * @return array<string, array<int, array{permission: string, conditions: array<int, array{type: string, parameters: array<string, mixed>}>}>>
+     */
+    public function permissionsWithConditionsForRoles(array $roleIds): array
+    {
+        $uniqueRoleIds = array_values(array_unique($roleIds));
+
+        if ($uniqueRoleIds === []) {
+            return [];
+        }
+
+        /** @var array<string, array<int, array{permission: string, conditions: array}>> $grouped */
+        $grouped = RolePermission::query()
+            ->whereIn('role_id', $uniqueRoleIds)
+            ->get(['role_id', 'permission_id', 'conditions'])
+            ->groupBy('role_id')
+            ->map(static fn (Collection $rows): array => $rows->map(static fn (RolePermission $row): array => [
+                'permission' => $row->permission_id,
+                'conditions' => is_array($row->conditions) ? $row->conditions : [],
+            ])->all())
             ->all();
 
         $result = [];

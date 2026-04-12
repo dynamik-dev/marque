@@ -171,6 +171,7 @@ class DefaultDocumentImporter implements DocumentImporter
                     name: $role['name'],
                     permissions: $role['permissions'],
                     system: $role['system'] ?? false,
+                    conditions: $role['conditions'] ?? [],
                 );
             }
         }
@@ -290,10 +291,10 @@ class DefaultDocumentImporter implements DocumentImporter
 
     /**
      * Normalize roles from either indexed (array of objects) or keyed (by ID) format
-     * into a canonical array of {id, name, permissions, system?}.
+     * into a canonical array of {id, name, permissions, system?, conditions?}.
      *
      * @param  array<mixed>  $roles
-     * @return array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool}>
+     * @return array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool, conditions?: array<string, array<int, array{type: string, parameters: array<string, mixed>}>>}>
      */
     private function normalizeRoles(array $roles): array
     {
@@ -319,14 +320,18 @@ class DefaultDocumentImporter implements DocumentImporter
                     $entry['system'] = true;
                 }
 
+                if (! empty($data['conditions']) && is_array($data['conditions'])) {
+                    $entry['conditions'] = $data['conditions'];
+                }
+
                 $result[] = $entry;
             }
 
             return $result;
         }
 
-        // Indexed array of role objects — return as-is
-        /** @var array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool}> */
+        // Indexed array of role objects -- return as-is
+        /** @var array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool, conditions?: array}> */
         return $roles;
     }
 

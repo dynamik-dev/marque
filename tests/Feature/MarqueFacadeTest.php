@@ -73,6 +73,32 @@ it('creates a system role', function (): void {
     expect($role->is_system)->toBeTrue();
 });
 
+it('creates a system role with grant chaining on initial run', function (): void {
+    config()->set('marque.protect_system_roles', true);
+    $this->permissionStore->register(['posts.read', 'comments.read']);
+
+    Marque::role('viewer', 'Viewer', system: true)
+        ->grant(['posts.read', 'comments.read']);
+
+    expect($this->roleStore->find('viewer')->is_system)->toBeTrue()
+        ->and($this->roleStore->permissionsFor('viewer'))
+        ->toContain('posts.read', 'comments.read');
+});
+
+it('still protects a system role from permission changes after initial setup', function (): void {
+    config()->set('marque.protect_system_roles', true);
+    $this->permissionStore->register(['posts.read', 'comments.read', 'posts.delete']);
+
+    // Initial creation with permissions — this should work
+    Marque::role('viewer', 'Viewer', system: true)
+        ->grant(['posts.read', 'comments.read']);
+
+    // Subsequent attempt to change permissions — this should throw
+    expect(fn () => Marque::role('viewer', 'Viewer', system: true)
+        ->grant(['posts.delete'])
+    )->toThrow(RuntimeException::class);
+});
+
 it('removes a role via the builder', function (): void {
     Marque::role('editor', 'Editor');
 

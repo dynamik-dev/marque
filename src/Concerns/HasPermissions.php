@@ -19,9 +19,11 @@ use DynamikDev\Marque\DTOs\Principal;
 use DynamikDev\Marque\DTOs\Resource;
 use DynamikDev\Marque\Enums\Decision;
 use DynamikDev\Marque\Enums\Effect;
+use DynamikDev\Marque\Events\AuthorizationDenied;
 use DynamikDev\Marque\Models\Assignment;
 use DynamikDev\Marque\Models\Role;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Event;
 
 /**
  * Provides permission-checking, role assignment, and evaluation
@@ -76,11 +78,20 @@ trait HasPermissions
         ?Resource $resource = null,
         array $environment = [],
     ): bool {
-        $result = app(Evaluator::class)->evaluate(
-            $this->buildEvaluationRequest($permission, $scope, $resource, $environment),
-        );
+        $request = $this->buildEvaluationRequest($permission, $scope, $resource, $environment);
+        $result = app(Evaluator::class)->evaluate($request);
 
-        return $result->decision === Decision::Allow;
+        if ($result->decision === Decision::Deny) {
+            Event::dispatch(new AuthorizationDenied(
+                subject: $this->getMorphClass().':'.$this->getKey(),
+                permission: $permission,
+                scope: $request->context->scope,
+            ));
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
