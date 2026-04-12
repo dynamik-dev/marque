@@ -9,11 +9,14 @@ use DynamikDev\Marque\Contracts\DocumentExporter;
 use DynamikDev\Marque\Contracts\DocumentImporter;
 use DynamikDev\Marque\Contracts\DocumentParser;
 use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\ResourcePolicyStore;
 use DynamikDev\Marque\Contracts\RoleStore;
 use DynamikDev\Marque\DTOs\ImportOptions;
 use DynamikDev\Marque\DTOs\ImportResult;
 use DynamikDev\Marque\DTOs\PolicyDocument;
+use DynamikDev\Marque\Support\BoundaryBuilder;
 use DynamikDev\Marque\Support\PathValidator;
+use DynamikDev\Marque\Support\ResourcePolicyBuilder;
 use DynamikDev\Marque\Support\RoleBuilder;
 
 class MarqueManager
@@ -25,7 +28,17 @@ class MarqueManager
         private readonly DocumentParser $parser,
         private readonly DocumentImporter $importer,
         private readonly DocumentExporter $exporter,
+        private readonly ResourcePolicyStore $resourcePolicies,
     ) {}
+
+    /**
+     * Start a fluent builder for attaching type-level resource policies
+     * to the given resource class or type string.
+     */
+    public function resource(string $resourceType): ResourcePolicyBuilder
+    {
+        return new ResourcePolicyBuilder($this->resourcePolicies, $resourceType);
+    }
 
     /**
      * Register one or more permissions.
@@ -44,17 +57,27 @@ class MarqueManager
     {
         $this->roles->save($id, $name, [], $system);
 
-        return new RoleBuilder($this->roles, $id);
+        return new RoleBuilder($this->roles, $id, $this->permissions);
     }
 
     /**
-     * Set the maximum allowed permissions for a scope.
+     * Start a fluent builder for managing the boundary on a scope.
      *
-     * @param  array<int, string>  $maxPermissions
+     * The optional second argument eagerly calls permits() for backwards
+     * compatibility with the previous void-returning signature. New code
+     * should prefer Marque::boundary($scope)->permits([...]).
+     *
+     * @param  array<int, string>|null  $maxPermissions
      */
-    public function boundary(string $scope, array $maxPermissions): void
+    public function boundary(string $scope, ?array $maxPermissions = null): BoundaryBuilder
     {
-        $this->boundaries->set($scope, $maxPermissions);
+        $builder = new BoundaryBuilder($this->boundaries, $scope);
+
+        if ($maxPermissions !== null) {
+            $builder->permits($maxPermissions);
+        }
+
+        return $builder;
     }
 
     /**
