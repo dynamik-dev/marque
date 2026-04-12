@@ -13,8 +13,9 @@ interface RoleStore
      * Create or update a role with the given permissions.
      *
      * @param  array<int, string>  $permissions
+     * @param  array<string, array<int, array{type: string, parameters: array<string, mixed>}>>  $conditions
      */
-    public function save(string $id, string $name, array $permissions, bool $system = false): Role;
+    public function save(string $id, string $name, array $permissions, bool $system = false, array $conditions = []): Role;
 
     /**
      * Remove a role by its identifier.
@@ -55,6 +56,14 @@ interface RoleStore
      * @return array<string, array<int, string>>
      */
     public function permissionsForRoles(array $roleIds): array;
+
+    /**
+     * Get permissions with their conditions for multiple roles in one query.
+     *
+     * @param  array<int, string>  $roleIds
+     * @return array<string, array<int, array{permission: string, conditions: array<int, array{type: string, parameters: array<string, mixed>}>}>>
+     */
+    public function permissionsWithConditionsForRoles(array $roleIds): array;
 
     /**
      * Remove all roles, dispatching events for each.

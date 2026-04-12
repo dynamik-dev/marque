@@ -27,6 +27,12 @@ class RolePermission extends Model
     protected $fillable = [
         'role_id',
         'permission_id',
+        'conditions',
+    ];
+
+    /** @var array<string, string> */
+    protected $casts = [
+        'conditions' => 'array',
     ];
 
     /**
