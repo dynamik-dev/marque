@@ -60,7 +60,7 @@ In practice, two or three segments cover nearly every use case.
 A `*` in any segment position matches one or more segments. Wildcards are used in role grants and deny rules, not when registering permissions.
 
 ```php
-Marque::role('editor', 'Editor')
+Marque::createRole('editor', 'Editor')
     ->grant(['posts.*', 'comments.*']);
 ```
 
@@ -95,7 +95,7 @@ Marque::role('editor', 'Editor')
 `*.*` matches any permission with two or more segments. A single `*` matches any permission with one or more segments.
 
 ```php
-Marque::role('admin', 'Admin', system: true)
+Marque::createRole('admin', 'Admin', system: true)
     ->grant(['*.*']);
 ```
 
@@ -137,7 +137,7 @@ A `*` can appear in any segment position, including the middle of a pattern.
 The `!` prefix marks a permission as denied. It is not part of the permission name -- it is a modifier that the evaluator interprets.
 
 ```php
-Marque::role('moderator', 'Moderator')
+Marque::createRole('moderator', 'Moderator')
     ->grant(['posts.*'])
     ->deny(['posts.delete.any']);
 ```
