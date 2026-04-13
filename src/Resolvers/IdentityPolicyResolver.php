@@ -11,7 +11,6 @@ use DynamikDev\Marque\DTOs\Condition;
 use DynamikDev\Marque\DTOs\EvaluationRequest;
 use DynamikDev\Marque\DTOs\PolicyStatement;
 use DynamikDev\Marque\Enums\Effect;
-use DynamikDev\Marque\Models\Assignment;
 use Illuminate\Support\Collection;
 
 class IdentityPolicyResolver implements PolicyResolver
@@ -42,9 +41,7 @@ class IdentityPolicyResolver implements PolicyResolver
 
         $statements = collect();
 
-        foreach ($assignments as $assignment) {
-            /** @var Assignment $assignment */
-            $roleId = $assignment->role_id;
+        foreach ($roleIds as $roleId) {
             $entries = $permissionsWithConditions[$roleId] ?? [];
 
             foreach ($entries as $entry) {

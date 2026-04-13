@@ -29,13 +29,16 @@ class ResourcePolicy extends Model
         /** @var string $prefix */
         $prefix = config('marque.table_prefix', '');
 
-        return $prefix.'resource_policies';
+        return $this->table ??= $prefix.'resource_policies';
     }
 
     public function getEffectEnum(): Effect
     {
-        /** @var Effect */
-        return constant(Effect::class.'::'.$this->effect);
+        return match ($this->effect) {
+            'Allow' => Effect::Allow,
+            'Deny' => Effect::Deny,
+            default => throw new \UnexpectedValueException("Unknown effect: {$this->effect}"),
+        };
     }
 
     /**

@@ -41,7 +41,7 @@ class CachedEvaluator implements Evaluator
 
         $result = $this->inner->evaluate($request);
 
-        $store->put($cacheKey, ['d' => $result->decision->name, 'b' => $result->decidedBy], $this->ttl());
+        $store->put($cacheKey, ['d' => $result->decision->value, 'b' => $result->decidedBy], $this->ttl());
 
         return $result;
     }
@@ -49,25 +49,23 @@ class CachedEvaluator implements Evaluator
     /**
      * Build a namespaced cache key for an EvaluationRequest.
      *
-     * Format: marque:eval:{principalType}:{principalId}[:g{combinedGen}]:{md5hash}
+     * Format: marque:eval:{principalType}:{principalId}[:g{global}.{subject}]:{md5hash}
      * The hash encodes the full request identity (principal, action, resource, scope)
      * to prevent collisions across different request shapes sharing the same subject.
      *
-     * The generation segment combines global and per-subject generations on
-     * non-tagged stores. Global generation is incremented by flush() (role/
-     * permission/boundary changes). Subject generation is incremented by
-     * flushSubject() (assignment changes). Both must be embedded so either
-     * invalidation path renders old keys unreachable.
+     * The generation segment encodes global and per-subject generations as a
+     * composite pair on non-tagged stores. Global generation is incremented by
+     * flush() (role/permission/boundary changes). Subject generation is
+     * incremented by flushSubject() (assignment changes). Both must be embedded
+     * so either invalidation path renders old keys unreachable.
      */
     public static function key(EvaluationRequest $request, int $generation = 0, int $globalGeneration = 0): string
     {
         $principal = $request->principal;
         $key = "marque:eval:{$principal->type}:{$principal->id}";
 
-        $combinedGeneration = $globalGeneration + $generation;
-
-        if ($combinedGeneration > 0) {
-            $key .= ":g{$combinedGeneration}";
+        if ($globalGeneration > 0 || $generation > 0) {
+            $key .= ":g{$globalGeneration}.{$generation}";
         }
 
         $hash = md5(serialize([

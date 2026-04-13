@@ -27,7 +27,7 @@ class EloquentResourcePolicyStore implements ResourcePolicyStore
             })
             ->get()
             ->map(function (ResourcePolicy $row) use ($type): PolicyStatement {
-                $conditions = $this->hydrateConditions($row->conditions ?? []);
+                $conditions = Condition::hydrateMany($row->conditions ?? []);
 
                 $source = $row->resource_id !== null
                     ? "resource:{$type}:{$row->resource_id}"
@@ -72,21 +72,6 @@ class EloquentResourcePolicyStore implements ResourcePolicyStore
                 static fn ($query) => $query->where('resource_id', $idString),
             )
             ->delete();
-    }
-
-    /**
-     * @param  array<int, mixed>  $raw
-     * @return array<int, Condition>
-     */
-    private function hydrateConditions(array $raw): array
-    {
-        return array_map(
-            static fn (array $item) => new Condition(
-                type: $item['type'],
-                parameters: $item['parameters'] ?? [],
-            ),
-            array_filter($raw, 'is_array'),
-        );
     }
 
     /**

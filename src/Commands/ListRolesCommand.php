@@ -23,8 +23,12 @@ class ListRolesCommand extends Command
             return self::SUCCESS;
         }
 
+        /** @var array<int, string> $roleIds */
+        $roleIds = $roles->pluck('id')->all();
+        $allPermissions = $store->permissionsForRoles($roleIds);
+
         foreach ($roles as $role) {
-            $permissions = $store->permissionsFor($role->id);
+            $permissions = $allPermissions[$role->id] ?? [];
 
             $this->table(
                 ['ID', 'Name', 'System', 'Permissions'],
