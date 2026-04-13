@@ -56,7 +56,7 @@ class IdentityPolicyResolver implements PolicyResolver
                 $conditions = array_map(
                     static fn (array $c): Condition => new Condition(
                         type: $c['type'],
-                        parameters: $c['parameters'] ?? [],
+                        parameters: $c['parameters'],
                     ),
                     $entry['conditions'],
                 );

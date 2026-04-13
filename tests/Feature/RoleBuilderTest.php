@@ -91,21 +91,21 @@ it('throws RuntimeException when ungranting permissions from a non-existent role
 })->throws(RuntimeException::class, 'Role [non-existent] not found.');
 
 it('auto-registers literal permissions when passed to grant through the facade', function (): void {
-    Marque::role('editor', 'Editor')->grant(['posts.create', 'posts.read']);
+    Marque::createRole('editor', 'Editor')->grant(['posts.create', 'posts.read']);
 
     expect($this->permissionStore->exists('posts.create'))->toBeTrue()
         ->and($this->permissionStore->exists('posts.read'))->toBeTrue();
 });
 
 it('does not register wildcard patterns passed to grant', function (): void {
-    Marque::role('admin', 'Admin')->grant(['posts.*', '*.*']);
+    Marque::createRole('admin', 'Admin')->grant(['posts.*', '*.*']);
 
     expect($this->permissionStore->exists('posts.*'))->toBeFalse()
         ->and($this->permissionStore->exists('*.*'))->toBeFalse();
 });
 
 it('strips the deny prefix and registers the base permission', function (): void {
-    Marque::role('moderator', 'Moderator')->deny(['posts.delete']);
+    Marque::createRole('moderator', 'Moderator')->deny(['posts.delete']);
 
     expect($this->permissionStore->exists('posts.delete'))->toBeTrue();
 });
@@ -113,7 +113,7 @@ it('strips the deny prefix and registers the base permission', function (): void
 it('does not re-register permissions that are already present', function (): void {
     $this->permissionStore->register(['posts.create']);
 
-    Marque::role('author', 'Author')->grant(['posts.create', 'posts.read']);
+    Marque::createRole('author', 'Author')->grant(['posts.create', 'posts.read']);
 
     $all = $this->permissionStore->all()->pluck('id')->all();
 

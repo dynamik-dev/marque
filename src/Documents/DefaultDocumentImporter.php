@@ -321,7 +321,9 @@ class DefaultDocumentImporter implements DocumentImporter
                 }
 
                 if (! empty($data['conditions']) && is_array($data['conditions'])) {
-                    $entry['conditions'] = $data['conditions'];
+                    /** @var array<string, array<int, array{type: string, parameters: array<string, mixed>}>> $conditions */
+                    $conditions = $data['conditions'];
+                    $entry['conditions'] = $conditions;
                 }
 
                 $result[] = $entry;
@@ -331,7 +333,7 @@ class DefaultDocumentImporter implements DocumentImporter
         }
 
         // Indexed array of role objects -- return as-is
-        /** @var array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool, conditions?: array}> */
+        /** @var array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool, conditions?: array<string, array<int, array{type: string, parameters: array<string, mixed>}>>}> */
         return $roles;
     }
 

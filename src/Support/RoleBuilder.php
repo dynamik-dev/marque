@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace DynamikDev\Marque\Support;
 
+use DynamikDev\Marque\Contracts\AssignmentStore;
 use DynamikDev\Marque\Contracts\PermissionStore;
 use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Contracts\ScopeResolver;
+use Illuminate\Database\Eloquent\Model;
 
 class RoleBuilder
 {
@@ -13,6 +16,8 @@ class RoleBuilder
         private readonly RoleStore $roleStore,
         private readonly string $roleId,
         private readonly ?PermissionStore $permissionStore = null,
+        private readonly ?AssignmentStore $assignmentStore = null,
+        private readonly ?ScopeResolver $scopeResolver = null,
     ) {}
 
     /**
@@ -114,5 +119,65 @@ class RoleBuilder
     public function remove(): void
     {
         $this->roleStore->remove($this->roleId);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function permissions(): array
+    {
+        return $this->roleStore->permissionsFor($this->roleId);
+    }
+
+    public function assignTo(Model $subject, mixed $scope = null): self
+    {
+        $this->requireAssignmentDeps();
+
+        $this->assignmentStore->assign(
+            $subject->getMorphClass(),
+            $this->resolveSubjectKey($subject),
+            $this->roleId,
+            $this->scopeResolver->resolve($scope),
+        );
+
+        return $this;
+    }
+
+    public function revokeFrom(Model $subject, mixed $scope = null): self
+    {
+        $this->requireAssignmentDeps();
+
+        $this->assignmentStore->revoke(
+            $subject->getMorphClass(),
+            $this->resolveSubjectKey($subject),
+            $this->roleId,
+            $this->scopeResolver->resolve($scope),
+        );
+
+        return $this;
+    }
+
+    private function resolveSubjectKey(Model $subject): int|string
+    {
+        $key = $subject->getKey();
+
+        if (is_int($key) || is_string($key)) {
+            return $key;
+        }
+
+        throw new \RuntimeException('Subject key must be an int or string.');
+    }
+
+    /**
+     * @phpstan-assert !null $this->assignmentStore
+     * @phpstan-assert !null $this->scopeResolver
+     */
+    private function requireAssignmentDeps(): void
+    {
+        if ($this->assignmentStore === null || $this->scopeResolver === null) {
+            throw new \RuntimeException(
+                'RoleBuilder requires AssignmentStore and ScopeResolver for assignment operations.',
+            );
+        }
     }
 }

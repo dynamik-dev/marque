@@ -214,21 +214,23 @@ class EloquentRoleStore implements RoleStore
             return [];
         }
 
-        /** @var array<string, array<int, array{permission: string, conditions: array}>> $grouped */
         $grouped = RolePermission::query()
             ->whereIn('role_id', $uniqueRoleIds)
             ->get(['role_id', 'permission_id', 'conditions'])
-            ->groupBy('role_id')
-            ->map(static fn (Collection $rows): array => $rows->map(static fn (RolePermission $row): array => [
+            ->groupBy('role_id');
+
+        /** @var array<string, array<int, array{permission: string, conditions: array<int, array{type: string, parameters: array<string, mixed>}>}>> $mapped */
+        $mapped = $grouped->map(static function (Collection $rows): array {
+            return $rows->map(static fn (RolePermission $row): array => [
                 'permission' => $row->permission_id,
                 'conditions' => is_array($row->conditions) ? $row->conditions : [],
-            ])->all())
-            ->all();
+            ])->all();
+        })->all();
 
         $result = [];
 
         foreach ($uniqueRoleIds as $roleId) {
-            $result[$roleId] = $grouped[$roleId] ?? [];
+            $result[$roleId] = $mapped[$roleId] ?? [];
         }
 
         return $result;

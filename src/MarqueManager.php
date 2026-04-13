@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace DynamikDev\Marque;
 
+use DynamikDev\Marque\Contracts\AssignmentStore;
 use DynamikDev\Marque\Contracts\BoundaryStore;
 use DynamikDev\Marque\Contracts\DocumentExporter;
 use DynamikDev\Marque\Contracts\DocumentImporter;
@@ -11,9 +12,13 @@ use DynamikDev\Marque\Contracts\DocumentParser;
 use DynamikDev\Marque\Contracts\PermissionStore;
 use DynamikDev\Marque\Contracts\ResourcePolicyStore;
 use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Contracts\ScopeResolver;
 use DynamikDev\Marque\DTOs\ImportOptions;
 use DynamikDev\Marque\DTOs\ImportResult;
 use DynamikDev\Marque\DTOs\PolicyDocument;
+use DynamikDev\Marque\Models\Boundary;
+use DynamikDev\Marque\Models\Permission;
+use DynamikDev\Marque\Models\Role;
 use DynamikDev\Marque\Support\BoundaryBuilder;
 use DynamikDev\Marque\Support\PathValidator;
 use DynamikDev\Marque\Support\ResourcePolicyBuilder;
@@ -28,6 +33,8 @@ class MarqueManager
         private readonly DocumentParser $parser,
         private readonly DocumentImporter $importer,
         private readonly DocumentExporter $exporter,
+        private readonly AssignmentStore $assignments,
+        private readonly ScopeResolver $scopeResolver,
         private readonly ResourcePolicyStore $resourcePolicies,
     ) {}
 
@@ -51,33 +58,91 @@ class MarqueManager
     }
 
     /**
-     * Create or update a role and return a fluent builder for granting permissions.
+     * Retrieve a single permission by its identifier.
      */
-    public function role(string $id, string $name, bool $system = false): RoleBuilder
+    public function getPermission(string $id): ?Permission
     {
-        $this->roles->save($id, $name, [], $system);
-
-        return new RoleBuilder($this->roles, $id, $this->permissions);
+        return $this->permissions->find($id);
     }
 
     /**
-     * Start a fluent builder for managing the boundary on a scope.
+     * Create or update a role and return a fluent builder for granting permissions.
+     */
+    public function createRole(string $id, string $name, bool $system = false): RoleBuilder
+    {
+        $this->roles->save($id, $name, [], $system);
+
+        return new RoleBuilder($this->roles, $id, $this->permissions, $this->assignments, $this->scopeResolver);
+    }
+
+    /**
+     * Look up a role by its identifier.
+     */
+    public function getRole(string $id): ?Role
+    {
+        return $this->roles->find($id);
+    }
+
+    /**
+     * Return a builder handle for an existing role.
      *
-     * The optional second argument eagerly calls permits() for backwards
-     * compatibility with the previous void-returning signature. New code
-     * should prefer Marque::boundary($scope)->permits([...]).
+     * @throws \RuntimeException If the role does not exist.
+     */
+    public function role(string $id): RoleBuilder
+    {
+        if ($this->roles->find($id) === null) {
+            throw new \RuntimeException("Role [{$id}] not found.");
+        }
+
+        return new RoleBuilder($this->roles, $id, $this->permissions, $this->assignments, $this->scopeResolver);
+    }
+
+    /**
+     * Return a BoundaryBuilder handle for modifying a boundary.
      *
      * @param  array<int, string>|null  $maxPermissions
      */
-    public function boundary(string $scope, ?array $maxPermissions = null): BoundaryBuilder
+    public function boundary(mixed $scope, ?array $maxPermissions = null): BoundaryBuilder
     {
-        $builder = new BoundaryBuilder($this->boundaries, $scope);
+        $builder = new BoundaryBuilder($this->boundaries, $this->resolveScope($scope));
 
         if ($maxPermissions !== null) {
             $builder->permits($maxPermissions);
         }
 
         return $builder;
+    }
+
+    /**
+     * Create a new boundary and return a fluent builder for setting permissions.
+     */
+    public function createBoundary(mixed $scope): BoundaryBuilder
+    {
+        return new BoundaryBuilder($this->boundaries, $this->resolveScope($scope));
+    }
+
+    /**
+     * Look up a boundary by scope, returning the Boundary model or null.
+     */
+    public function getBoundary(mixed $scope): ?Boundary
+    {
+        return $this->boundaries->find($this->resolveScope($scope));
+    }
+
+    /**
+     * Resolve a Scopeable model or raw string into a canonical scope string.
+     *
+     * @throws \InvalidArgumentException If the scope resolves to null.
+     */
+    private function resolveScope(mixed $scope): string
+    {
+        $resolved = $this->scopeResolver->resolve($scope);
+
+        if ($resolved === null) {
+            throw new \InvalidArgumentException('Boundary requires a non-null scope.');
+        }
+
+        return $resolved;
     }
 
     /**

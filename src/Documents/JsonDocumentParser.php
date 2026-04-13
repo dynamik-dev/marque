@@ -163,7 +163,9 @@ class JsonDocumentParser implements DocumentParser
             }
 
             if (! empty($roleData['conditions']) && is_array($roleData['conditions'])) {
-                $entry['conditions'] = $roleData['conditions'];
+                /** @var array<string, array<int, array<string, mixed>>> $conditions */
+                $conditions = $roleData['conditions'];
+                $entry['conditions'] = $conditions;
             }
 
             $result[] = $entry;
@@ -243,7 +245,7 @@ class JsonDocumentParser implements DocumentParser
 
         // Already in keyed format (associative with string keys pointing to arrays without 'id')
         if ($this->isAssociativeArray($roles)) {
-            /** @var array<string, array{permissions: array<int, string>, system?: bool, conditions?: array}> */
+            /** @var array<string, array{permissions: array<int, string>, system?: bool, conditions?: array<string, array<int, array<string, mixed>>>}> */
             return $roles;
         }
 
@@ -266,7 +268,9 @@ class JsonDocumentParser implements DocumentParser
             }
 
             if (! empty($role['conditions']) && is_array($role['conditions'])) {
-                $entry['conditions'] = $role['conditions'];
+                /** @var array<string, array<int, array<string, mixed>>> $conditions */
+                $conditions = $role['conditions'];
+                $entry['conditions'] = $conditions;
             }
 
             /** @var string $roleId */

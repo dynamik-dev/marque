@@ -99,7 +99,9 @@ class DefaultDocumentExporter implements DocumentExporter
             ->where('role_id', $role->id)
             ->get(['permission_id', 'conditions']);
 
+        /** @var array<int, string> $permissions */
         $permissions = $rows->pluck('permission_id')->all();
+        /** @var array<string, array<int, array{type: string, parameters: array<string, mixed>}>> $conditions */
         $conditions = [];
 
         foreach ($rows as $row) {

@@ -18,8 +18,13 @@ composer require dynamik-dev/marque
 ## Quick look
 
 ```php
-$user->assignRole('admin', scope: $acmeTeam);
-$user->assignRole('viewer', scope: $widgetTeam);
+Marque::createRole('admin', 'Admin')
+    ->grant(['members.*', 'posts.*'])
+    ->assignTo($user, scope: $acmeTeam);
+
+Marque::createRole('viewer', 'Viewer')
+    ->grant(['posts.read'])
+    ->assignTo($user, scope: $widgetTeam);
 
 $user->can('members.remove', $acmeTeam);  // true
 $user->can('members.remove', $widgetTeam); // false
@@ -73,7 +78,7 @@ Route::middleware('can:posts.create')->post('/posts', [PostController::class, 's
 Prefix any permission with `!`. The denial overrides every other role that grants it.
 
 ```php
-Marque::role('editor', 'Editor')
+Marque::createRole('editor', 'Editor')
     ->grant(['posts.*', 'comments.*'])
     ->deny(['posts.delete']);
 
@@ -83,11 +88,11 @@ $editor->can('posts.delete');  // false -- deny wins
 
 ### Permission boundaries
 
-Boundaries set a ceiling on what any role can do inside a scope. A user with `admin` in a free-tier org still can't access pro-tier features.
+Boundaries set a ceiling on what any role can do inside a scope. A user with `admin` in a free-tier org still can't access pro-tier features. Pass a scope string or any Scopeable model.
 
 ```php
-Marque::boundary('plan::free', ['posts.read', 'comments.read']);
-Marque::boundary('plan::pro', ['posts.*', 'comments.*', 'analytics.*']);
+Marque::boundary($freeOrg)->permits(['posts.read', 'comments.read']);
+Marque::boundary($proOrg)->permits(['posts.*', 'comments.*', 'analytics.*']);
 
 $user->assignRole('admin', $freeOrg);
 $user->can('analytics.view', $freeOrg);  // false -- boundary blocks it
@@ -101,6 +106,19 @@ $user->can('analytics.view', $proOrg);   // true
 '*.read'            // read anything
 '*.*'               // superadmin
 'posts.update.own'  // fine-grained qualifiers
+```
+
+### Resource policies
+
+Attach authorization rules directly to a resource type. The `when()` closure receives the user and the resource instance.
+
+```php
+Marque::resource(Post::class)
+    ->allow('update')
+    ->when(fn ($user, $post) => $post->author_id === $user->id);
+
+Marque::resource(Post::class)
+    ->deny('delete');
 ```
 
 ### Contract-driven
@@ -131,9 +149,9 @@ SQLite works out of the box for development. PostgreSQL and Valkey are optional 
 
 ## Documentation
 
-**Getting Started** &mdash; [Installation](docs/getting-started/installing-the-package.md) | [Seeding permissions and roles](docs/getting-started/seeding-permissions-and-roles.md)
+**Getting Started** &mdash; [How authorization works](docs/getting-started/how-authorization-works.md) | [Installation](docs/getting-started/installing-the-package.md) | [Permission naming](docs/getting-started/permission-naming-conventions.md) | [Seeding permissions and roles](docs/getting-started/seeding-permissions-and-roles.md)
 
-**Authorization** &mdash; [Checking permissions](docs/authorization/checking-permissions.md) | [Roles](docs/authorization/working-with-roles.md) | [Scoped permissions](docs/authorization/scoping-permissions.md) | [Deny rules](docs/authorization/using-deny-rules.md) | [Boundaries](docs/authorization/setting-permission-boundaries.md)
+**Authorization** &mdash; [Checking permissions](docs/authorization/checking-permissions.md) | [Roles](docs/authorization/working-with-roles.md) | [Scoped permissions](docs/authorization/scoping-permissions.md) | [Deny rules](docs/authorization/using-deny-rules.md) | [Boundaries](docs/authorization/setting-permission-boundaries.md) | [Resource policies](docs/authorization/using-resource-policies.md)
 
 **Integrations** &mdash; [Middleware](docs/integrations/restricting-routes-with-middleware.md) | [Blade](docs/integrations/checking-permissions-in-blade.md) | [Model policies](docs/integrations/integrating-with-model-policies.md) | [Sanctum](docs/integrations/scoping-sanctum-tokens.md)
 
@@ -141,4 +159,6 @@ SQLite works out of the box for development. PostgreSQL and Valkey are optional 
 
 **Extending** &mdash; [Swapping implementations](docs/extending/swapping-implementations.md) | [Events](docs/extending/listening-to-events.md) | [Cache](docs/extending/customizing-the-cache.md)
 
-**Reference** &mdash; [Configuration](docs/reference/configuration.md) | [Contracts](docs/reference/contracts.md) | [Events](docs/reference/events.md) | [Artisan commands](docs/cli/artisan-commands.md) | [Comparison with Spatie](docs/comparison-with-spatie.md)
+**Testing** &mdash; [Testing authorization](docs/testing/testing-authorization.md)
+
+**Reference** &mdash; [Configuration](docs/reference/configuration.md) | [Contracts](docs/reference/contracts.md) | [Facade](docs/reference/facade.md) | [Events](docs/reference/events.md) | [Artisan commands](docs/cli/artisan-commands.md) | [Comparison with Spatie](docs/comparison-with-spatie.md)
