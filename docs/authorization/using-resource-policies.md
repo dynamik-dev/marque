@@ -178,6 +178,112 @@ This removes the policy matching the given action from this specific resource in
 app(ResourcePolicyStore::class)->detach('App\\Models\\Post', null, 'posts.delete');
 ```
 
+## Declaring resource policies with the fluent builder
+
+Use `Marque::resource()` from a seeder or `AppServiceProvider::boot()` to describe ownership and attribute rules without constructing `PolicyStatement` objects by hand.
+
+```php
+use App\Models\Post;
+use DynamikDev\Marque\Facades\Marque;
+
+Marque::resource(Post::class)
+    ->ownerCan(['posts.update', 'posts.delete']);
+```
+
+This attaches two type-level allow statements for `Post`, each gated by an `attribute_equals` condition comparing the principal's `id` to the resource's `user_id`. The default owner field is `user_id`. Call `ownedBy()` before `ownerCan()` to override it.
+
+```php
+Marque::resource(Post::class)
+    ->ownedBy('author_id')
+    ->ownerCan('posts.update');
+```
+
+Pass a second argument to `ownedBy()` to compare a different attribute on the principal.
+
+```php
+Marque::resource(Post::class)
+    ->ownedBy('author_id', subjectKey: 'external_id')
+    ->ownerCan('posts.update');
+```
+
+Both single strings and arrays are accepted for the action argument. The builder is equivalent to calling `app(ResourcePolicyStore::class)->attach(...)` directly, but shorter and declarative. The raw form documented above is still the right choice when you are attaching policies dynamically at runtime.
+
+## Scoping policies to resource attributes
+
+Wrap calls inside `when()` to attach statements that only apply when a resource attribute matches an allowed value.
+
+```php
+Marque::resource(Post::class)
+    ->when(['status' => 'published'], function ($policy) {
+        $policy->anyoneCan('posts.view');
+    });
+```
+
+Each entry in the condition map becomes an `attribute_in` condition that compares a resource attribute against the allowed set. Pass a scalar for a single value or an array for a set.
+
+```php
+Marque::resource(Post::class)
+    ->when(['status' => ['published', 'archived']], function ($policy) {
+        $policy->anyoneCan('posts.view');
+    });
+```
+
+Nest `when()` closures to accumulate conditions. Statements emitted inside a nested closure inherit every condition from the enclosing scopes.
+
+```php
+Marque::resource(Post::class)
+    ->when(['status' => 'published'], function ($policy) {
+        $policy->when(['visibility' => 'public'], function ($policy) {
+            $policy->anyoneCan('posts.view');
+        });
+    });
+```
+
+Conditions are popped when the closure returns, so subsequent calls on the same chain are unaffected.
+
+> **How `when()` closures actually run**
+>
+> The closure passed to `when()` runs once, at declaration time, inside your seeder or `boot()` method. It is not a runtime hook. Any PHP inside the closure (`if` statements, `now()`, `request()`, `config()`) executes when the seeder runs, and the resulting `PolicyStatement` rows are persisted as static data.
+>
+> If you are coming from Eloquent, do not read `when()` as a query scope. It does not re-run on every permission check.
+>
+> For rules that must evaluate at check time (cooldowns, time windows, IP allowlists, feature flags), implement a custom `ConditionEvaluator` and register it with the `ConditionRegistry`. The evaluator's `passes()` method runs on every permission check, which is the actual runtime extension point. See [using conditions](using-conditions.md) for the built-in evaluators (`TimeBetweenEvaluator`, `IpRangeEvaluator`) and instructions for writing your own.
+
+## Combining owner and public rules
+
+Chain `ownerCan()` and `when()` calls to describe the full policy for a resource type in one expression.
+
+```php
+Marque::resource(Post::class)
+    ->ownerCan(['posts.update', 'posts.delete'])
+    ->when(['status' => 'published'], function ($policy) {
+        $policy->anyoneCan('posts.view');
+    });
+```
+
+Owners can update and delete their posts regardless of status. Anyone can view a post, but only when its `status` attribute equals `published`. The three statements are independent. Deny-wins still applies across resource, identity, and boundary resolvers.
+
+You can also mix `ownerCan()` inside a `when()` closure. The ownership condition is combined with any active conditions from enclosing scopes.
+
+```php
+Marque::resource(Post::class)
+    ->when(['status' => 'draft'], function ($policy) {
+        $policy->ownerCan('posts.update');
+    });
+```
+
+This allows owners to update their posts only while the post is in draft status.
+
+## Detaching policies from a resource type
+
+Call `detach()` on the builder to remove every type-level statement for a given action.
+
+```php
+Marque::resource(Post::class)->detach('posts.update');
+```
+
+Only statements attached at the type level are removed. Instance-level policies on specific `Post` rows are unaffected. Use `$post->detachPolicy('posts.update')` to remove an instance-level policy.
+
 ## Including resource policies in policy documents
 
 The `resource_policies` array in a policy document defines resource-level authorization rules.

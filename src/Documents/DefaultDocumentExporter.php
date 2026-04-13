@@ -11,9 +11,9 @@ use DynamikDev\Marque\Contracts\PermissionStore;
 use DynamikDev\Marque\Contracts\RoleStore;
 use DynamikDev\Marque\DTOs\PolicyDocument;
 use DynamikDev\Marque\Models\Assignment;
-use DynamikDev\Marque\Models\Boundary;
 use DynamikDev\Marque\Models\ResourcePolicy;
 use DynamikDev\Marque\Models\Role;
+use DynamikDev\Marque\Models\RolePermission;
 use Illuminate\Support\Collection;
 
 class DefaultDocumentExporter implements DocumentExporter
@@ -91,16 +91,33 @@ class DefaultDocumentExporter implements DocumentExporter
     /**
      * Serialize a single role model into keyed format.
      *
-     * @return array{permissions: array<int, string>, system?: bool}
+     * @return array{permissions: array<int, string>, system?: bool, conditions?: array<string, array<int, array{type: string, parameters: array<string, mixed>}>>}
      */
     private function serializeKeyedRole(Role $role): array
     {
-        $data = [
-            'permissions' => $this->roleStore->permissionsFor($role->id),
-        ];
+        $rows = RolePermission::query()
+            ->where('role_id', $role->id)
+            ->get(['permission_id', 'conditions']);
+
+        /** @var array<int, string> $permissions */
+        $permissions = $rows->pluck('permission_id')->all();
+        /** @var array<string, array<int, array{type: string, parameters: array<string, mixed>}>> $conditions */
+        $conditions = [];
+
+        foreach ($rows as $row) {
+            if (is_array($row->conditions) && $row->conditions !== []) {
+                $conditions[$row->permission_id] = $row->conditions;
+            }
+        }
+
+        $data = ['permissions' => $permissions];
 
         if ($role->is_system) {
             $data['system'] = true;
+        }
+
+        if ($conditions !== []) {
+            $data['conditions'] = $conditions;
         }
 
         return $data;

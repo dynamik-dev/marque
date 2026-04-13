@@ -10,6 +10,7 @@ use DynamikDev\Marque\Contracts\DocumentExporter;
 use DynamikDev\Marque\Contracts\DocumentImporter;
 use DynamikDev\Marque\Contracts\DocumentParser;
 use DynamikDev\Marque\Contracts\PermissionStore;
+use DynamikDev\Marque\Contracts\ResourcePolicyStore;
 use DynamikDev\Marque\Contracts\RoleStore;
 use DynamikDev\Marque\Contracts\ScopeResolver;
 use DynamikDev\Marque\DTOs\ImportOptions;
@@ -20,6 +21,7 @@ use DynamikDev\Marque\Models\Permission;
 use DynamikDev\Marque\Models\Role;
 use DynamikDev\Marque\Support\BoundaryBuilder;
 use DynamikDev\Marque\Support\PathValidator;
+use DynamikDev\Marque\Support\ResourcePolicyBuilder;
 use DynamikDev\Marque\Support\RoleBuilder;
 
 class MarqueManager
@@ -33,7 +35,17 @@ class MarqueManager
         private readonly DocumentExporter $exporter,
         private readonly AssignmentStore $assignments,
         private readonly ScopeResolver $scopeResolver,
+        private readonly ResourcePolicyStore $resourcePolicies,
     ) {}
+
+    /**
+     * Start a fluent builder for attaching type-level resource policies
+     * to the given resource class or type string.
+     */
+    public function resource(string $resourceType): ResourcePolicyBuilder
+    {
+        return new ResourcePolicyBuilder($this->resourcePolicies, $resourceType);
+    }
 
     /**
      * Register one or more permissions.
@@ -60,7 +72,7 @@ class MarqueManager
     {
         $this->roles->save($id, $name, [], $system);
 
-        return new RoleBuilder($this->roles, $id, $this->assignments, $this->scopeResolver);
+        return new RoleBuilder($this->roles, $id, $this->permissions, $this->assignments, $this->scopeResolver);
     }
 
     /**
@@ -82,15 +94,23 @@ class MarqueManager
             throw new \RuntimeException("Role [{$id}] not found.");
         }
 
-        return new RoleBuilder($this->roles, $id, $this->assignments, $this->scopeResolver);
+        return new RoleBuilder($this->roles, $id, $this->permissions, $this->assignments, $this->scopeResolver);
     }
 
     /**
      * Return a BoundaryBuilder handle for modifying a boundary.
+     *
+     * @param  array<int, string>|null  $maxPermissions
      */
-    public function boundary(mixed $scope): BoundaryBuilder
+    public function boundary(mixed $scope, ?array $maxPermissions = null): BoundaryBuilder
     {
-        return new BoundaryBuilder($this->boundaries, $this->resolveScope($scope));
+        $builder = new BoundaryBuilder($this->boundaries, $this->resolveScope($scope));
+
+        if ($maxPermissions !== null) {
+            $builder->permits($maxPermissions);
+        }
+
+        return $builder;
     }
 
     /**

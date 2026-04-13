@@ -7,6 +7,11 @@ namespace DynamikDev\Marque\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property string $role_id
+ * @property string $permission_id
+ * @property array<int, array{type: string, parameters: array<string, mixed>}>|null $conditions
+ */
 class RolePermission extends Model
 {
     public function getTable(): string
@@ -27,6 +32,12 @@ class RolePermission extends Model
     protected $fillable = [
         'role_id',
         'permission_id',
+        'conditions',
+    ];
+
+    /** @var array<string, string> */
+    protected $casts = [
+        'conditions' => 'array',
     ];
 
     /**

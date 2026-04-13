@@ -6,6 +6,12 @@ namespace DynamikDev\Marque\Support;
 
 use DynamikDev\Marque\Contracts\BoundaryStore;
 
+/**
+ * Fluent builder for managing the boundary attached to a scope.
+ *
+ * Goes through the BoundaryStore contract only, never touching Eloquent
+ * directly, so any driver implementing the contract works with this sugar.
+ */
 class BoundaryBuilder
 {
     public function __construct(
@@ -14,7 +20,10 @@ class BoundaryBuilder
     ) {}
 
     /**
-     * Set the maximum allowed permissions for this boundary's scope.
+     * Set the maximum allowed permissions for this scope.
+     *
+     * Calls replace the entire permission set rather than merging, matching
+     * BoundaryStore::set() semantics.
      *
      * @param  array<int, string>  $permissions
      */
@@ -26,7 +35,7 @@ class BoundaryBuilder
     }
 
     /**
-     * Remove the boundary for this scope.
+     * Remove the boundary for this scope entirely.
      */
     public function remove(): void
     {

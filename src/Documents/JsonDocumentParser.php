@@ -138,7 +138,7 @@ class JsonDocumentParser implements DocumentParser
      * Parse keyed roles (associative: id => data) into indexed array-of-objects format.
      *
      * @param  array<mixed>  $rawRoles
-     * @return array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool}>
+     * @return array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool, conditions?: array<string, array<int, array<string, mixed>>>}>
      */
     private function parseKeyedRoles(array $rawRoles): array
     {
@@ -160,6 +160,12 @@ class JsonDocumentParser implements DocumentParser
 
             if (! empty($roleData['system'])) {
                 $entry['system'] = true;
+            }
+
+            if (! empty($roleData['conditions']) && is_array($roleData['conditions'])) {
+                /** @var array<string, array<int, array<string, mixed>>> $conditions */
+                $conditions = $roleData['conditions'];
+                $entry['conditions'] = $conditions;
             }
 
             $result[] = $entry;
@@ -229,7 +235,7 @@ class JsonDocumentParser implements DocumentParser
      * Convert indexed roles to keyed format for serialization.
      *
      * @param  array<mixed>  $roles
-     * @return array<string, array{permissions: array<int, string>, system?: bool}>
+     * @return array<string, array{permissions: array<int, string>, system?: bool, conditions?: array<string, array<int, array<string, mixed>>>}>
      */
     private function serializeRolesToKeyed(array $roles): array
     {
@@ -239,11 +245,11 @@ class JsonDocumentParser implements DocumentParser
 
         // Already in keyed format (associative with string keys pointing to arrays without 'id')
         if ($this->isAssociativeArray($roles)) {
-            /** @var array<string, array{permissions: array<int, string>, system?: bool}> */
+            /** @var array<string, array{permissions: array<int, string>, system?: bool, conditions?: array<string, array<int, array<string, mixed>>>}> */
             return $roles;
         }
 
-        // Indexed format — convert to keyed
+        // Indexed format -- convert to keyed
         $result = [];
 
         foreach ($roles as $role) {
@@ -259,6 +265,12 @@ class JsonDocumentParser implements DocumentParser
 
             if (! empty($role['system'])) {
                 $entry['system'] = true;
+            }
+
+            if (! empty($role['conditions']) && is_array($role['conditions'])) {
+                /** @var array<string, array<int, array<string, mixed>>> $conditions */
+                $conditions = $role['conditions'];
+                $entry['conditions'] = $conditions;
             }
 
             /** @var string $roleId */
