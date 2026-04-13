@@ -29,7 +29,7 @@ The effective order is:
 ```php
 Marque::boundary('org::acme', ['posts.*', 'comments.*']);
 
-Marque::role('admin', 'Admin')->grant(['*.*']);
+Marque::createRole('admin', 'Admin')->grant(['*.*']);
 $user->assign('admin', scope: 'org::acme');
 
 $user->can('posts.create', 'org::acme');    // true — within boundary
@@ -62,9 +62,7 @@ Calling `boundary()` again replaces the entire permission set. There is no merge
 ## Removing a boundary
 
 ```php
-use DynamikDev\Marque\Contracts\BoundaryStore;
-
-app(BoundaryStore::class)->remove('org::acme');
+Marque::boundary('org::acme')->remove();
 ```
 
 With the boundary removed, the scope has no ceiling and all permissions are available based on role assignments alone.
@@ -72,7 +70,7 @@ With the boundary removed, the scope has no ceiling and all permissions are avai
 ## Querying an existing boundary
 
 ```php
-$boundary = app(BoundaryStore::class)->find('org::acme');
+$boundary = Marque::getBoundary('org::acme');
 
 $boundary->scope;            // "org::acme"
 $boundary->max_permissions;  // ["posts.*", "comments.*"]
@@ -133,7 +131,7 @@ With this enabled:
 Marque::boundary('team::5', ['posts.*']);
 Marque::boundary('org::acme', ['billing.*']);
 
-Marque::role('admin', 'Admin')->grant(['*.*']);
+Marque::createRole('admin', 'Admin')->grant(['*.*']);
 $user->assign('admin'); // global assignment, no scope
 
 $user->can('posts.create');     // true — matches team::5 boundary

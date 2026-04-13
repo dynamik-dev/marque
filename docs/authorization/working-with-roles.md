@@ -7,7 +7,7 @@ Roles are named collections of permissions. Assign them to users globally or wit
 ```php
 use DynamikDev\Marque\Facades\Marque;
 
-Marque::role('editor', 'Editor')
+Marque::createRole('editor', 'Editor')
     ->grant(['posts.create', 'posts.update.any', 'posts.delete.own']);
 ```
 
@@ -16,7 +16,7 @@ Role IDs are string primary keys. `grant()` returns the builder, so you can chai
 ## Creating a system-locked role
 
 ```php
-Marque::role('admin', 'Admin', system: true)
+Marque::createRole('admin', 'Admin', system: true)
     ->grant(['*.*']);
 ```
 
@@ -25,7 +25,7 @@ System roles cannot be deleted at runtime when `protect_system_roles` is enabled
 ## Adding permissions to an existing role
 
 ```php
-Marque::role('editor', 'Editor')
+Marque::role('editor')
     ->grant(['comments.create', 'comments.delete.own']);
 ```
 
@@ -34,7 +34,7 @@ Marque::role('editor', 'Editor')
 ## Removing permissions from a role
 
 ```php
-Marque::role('editor', 'Editor')
+Marque::role('editor')
     ->ungrant(['posts.delete.own']);
 ```
 
@@ -43,7 +43,7 @@ Marque::role('editor', 'Editor')
 ## Deleting a role
 
 ```php
-Marque::role('editor', 'Editor')->remove();
+Marque::role('editor')->remove();
 ```
 
 This deletes the role and cascades to all assignments. Users who held this role lose it immediately.
@@ -111,16 +111,14 @@ Both return a `Collection` of `Assignment` models.
 ## Inspecting a role's permissions
 
 ```php
-use DynamikDev\Marque\Contracts\RoleStore;
-
-$permissions = app(RoleStore::class)->permissionsFor('editor');
+$permissions = Marque::role('editor')->permissions();
 // ['posts.create', 'posts.update.any', 'comments.create', ...]
 ```
 
 ## Finding a role by ID
 
 ```php
-$role = app(RoleStore::class)->find('editor');
+$role = Marque::getRole('editor');
 // Role { id: 'editor', name: 'Editor', is_system: false }
 ```
 
