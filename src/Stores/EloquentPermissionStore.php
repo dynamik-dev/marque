@@ -122,6 +122,11 @@ class EloquentPermissionStore implements PermissionStore
         return Permission::query()->where('id', $id)->exists();
     }
 
+    public function find(string $id): ?Permission
+    {
+        return Permission::query()->find($id);
+    }
+
     /**
      * Remove all permissions, dispatching PermissionDeleted for each.
      *

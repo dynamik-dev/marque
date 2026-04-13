@@ -32,7 +32,7 @@ it('registers permissions through the facade', function (): void {
 // --- role ---
 
 it('creates a role and returns a RoleBuilder', function (): void {
-    $builder = Marque::role('editor', 'Editor');
+    $builder = Marque::createRole('editor', 'Editor');
 
     expect($builder)->toBeInstanceOf(RoleBuilder::class)
         ->and($this->roleStore->find('editor'))->not->toBeNull()
@@ -42,7 +42,7 @@ it('creates a role and returns a RoleBuilder', function (): void {
 it('creates a role with grant chaining', function (): void {
     $this->permissionStore->register(['posts.create', 'posts.read', 'posts.delete']);
 
-    Marque::role('editor', 'Editor')
+    Marque::createRole('editor', 'Editor')
         ->grant(['posts.create', 'posts.read'])
         ->grant(['posts.delete']);
 
@@ -54,7 +54,7 @@ it('creates a role with grant chaining', function (): void {
 it('creates a role with grant and ungrant chaining', function (): void {
     $this->permissionStore->register(['posts.create', 'posts.read', 'posts.delete']);
 
-    Marque::role('editor', 'Editor')
+    Marque::createRole('editor', 'Editor')
         ->grant(['posts.create', 'posts.read', 'posts.delete'])
         ->ungrant(['posts.delete']);
 
@@ -66,19 +66,43 @@ it('creates a role with grant and ungrant chaining', function (): void {
 });
 
 it('creates a system role', function (): void {
-    Marque::role('super-admin', 'Super Admin', system: true);
+    Marque::createRole('super-admin', 'Super Admin', system: true);
 
     $role = $this->roleStore->find('super-admin');
 
     expect($role->is_system)->toBeTrue();
 });
 
+it('creates a system role with grant chaining on initial run', function (): void {
+    config()->set('marque.protect_system_roles', true);
+    $this->permissionStore->register(['posts.read', 'comments.read']);
+
+    Marque::createRole('viewer', 'Viewer', system: true)
+        ->grant(['posts.read', 'comments.read']);
+
+    expect($this->roleStore->find('viewer')->is_system)->toBeTrue()
+        ->and($this->roleStore->permissionsFor('viewer'))
+        ->toContain('posts.read', 'comments.read');
+});
+
+it('still protects a system role from permission changes after initial setup', function (): void {
+    config()->set('marque.protect_system_roles', true);
+    $this->permissionStore->register(['posts.read', 'comments.read', 'posts.delete']);
+
+    Marque::createRole('viewer', 'Viewer', system: true)
+        ->grant(['posts.read', 'comments.read']);
+
+    expect(fn () => Marque::createRole('viewer', 'Viewer', system: true)
+        ->grant(['posts.delete'])
+    )->toThrow(RuntimeException::class);
+});
+
 it('removes a role via the builder', function (): void {
-    Marque::role('editor', 'Editor');
+    Marque::createRole('editor', 'Editor');
 
     expect($this->roleStore->find('editor'))->not->toBeNull();
 
-    Marque::role('editor', 'Editor')->remove();
+    Marque::createRole('editor', 'Editor')->remove();
 
     expect($this->roleStore->find('editor'))->toBeNull();
 });
@@ -86,7 +110,7 @@ it('removes a role via the builder', function (): void {
 // --- boundary ---
 
 it('sets a boundary through the facade', function (): void {
-    Marque::boundary('team::5', ['posts.create', 'posts.read']);
+    Marque::boundary('team::5')->permits(['posts.create', 'posts.read']);
 
     $boundary = $this->boundaryStore->find('team::5');
 

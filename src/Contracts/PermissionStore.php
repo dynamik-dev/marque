@@ -34,6 +34,11 @@ interface PermissionStore
     public function exists(string $id): bool;
 
     /**
+     * Find a permission by its identifier, or return null.
+     */
+    public function find(string $id): ?Permission;
+
+    /**
      * Remove all permissions, dispatching events for each.
      */
     public function removeAll(): void;
