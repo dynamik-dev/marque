@@ -270,7 +270,7 @@ class DefaultDocumentImporter implements DocumentImporter
         }
 
         foreach ($document->resourcePolicies as $entry) {
-            $conditions = $this->hydrateConditions($entry['conditions']);
+            $conditions = Condition::hydrateMany($entry['conditions']);
 
             $statement = new PolicyStatement(
                 effect: Effect::{$entry['effect']},
@@ -335,23 +335,6 @@ class DefaultDocumentImporter implements DocumentImporter
         // Indexed array of role objects -- return as-is
         /** @var array<int, array{id: string, name: string, permissions: array<int, string>, system?: bool, conditions?: array<string, array<int, array{type: string, parameters: array<string, mixed>}>>}> */
         return $roles;
-    }
-
-    /**
-     * Hydrate raw condition arrays into Condition DTOs.
-     *
-     * @param  array<int, mixed>  $raw
-     * @return array<int, Condition>
-     */
-    private function hydrateConditions(array $raw): array
-    {
-        return array_map(
-            static fn (array $item) => new Condition(
-                type: $item['type'],
-                parameters: $item['parameters'] ?? [],
-            ),
-            array_filter($raw, 'is_array'),
-        );
     }
 
     /**

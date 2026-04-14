@@ -10,6 +10,8 @@ use DynamikDev\Marque\Events\RoleDeleted;
 use DynamikDev\Marque\Events\RoleUpdated;
 use DynamikDev\Marque\Models\Role;
 use DynamikDev\Marque\Models\RolePermission;
+use DynamikDev\Marque\Support\IdentifierValidator;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 
@@ -25,7 +27,13 @@ class EloquentRoleStore implements RoleStore
      */
     public function save(string $id, string $name, array $permissions, bool $system = false, array $conditions = []): Role
     {
-        $this->validateIdentifier($id);
+        IdentifierValidator::validate($id, 'role');
+
+        if (str_starts_with($id, self::DIRECT_PERMISSION_PREFIX)) {
+            throw new \InvalidArgumentException(
+                "Invalid role ID [{$id}]. The '__dp.' prefix is reserved for internal use.",
+            );
+        }
 
         $existing = Role::query()->find($id);
 
@@ -114,11 +122,21 @@ class EloquentRoleStore implements RoleStore
     {
         RolePermission::query()->delete();
 
-        Role::query()->chunkById(200, function (Collection $roles): void {
-            $roles->each(function (Role $role): void {
+        $deleted = [];
+
+        Role::query()->chunkById(200, function (Collection $roles) use (&$deleted): void {
+            $roles->each(function (Role $role) use (&$deleted): void {
+                $deleted[] = clone $role;
                 $role->delete();
-                Event::dispatch(new RoleDeleted($role));
             });
+        });
+
+        /** @var Connection $connection */
+        $connection = Role::query()->getConnection();
+        $connection->afterCommit(function () use (&$deleted): void {
+            foreach ($deleted as $role) {
+                Event::dispatch(new RoleDeleted($role));
+            }
         });
     }
 
@@ -279,31 +297,5 @@ class EloquentRoleStore implements RoleStore
         );
 
         return $role;
-    }
-
-    /**
-     * Validate that a role identifier string is safe for use as a role ID.
-     *
-     * @throws \InvalidArgumentException
-     */
-    private function validateIdentifier(string $id): void
-    {
-        if ($id === '' || preg_match('/[\s:]/', $id) || str_starts_with($id, '!')) {
-            throw new \InvalidArgumentException(
-                "Invalid role ID [{$id}]. IDs must not be empty, contain whitespace or colons, or start with '!'.",
-            );
-        }
-
-        if (str_starts_with($id, self::DIRECT_PERMISSION_PREFIX)) {
-            throw new \InvalidArgumentException(
-                "Invalid role ID [{$id}]. The '__dp.' prefix is reserved for internal use.",
-            );
-        }
-
-        if (strlen($id) > 255) {
-            throw new \InvalidArgumentException(
-                "Invalid role ID [{$id}]. IDs must not exceed 255 characters.",
-            );
-        }
     }
 }

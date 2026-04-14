@@ -8,6 +8,7 @@ use DynamikDev\Marque\Contracts\AssignmentStore;
 use DynamikDev\Marque\Events\AssignmentCreated;
 use DynamikDev\Marque\Events\AssignmentRevoked;
 use DynamikDev\Marque\Models\Assignment;
+use Illuminate\Database\Connection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
 
@@ -145,11 +146,21 @@ class EloquentAssignmentStore implements AssignmentStore
      */
     public function removeAll(): void
     {
-        Assignment::query()->chunkById(200, function (Collection $assignments): void {
-            $assignments->each(function (Assignment $assignment): void {
+        $revoked = [];
+
+        Assignment::query()->chunkById(200, function (Collection $assignments) use (&$revoked): void {
+            $assignments->each(function (Assignment $assignment) use (&$revoked): void {
+                $revoked[] = clone $assignment;
                 $assignment->delete();
-                Event::dispatch(new AssignmentRevoked($assignment));
             });
+        });
+
+        /** @var Connection $connection */
+        $connection = Assignment::query()->getConnection();
+        $connection->afterCommit(function () use (&$revoked): void {
+            foreach ($revoked as $assignment) {
+                Event::dispatch(new AssignmentRevoked($assignment));
+            }
         });
     }
 }

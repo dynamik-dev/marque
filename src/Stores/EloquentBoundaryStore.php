@@ -77,9 +77,19 @@ class EloquentBoundaryStore implements BoundaryStore
      */
     public function removeAll(): void
     {
-        Boundary::query()->get()->each(function (Boundary $boundary): void {
+        $scopes = [];
+
+        Boundary::query()->get()->each(function (Boundary $boundary) use (&$scopes): void {
+            $scopes[] = $boundary->scope;
             $boundary->delete();
-            Event::dispatch(new BoundaryRemoved($boundary->scope));
+        });
+
+        /** @var Connection $connection */
+        $connection = Boundary::query()->getConnection();
+        $connection->afterCommit(function () use (&$scopes): void {
+            foreach ($scopes as $scope) {
+                Event::dispatch(new BoundaryRemoved($scope));
+            }
         });
     }
 }

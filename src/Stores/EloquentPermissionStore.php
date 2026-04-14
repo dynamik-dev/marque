@@ -9,6 +9,7 @@ use DynamikDev\Marque\Events\PermissionCreated;
 use DynamikDev\Marque\Events\PermissionDeleted;
 use DynamikDev\Marque\Models\Permission;
 use DynamikDev\Marque\Models\RolePermission;
+use DynamikDev\Marque\Support\IdentifierValidator;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Event;
@@ -28,7 +29,7 @@ class EloquentPermissionStore implements PermissionStore
         $permissions = (array) $permissions;
 
         foreach ($permissions as $permission) {
-            $this->validateIdentifier($permission, 'permission');
+            IdentifierValidator::validate($permission, 'permission');
         }
 
         /** @var array<int, string> $existing */
@@ -49,26 +50,6 @@ class EloquentPermissionStore implements PermissionStore
             foreach ($new as $permission) {
                 Event::dispatch(new PermissionCreated($permission));
             }
-        }
-    }
-
-    /**
-     * Validate that an identifier string is safe for use as a permission or role ID.
-     *
-     * @throws \InvalidArgumentException
-     */
-    private function validateIdentifier(string $id, string $type): void
-    {
-        if ($id === '' || preg_match('/[\s:]/', $id) || str_starts_with($id, '!')) {
-            throw new \InvalidArgumentException(
-                "Invalid {$type} ID [{$id}]. IDs must not be empty, contain whitespace or colons, or start with '!'.",
-            );
-        }
-
-        if (strlen($id) > 255) {
-            throw new \InvalidArgumentException(
-                "Invalid {$type} ID [{$id}]. IDs must not exceed 255 characters.",
-            );
         }
     }
 
@@ -136,9 +117,19 @@ class EloquentPermissionStore implements PermissionStore
     {
         RolePermission::query()->delete();
 
-        Permission::query()->get()->each(function (Permission $permission): void {
+        $deletedIds = [];
+
+        Permission::query()->get()->each(function (Permission $permission) use (&$deletedIds): void {
+            $deletedIds[] = $permission->id;
             $permission->delete();
-            Event::dispatch(new PermissionDeleted($permission->id));
+        });
+
+        /** @var Connection $connection */
+        $connection = Permission::query()->getConnection();
+        $connection->afterCommit(function () use (&$deletedIds): void {
+            foreach ($deletedIds as $id) {
+                Event::dispatch(new PermissionDeleted($id));
+            }
         });
     }
 }
