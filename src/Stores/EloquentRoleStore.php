@@ -8,6 +8,7 @@ use DynamikDev\Marque\Contracts\RoleStore;
 use DynamikDev\Marque\Events\RoleCreated;
 use DynamikDev\Marque\Events\RoleDeleted;
 use DynamikDev\Marque\Events\RoleUpdated;
+use DynamikDev\Marque\Exceptions\RoleNotFoundException;
 use DynamikDev\Marque\Models\Role;
 use DynamikDev\Marque\Models\RolePermission;
 use DynamikDev\Marque\Support\IdentifierValidator;
@@ -83,11 +84,16 @@ class EloquentRoleStore implements RoleStore
         });
 
         /** @var Role $role */
-        Event::dispatch(
-            $role->wasRecentlyCreated
-                ? new RoleCreated($role)
-                : new RoleUpdated($role, $role->getChanges()),
-        );
+        $wasRecentlyCreated = $role->wasRecentlyCreated;
+        $changes = $role->getChanges();
+
+        $role->getConnection()->afterCommit(function () use ($role, $wasRecentlyCreated, $changes): void {
+            Event::dispatch(
+                $wasRecentlyCreated
+                    ? new RoleCreated($role)
+                    : new RoleUpdated($role, $changes),
+            );
+        });
 
         return $role;
     }
@@ -95,11 +101,16 @@ class EloquentRoleStore implements RoleStore
     /**
      * Remove a role by its identifier.
      *
+     * @throws RoleNotFoundException If the role does not exist.
      * @throws \RuntimeException If the role is system-protected and protection is enabled.
      */
     public function remove(string $id): void
     {
-        $role = Role::query()->findOrFail($id);
+        $role = Role::query()->find($id);
+
+        if ($role === null) {
+            throw RoleNotFoundException::forId($id);
+        }
 
         if ($role->is_system && config('marque.protect_system_roles')) {
             throw new \RuntimeException("Cannot delete system role [{$id}].");
@@ -290,11 +301,16 @@ class EloquentRoleStore implements RoleStore
         });
 
         /** @var Role $role */
-        Event::dispatch(
-            $role->wasRecentlyCreated
-                ? new RoleCreated($role)
-                : new RoleUpdated($role, $role->getChanges()),
-        );
+        $wasRecentlyCreated = $role->wasRecentlyCreated;
+        $changes = $role->getChanges();
+
+        $role->getConnection()->afterCommit(function () use ($role, $wasRecentlyCreated, $changes): void {
+            Event::dispatch(
+                $wasRecentlyCreated
+                    ? new RoleCreated($role)
+                    : new RoleUpdated($role, $changes),
+            );
+        });
 
         return $role;
     }

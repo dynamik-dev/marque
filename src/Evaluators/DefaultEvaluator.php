@@ -16,6 +16,8 @@ use DynamikDev\Marque\DTOs\Resource;
 use DynamikDev\Marque\Enums\Decision;
 use DynamikDev\Marque\Enums\Effect;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class DefaultEvaluator implements Evaluator
 {
@@ -93,11 +95,10 @@ class DefaultEvaluator implements Evaluator
             return true;
         }
 
-        if ($statement->principalPattern === '*') {
-            return true;
-        }
-
-        return $statement->principalPattern === "{$principal->type}:{$principal->id}";
+        return $this->matcher->matches(
+            $this->toMatchableIdentity($statement->principalPattern),
+            $this->toMatchableIdentity("{$principal->type}:{$principal->id}"),
+        );
     }
 
     private function matchesResource(PolicyStatement $statement, ?Resource $resource): bool
@@ -106,17 +107,40 @@ class DefaultEvaluator implements Evaluator
             return true;
         }
 
-        if ($statement->resourcePattern === '*') {
-            return true;
-        }
-
         if ($resource === null) {
-            return false;
+            // A bare `*` is a stand-alone wildcard that matches any resource,
+            // including the resourceless case (e.g. action-only requests).
+            // More specific patterns (`post:*`, `post:42`) require a resource.
+            return $statement->resourcePattern === '*';
         }
 
-        return $statement->resourcePattern === "{$resource->type}:{$resource->id}";
+        return $this->matcher->matches(
+            $this->toMatchableIdentity($statement->resourcePattern),
+            $this->toMatchableIdentity("{$resource->type}:{$resource->id}"),
+        );
     }
 
+    /**
+     * Convert a `type:id` identity string into a dot-segmented form so it can
+     * flow through the dot-aware Matcher (e.g. `user:5` -> `user.5`,
+     * `user:*` -> `user.*`). Identity ids are treated as opaque strings;
+     * wildcards (`*`) are preserved so the matcher can apply its zero-or-more
+     * segment semantics.
+     */
+    private function toMatchableIdentity(string $identity): string
+    {
+        return str_replace(':', '.', $identity);
+    }
+
+    /**
+     * Evaluate every condition attached to the statement.
+     *
+     * Fail-closed semantics: if the registry has no evaluator for a condition type
+     * (admin typo, removed plugin) or the evaluator throws while running, the entire
+     * statement is treated as not-applicable and the error is logged. This prevents a
+     * single bad condition from bricking authorization across every subject assigned
+     * to the role; the worst case becomes a missing allow (default-deny), not a 500.
+     */
     private function conditionsPass(PolicyStatement $statement, EvaluationRequest $request): bool
     {
         if ($statement->conditions === [] || $this->conditionRegistry === null) {
@@ -124,8 +148,21 @@ class DefaultEvaluator implements Evaluator
         }
 
         foreach ($statement->conditions as $condition) {
-            $evaluator = $this->conditionRegistry->evaluatorFor($condition->type);
-            if (! $evaluator->passes($condition, $request)) {
+            try {
+                $evaluator = $this->conditionRegistry->evaluatorFor($condition->type);
+
+                if (! $evaluator->passes($condition, $request)) {
+                    return false;
+                }
+            } catch (Throwable $e) {
+                Log::warning('marque: condition evaluation failed; statement skipped (fail-closed)', [
+                    'condition_type' => $condition->type,
+                    'statement_source' => $statement->source,
+                    'action' => $request->action,
+                    'exception' => $e::class,
+                    'message' => $e->getMessage(),
+                ]);
+
                 return false;
             }
         }

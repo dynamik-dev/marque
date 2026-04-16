@@ -183,13 +183,15 @@ Prints "Policy document is valid." on success, or lists validation errors.
 
 ## Clearing the permission cache
 
-### `marque:cache-clear`
+### `marque:cache:clear`
 
 Flush the permission evaluation cache.
 
 ```bash
-php artisan marque:cache-clear
+php artisan marque:cache:clear
 ```
+
+> The legacy `marque:cache-clear` signature is still registered as a deprecated alias and will be removed in a future release. It prints a deprecation notice and forwards to `marque:cache:clear`.
 
 On tagged stores (Redis, Memcached), flushes only the `marque` tag. On non-tagged stores (file, database), increments the global generation counter so all previously cached entries become unreachable and expire via TTL.
 

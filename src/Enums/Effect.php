@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace DynamikDev\Marque\Enums;
 
-enum Effect
+enum Effect: string
 {
-    case Allow;
-    case Deny;
+    case Allow = 'Allow';
+    case Deny = 'Deny';
 }

@@ -133,6 +133,62 @@ it('dispatches DocumentImported event', function (): void {
     });
 });
 
+it('dispatches DocumentImported exactly once after a successful import', function (): void {
+    Event::fake([DocumentImported::class]);
+
+    $this->importer->import(fullDocument(), new ImportOptions);
+
+    Event::assertDispatchedTimes(DocumentImported::class, 1);
+});
+
+it('does not dispatch DocumentImported when the import transaction rolls back', function (): void {
+    config()->set('marque.import_subject_types', ['App\Models\User']);
+
+    Event::fake([DocumentImported::class]);
+
+    $document = new PolicyDocument(
+        version: '1.0',
+        permissions: ['posts.create'],
+        roles: [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.create']],
+        ],
+        assignments: [
+            ['subject' => 'App\Models\Hacker::1', 'role' => 'editor'],
+        ],
+    );
+
+    try {
+        $this->importer->import($document, new ImportOptions);
+    } catch (InvalidArgumentException) {
+        // Expected — invalid subject type triggers rollback
+    }
+
+    Event::assertNotDispatched(DocumentImported::class);
+});
+
+it('defers DocumentImported until the outer transaction commits', function (): void {
+    Event::fake([DocumentImported::class]);
+
+    $connection = Permission::query()->getConnection();
+
+    $connection->beginTransaction();
+    try {
+        $this->importer->import(fullDocument(), new ImportOptions);
+
+        // Inner transaction has committed (savepoint released), but outer is still open.
+        // The DocumentImported listener must NOT have run yet.
+        Event::assertNotDispatched(DocumentImported::class);
+
+        $connection->commit();
+    } catch (Throwable $e) {
+        $connection->rollBack();
+        throw $e;
+    }
+
+    // Now that the outer transaction has committed, the deferred event should have fired.
+    Event::assertDispatchedTimes(DocumentImported::class, 1);
+});
+
 // --- merge mode ---
 
 it('merges with existing data in merge mode', function (): void {

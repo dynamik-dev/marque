@@ -76,6 +76,53 @@ it('does not dispatch AssignmentCreated for duplicate assignment', function (): 
     Event::assertNotDispatched(AssignmentCreated::class);
 });
 
+it('treats a unique-constraint violation as a silent no-op (TOCTOU race simulation)', function (): void {
+    // Simulate the race: between the exists() check and create(), another process inserts the
+    // same tuple. We hook the Assignment "creating" event to perform the racing insert, so by
+    // the time our create() reaches the DB, the partial unique index from migration 0006 fires.
+    $racingInserted = false;
+
+    Assignment::creating(function (Assignment $assignment) use (&$racingInserted): bool {
+        if ($racingInserted) {
+            return true;
+        }
+
+        $racingInserted = true;
+
+        // Use a fresh query (bypass model events) to insert the duplicate the way a parallel
+        // process would.
+        Assignment::query()->insert([
+            'subject_type' => $assignment->subject_type,
+            'subject_id' => $assignment->subject_id,
+            'role_id' => $assignment->role_id,
+            'scope' => $assignment->scope,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return true;
+    });
+
+    Event::fake([AssignmentCreated::class]);
+
+    // Should not throw — the QueryException must be caught and treated as success.
+    $this->store->assign('App\\Models\\User', 42, 'editor', 'team::99');
+
+    // Exactly one row exists for the tuple (the racing insert), no duplicates.
+    expect(Assignment::query()
+        ->where('subject_type', 'App\\Models\\User')
+        ->where('subject_id', 42)
+        ->where('role_id', 'editor')
+        ->where('scope', 'team::99')
+        ->count())->toBe(1);
+
+    // No AssignmentCreated event fires — this process did not perform the insert.
+    Event::assertNotDispatched(AssignmentCreated::class);
+
+    // Cleanup the listener so it does not leak into later tests.
+    Assignment::flushEventListeners();
+});
+
 // --- revoke ---
 
 it('removes an assignment', function (): void {

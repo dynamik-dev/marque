@@ -2,8 +2,11 @@
 
 declare(strict_types=1);
 
+use DynamikDev\Marque\Contracts\AssignmentStore;
 use DynamikDev\Marque\Contracts\PermissionStore;
 use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Contracts\ScopeResolver;
+use DynamikDev\Marque\Exceptions\RoleNotFoundException;
 use DynamikDev\Marque\Facades\Marque;
 use DynamikDev\Marque\Support\RoleBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -13,27 +16,30 @@ uses(RefreshDatabase::class);
 beforeEach(function (): void {
     $this->permissionStore = app(PermissionStore::class);
     $this->roleStore = app(RoleStore::class);
+    $this->assignmentStore = app(AssignmentStore::class);
+    $this->scopeResolver = app(ScopeResolver::class);
 });
 
-it('throws RuntimeException when granting permissions to a non-existent role', function (): void {
-    $builder = new RoleBuilder(
-        roleStore: $this->roleStore,
-        roleId: 'non-existent',
+function makeRoleBuilder(string $roleId): RoleBuilder
+{
+    return new RoleBuilder(
+        roleStore: test()->roleStore,
+        roleId: $roleId,
+        permissionStore: test()->permissionStore,
+        assignmentStore: test()->assignmentStore,
+        scopeResolver: test()->scopeResolver,
     );
+}
 
-    $builder->grant(['posts.create']);
-})->throws(RuntimeException::class, 'Role [non-existent] not found.');
+it('throws RoleNotFoundException when granting permissions to a non-existent role', function (): void {
+    makeRoleBuilder('non-existent')->grant(['posts.create']);
+})->throws(RoleNotFoundException::class, 'Role [non-existent] not found.');
 
 it('adds deny rules via deny()', function (): void {
     $this->permissionStore->register(['posts.create', 'posts.delete']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
 
-    $builder = new RoleBuilder(
-        roleStore: $this->roleStore,
-        roleId: 'editor',
-    );
-
-    $builder->deny(['posts.delete']);
+    makeRoleBuilder('editor')->deny(['posts.delete']);
 
     expect($this->roleStore->permissionsFor('editor'))
         ->toContain('posts.create', '!posts.delete');
@@ -43,12 +49,7 @@ it('does not double-prefix permissions already prefixed with !', function (): vo
     $this->permissionStore->register(['posts.create', 'posts.delete']);
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
 
-    $builder = new RoleBuilder(
-        roleStore: $this->roleStore,
-        roleId: 'editor',
-    );
-
-    $builder->deny(['!posts.delete']);
+    makeRoleBuilder('editor')->deny(['!posts.delete']);
 
     $permissions = $this->roleStore->permissionsFor('editor');
     expect($permissions)->toContain('!posts.delete')
@@ -59,12 +60,7 @@ it('chains deny() with grant()', function (): void {
     $this->permissionStore->register(['posts.create', 'posts.delete', 'comments.create']);
     $this->roleStore->save('editor', 'Editor', []);
 
-    $builder = new RoleBuilder(
-        roleStore: $this->roleStore,
-        roleId: 'editor',
-    );
-
-    $builder
+    makeRoleBuilder('editor')
         ->grant(['posts.*', 'comments.*'])
         ->deny(['posts.delete']);
 
@@ -72,23 +68,13 @@ it('chains deny() with grant()', function (): void {
         ->toContain('posts.*', 'comments.*', '!posts.delete');
 });
 
-it('throws RuntimeException when denying on a non-existent role', function (): void {
-    $builder = new RoleBuilder(
-        roleStore: $this->roleStore,
-        roleId: 'non-existent',
-    );
+it('throws RoleNotFoundException when denying on a non-existent role', function (): void {
+    makeRoleBuilder('non-existent')->deny(['posts.create']);
+})->throws(RoleNotFoundException::class, 'Role [non-existent] not found.');
 
-    $builder->deny(['posts.create']);
-})->throws(RuntimeException::class, 'Role [non-existent] not found.');
-
-it('throws RuntimeException when ungranting permissions from a non-existent role', function (): void {
-    $builder = new RoleBuilder(
-        roleStore: $this->roleStore,
-        roleId: 'non-existent',
-    );
-
-    $builder->ungrant(['posts.create']);
-})->throws(RuntimeException::class, 'Role [non-existent] not found.');
+it('throws RoleNotFoundException when ungranting permissions from a non-existent role', function (): void {
+    makeRoleBuilder('non-existent')->ungrant(['posts.create']);
+})->throws(RoleNotFoundException::class, 'Role [non-existent] not found.');
 
 it('auto-registers literal permissions when passed to grant through the facade', function (): void {
     Marque::createRole('editor', 'Editor')->grant(['posts.create', 'posts.read']);
@@ -119,18 +105,4 @@ it('does not re-register permissions that are already present', function (): voi
 
     expect($all)->toContain('posts.create', 'posts.read');
     expect(array_count_values($all)['posts.create'] ?? 0)->toBe(1);
-});
-
-it('does not auto-register when the PermissionStore is not provided', function (): void {
-    $builder = new RoleBuilder(
-        roleStore: $this->roleStore,
-        roleId: 'standalone',
-    );
-
-    $this->roleStore->save('standalone', 'Standalone', []);
-
-    $builder->grant(['posts.create']);
-
-    expect($this->permissionStore->exists('posts.create'))->toBeFalse();
-    expect($this->roleStore->permissionsFor('standalone'))->toContain('posts.create');
 });

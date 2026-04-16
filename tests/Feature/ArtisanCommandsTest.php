@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\Evaluator;
 use DynamikDev\Marque\Contracts\PermissionStore;
 use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\EvaluationResult;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 
@@ -165,17 +168,43 @@ it('explains a denied permission check', function (): void {
         ->assertSuccessful();
 });
 
-it('shows error when explain mode is disabled', function (): void {
+it('runs explain even when marque.trace is disabled by toggling it for the call', function (): void {
     config()->set('marque.trace', false);
 
+    $roleStore = app(RoleStore::class);
+    $roleStore->save('editor', 'Editor', ['posts.create']);
+
+    $assignmentStore = app(AssignmentStore::class);
+    $assignmentStore->assign('user', '42', 'editor');
+
     $this->artisan('marque:explain', ['subject' => 'user::42', 'permission' => 'posts.create'])
-        ->expectsOutputToContain('Explain mode is disabled')
-        ->assertExitCode(1);
+        ->expectsOutputToContain('ALLOW')
+        ->expectsOutputToContain('editor')
+        ->assertSuccessful();
+
+    expect(config('marque.trace'))->toBeFalse();
+});
+
+it('restores marque.trace to its previous value even when the evaluator throws', function (): void {
+    config()->set('marque.trace', false);
+
+    $throwing = new class implements Evaluator
+    {
+        public function evaluate(EvaluationRequest $request): EvaluationResult
+        {
+            throw new RuntimeException('boom');
+        }
+    };
+
+    app()->instance(Evaluator::class, $throwing);
+
+    expect(fn () => $this->artisan('marque:explain', ['subject' => 'user::42', 'permission' => 'posts.create'])->run())
+        ->toThrow(RuntimeException::class);
+
+    expect(config('marque.trace'))->toBeFalse();
 });
 
 it('shows error for invalid subject format in explain', function (): void {
-    config()->set('marque.trace', true);
-
     $this->artisan('marque:explain', ['subject' => 'bad-format', 'permission' => 'posts.create'])
         ->expectsOutputToContain('Invalid subject format')
         ->assertExitCode(1);
@@ -201,23 +230,26 @@ it('explains a scoped permission check', function (): void {
         ->assertSuccessful();
 });
 
-it('shows cache hit status in explain output', function (): void {
-    config()->set('marque.trace', true);
-
+it('reports that the cache is bypassed during explain', function (): void {
     $roleStore = app(RoleStore::class);
     $roleStore->save('viewer', 'Viewer', ['posts.read']);
 
     $assignmentStore = app(AssignmentStore::class);
     $assignmentStore->assign('user', '42', 'viewer');
 
+    // Single substring: PendingCommand registers each expectsOutputToContain
+    // against an individual write; two substrings on the same line don't both
+    // get matched, so we assert the full label+value pair in one substring.
     $this->artisan('marque:explain', ['subject' => 'user::42', 'permission' => 'posts.read'])
-        ->expectsOutputToContain('Cache hit')
+        ->expectsOutputToContain('Cache: bypassed (trace mode)')
         ->assertSuccessful();
 });
 
 // --- marque:import ---
 
 it('imports a policy document from a file', function (): void {
+    config()->set('marque.document_path', sys_get_temp_dir());
+
     $document = [
         'version' => '1.0',
         'permissions' => ['posts.create', 'posts.delete'],
@@ -247,6 +279,8 @@ it('imports a policy document from a file', function (): void {
 });
 
 it('shows dry run output without applying changes', function (): void {
+    config()->set('marque.document_path', sys_get_temp_dir());
+
     $document = [
         'version' => '1.0',
         'permissions' => ['posts.create', 'posts.delete'],
@@ -279,6 +313,8 @@ it('shows error when import file not found', function (): void {
 });
 
 it('rejects structurally invalid document during import', function (): void {
+    config()->set('marque.document_path', sys_get_temp_dir());
+
     $document = [
         'permissions' => [123],
         'roles' => 'not-an-array',
@@ -343,21 +379,25 @@ it('exports authorization state to stdout', function (): void {
 });
 
 it('exports authorization state to a file', function (): void {
+    config()->set('marque.document_path', sys_get_temp_dir());
+
     $permissionStore = app(PermissionStore::class);
     $permissionStore->register(['posts.create']);
 
     $roleStore = app(RoleStore::class);
     $roleStore->save('editor', 'Editor', ['posts.create']);
 
-    $path = tempnam(sys_get_temp_dir(), 'policy_export_');
+    // Use a non-existing path so we don't trip the overwrite confirm.
+    $path = sys_get_temp_dir().'/policy_export_'.uniqid('', true).'.json';
 
     $this->artisan('marque:export', ['--path' => $path])
         ->expectsOutputToContain("Exported to {$path}")
         ->assertSuccessful();
 
-    $contents = file_get_contents($path);
-    $decoded = json_decode($contents, true);
+    $decoded = json_decode((string) file_get_contents($path), true);
 
+    expect($decoded)->toBeArray();
+    /** @var array<string, mixed> $decoded */
     expect($decoded)->toHaveKey('version', '2.0');
     expect($decoded['permissions'])->toContain('posts.create');
     expect($decoded['roles'])->toHaveKey('editor');
@@ -383,9 +423,72 @@ it('rejects export path outside configured document directory', function (): voi
     expect(file_exists($path))->toBeFalse();
 });
 
+it('prompts and cancels when target file exists without --force', function (): void {
+    config()->set('marque.document_path', sys_get_temp_dir());
+
+    app(PermissionStore::class)->register(['posts.create']);
+    app(RoleStore::class)->save('editor', 'Editor', ['posts.create']);
+
+    $path = sys_get_temp_dir().'/policy_export_'.uniqid('', true).'.json';
+    file_put_contents($path, 'preexisting content');
+
+    $this->artisan('marque:export', ['--path' => $path])
+        ->expectsConfirmation("File {$path} already exists. Overwrite?", 'no')
+        ->expectsOutputToContain('Export cancelled.')
+        ->assertSuccessful();
+
+    expect(file_get_contents($path))->toBe('preexisting content');
+
+    unlink($path);
+});
+
+it('overwrites the target file when --force is passed', function (): void {
+    config()->set('marque.document_path', sys_get_temp_dir());
+
+    app(PermissionStore::class)->register(['posts.create']);
+    app(RoleStore::class)->save('editor', 'Editor', ['posts.create']);
+
+    $path = sys_get_temp_dir().'/policy_export_'.uniqid('', true).'.json';
+    file_put_contents($path, 'preexisting content');
+
+    $this->artisan('marque:export', ['--path' => $path, '--force' => true])
+        ->expectsOutputToContain("Exported to {$path}")
+        ->assertSuccessful();
+
+    $decoded = json_decode((string) file_get_contents($path), true);
+    expect($decoded)->toBeArray();
+    /** @var array<string, mixed> $decoded */
+    expect($decoded)->toHaveKey('version');
+    expect($decoded['permissions'])->toContain('posts.create');
+
+    unlink($path);
+});
+
+it('overwrites the target file when user confirms the prompt', function (): void {
+    config()->set('marque.document_path', sys_get_temp_dir());
+
+    app(PermissionStore::class)->register(['posts.create']);
+    app(RoleStore::class)->save('editor', 'Editor', ['posts.create']);
+
+    $path = sys_get_temp_dir().'/policy_export_'.uniqid('', true).'.json';
+    file_put_contents($path, 'preexisting content');
+
+    $this->artisan('marque:export', ['--path' => $path])
+        ->expectsConfirmation("File {$path} already exists. Overwrite?", 'yes')
+        ->expectsOutputToContain("Exported to {$path}")
+        ->assertSuccessful();
+
+    $decoded = json_decode((string) file_get_contents($path), true);
+    expect($decoded)->toHaveKey('version');
+
+    unlink($path);
+});
+
 // --- marque:validate ---
 
 it('validates a valid policy document', function (): void {
+    config()->set('marque.document_path', sys_get_temp_dir());
+
     $document = [
         'version' => '1.0',
         'permissions' => ['posts.create', 'posts.delete'],
@@ -407,6 +510,8 @@ it('validates a valid policy document', function (): void {
 });
 
 it('validates an invalid policy document', function (): void {
+    config()->set('marque.document_path', sys_get_temp_dir());
+
     $document = [
         'permissions' => 'not-an-array',
     ];
@@ -444,12 +549,12 @@ it('exports scoped authorization state', function (): void {
         ->assertSuccessful();
 });
 
-// --- marque:cache-clear ---
+// --- marque:cache:clear ---
 
 it('clears the policy engine cache using tags when supported', function (): void {
     config()->set('marque.cache.store', 'array');
 
-    $this->artisan('marque:cache-clear')
+    $this->artisan('marque:cache:clear')
         ->expectsOutputToContain('tagged flush')
         ->assertSuccessful();
 });
@@ -457,16 +562,34 @@ it('clears the policy engine cache using tags when supported', function (): void
 it('clears the policy engine cache via generation counter on untaggable store', function (): void {
     config()->set('marque.cache.store', 'file');
 
-    $this->artisan('marque:cache-clear')
+    $this->artisan('marque:cache:clear')
         ->expectsOutputToContain('generation counter incremented')
+        ->assertSuccessful();
+});
+
+it('runs the deprecated marque:cache-clear alias and prints a deprecation notice', function (): void {
+    config()->set('marque.cache.store', 'array');
+
+    $this->artisan('marque:cache-clear')
+        ->expectsOutputToContain('deprecated')
         ->assertSuccessful();
 });
 
 // --- marque:sync ---
 
-it('runs the sync command and handles missing seeder gracefully', function (): void {
+it('runs the sync command and fails closed when seeder_class is unconfigured', function (): void {
+    config()->set('marque.seeder_class', null);
+
     $this->artisan('marque:sync')
-        ->expectsOutputToContain('Failed to sync')
+        ->expectsOutputToContain('configure marque.seeder_class first')
+        ->assertExitCode(1);
+});
+
+it('sync command fails closed when seeder_class is an empty string', function (): void {
+    config()->set('marque.seeder_class', '   ');
+
+    $this->artisan('marque:sync')
+        ->expectsOutputToContain('configure marque.seeder_class first')
         ->assertExitCode(1);
 });
 
@@ -475,6 +598,8 @@ it('runs the sync command successfully with a valid seeder', function (): void {
     if (! class_exists('Database\Seeders\PermissionSeeder', false)) {
         eval('namespace Database\Seeders; class PermissionSeeder extends \Illuminate\Database\Seeder { public function run(): void {} }');
     }
+
+    config()->set('marque.seeder_class', 'PermissionSeeder');
 
     $this->artisan('marque:sync')
         ->expectsOutputToContain('sync completed')

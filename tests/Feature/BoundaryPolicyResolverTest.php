@@ -210,3 +210,66 @@ it('produces no deny statements when scope has no boundary and deny_unbounded is
 
     expect($statements)->toBeEmpty();
 });
+
+it('does NOT union scoped boundaries into the global ceiling when enforce_on_global is true', function (): void {
+    $this->permissionStore->register(['posts.create', 'posts.read', 'billing.manage']);
+    // Per-scope boundary that excludes posts.create. A global request must NOT
+    // inherit this ceiling — that was the bug.
+    $this->boundaryStore->set('group::5', ['posts.read']);
+
+    $resolver = makeBoundaryResolver(
+        boundaries: $this->boundaryStore,
+        matcher: $this->matcher,
+        permissionStore: $this->permissionStore,
+        denyUnboundedScopes: false,
+        enforceOnGlobal: true,
+    );
+
+    $statements = $resolver->resolve(makeBoundaryRequest(action: 'posts.create', scope: null));
+
+    expect($statements)->toBeEmpty();
+});
+
+it('uses the dedicated boundary:global entry as the ceiling for global requests', function (): void {
+    $this->permissionStore->register(['posts.create', 'posts.read', 'billing.manage']);
+    $this->boundaryStore->set('group::5', ['posts.read']); // should be ignored
+    $this->boundaryStore->set('global', ['posts.*']);      // the actual global ceiling
+
+    $resolver = makeBoundaryResolver(
+        boundaries: $this->boundaryStore,
+        matcher: $this->matcher,
+        permissionStore: $this->permissionStore,
+        denyUnboundedScopes: false,
+        enforceOnGlobal: true,
+    );
+
+    $statements = $resolver->resolve(makeBoundaryRequest(scope: null));
+
+    $deniedActions = $statements->pluck('action')->all();
+
+    expect($deniedActions)->toContain('billing.manage')
+        ->and($deniedActions)->not->toContain('posts.create')
+        ->and($deniedActions)->not->toContain('posts.read');
+
+    $statements->each(function (PolicyStatement $stmt): void {
+        expect($stmt->effect)->toBe(Effect::Deny)
+            ->and($stmt->source)->toBe('boundary:global');
+    });
+});
+
+it('is a no-op for global requests when enforce_on_global is true but no global boundary is registered', function (): void {
+    $this->permissionStore->register(['posts.create', 'posts.read']);
+    $this->boundaryStore->set('group::5', ['posts.read']); // scoped only — no global entry
+
+    $resolver = makeBoundaryResolver(
+        boundaries: $this->boundaryStore,
+        matcher: $this->matcher,
+        permissionStore: $this->permissionStore,
+        denyUnboundedScopes: false,
+        enforceOnGlobal: true,
+    );
+
+    $statements = $resolver->resolve(makeBoundaryRequest(scope: null));
+
+    expect($statements)->toBeEmpty();
+});

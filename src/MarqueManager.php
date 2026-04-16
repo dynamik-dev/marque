@@ -16,6 +16,8 @@ use DynamikDev\Marque\Contracts\ScopeResolver;
 use DynamikDev\Marque\DTOs\ImportOptions;
 use DynamikDev\Marque\DTOs\ImportResult;
 use DynamikDev\Marque\DTOs\PolicyDocument;
+use DynamikDev\Marque\Exceptions\RoleNotFoundException;
+use DynamikDev\Marque\Exceptions\ScopeUnresolvableException;
 use DynamikDev\Marque\Models\Boundary;
 use DynamikDev\Marque\Models\Permission;
 use DynamikDev\Marque\Models\Role;
@@ -67,10 +69,17 @@ class MarqueManager
 
     /**
      * Create or update a role and return a fluent builder for granting permissions.
+     *
+     * If the role already exists, its current permissions are preserved so that
+     * calling createRole() a second time does not wipe previously granted perms.
      */
     public function createRole(string $id, string $name, bool $system = false): RoleBuilder
     {
-        $this->roles->save($id, $name, [], $system);
+        $existing = $this->roles->find($id) !== null
+            ? $this->roles->permissionsFor($id)
+            : [];
+
+        $this->roles->save($id, $name, $existing, $system);
 
         return new RoleBuilder($this->roles, $id, $this->permissions, $this->assignments, $this->scopeResolver);
     }
@@ -86,12 +95,12 @@ class MarqueManager
     /**
      * Return a builder handle for an existing role.
      *
-     * @throws \RuntimeException If the role does not exist.
+     * @throws RoleNotFoundException If the role does not exist.
      */
     public function role(string $id): RoleBuilder
     {
         if ($this->roles->find($id) === null) {
-            throw new \RuntimeException("Role [{$id}] not found.");
+            throw RoleNotFoundException::forId($id);
         }
 
         return new RoleBuilder($this->roles, $id, $this->permissions, $this->assignments, $this->scopeResolver);
@@ -132,14 +141,14 @@ class MarqueManager
     /**
      * Resolve a Scopeable model or raw string into a canonical scope string.
      *
-     * @throws \InvalidArgumentException If the scope resolves to null.
+     * @throws ScopeUnresolvableException If the scope resolves to null.
      */
     private function resolveScope(mixed $scope): string
     {
         $resolved = $this->scopeResolver->resolve($scope);
 
         if ($resolved === null) {
-            throw new \InvalidArgumentException('Boundary requires a non-null scope.');
+            throw ScopeUnresolvableException::forNullScope();
         }
 
         return $resolved;

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace DynamikDev\Marque\Models;
 
-use DynamikDev\Marque\Enums\Effect;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 
@@ -30,15 +29,6 @@ class ResourcePolicy extends Model
         $prefix = config('marque.table_prefix', '');
 
         return $this->table ??= $prefix.'resource_policies';
-    }
-
-    public function getEffectEnum(): Effect
-    {
-        return match ($this->effect) {
-            'Allow' => Effect::Allow,
-            'Deny' => Effect::Deny,
-            default => throw new \UnexpectedValueException("Unknown effect: {$this->effect}"),
-        };
     }
 
     /**

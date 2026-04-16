@@ -68,25 +68,48 @@ it('does not match when the resource differs', function (): void {
 // --- Scope: exact match ---
 
 it('matches scoped permissions with identical scopes', function (): void {
-    expect($this->matcher->matches('posts.create:group::5', 'posts.create:group::5'))->toBeTrue();
+    expect($this->matcher->matches('posts.create::group::5', 'posts.create::group::5'))->toBeTrue();
 });
 
 // --- Scope: unscoped grant covers scoped check ---
 
 it('matches unscoped grant against a scoped required permission', function (): void {
-    expect($this->matcher->matches('posts.create', 'posts.create:group::5'))->toBeTrue();
+    expect($this->matcher->matches('posts.create', 'posts.create::group::5'))->toBeTrue();
 });
 
 // --- Scope: scoped grant does not cover different scope ---
 
 it('does not match when the granted scope differs from the required scope', function (): void {
-    expect($this->matcher->matches('posts.create:group::5', 'posts.create:group::9'))->toBeFalse();
+    expect($this->matcher->matches('posts.create::group::5', 'posts.create::group::9'))->toBeFalse();
 });
 
 // --- Scope: scoped grant does not cover unscoped required ---
 
 it('does not match a scoped grant against an unscoped required permission', function (): void {
-    expect($this->matcher->matches('posts.create:group::5', 'posts.create'))->toBeFalse();
+    expect($this->matcher->matches('posts.create::group::5', 'posts.create'))->toBeFalse();
+});
+
+// --- Scope: canonical `::` delimiter splits cleanly even when scope contains its own `::` ---
+
+it('splits permission and scope on the first :: delimiter, preserving type::id scope syntax', function (): void {
+    // posts.create::group::5 -> permission=posts.create, scope=group::5
+    expect($this->matcher->matches('posts.create::group::5', 'posts.create::group::5'))->toBeTrue()
+        ->and($this->matcher->matches('posts.*::group::5', 'posts.create::group::5'))->toBeTrue()
+        ->and($this->matcher->matches('posts.create::group::5', 'posts.create::team::5'))->toBeFalse();
+});
+
+// --- Scope: legacy single-colon form is not supported (BC decision) ---
+
+it('treats legacy single-colon permission:scope as an unsplittable permission id', function (): void {
+    /*
+     * The legacy `permission:scope` form (single colon) is intentionally
+     * unsupported. Real permission IDs are dot-notated and never contain a
+     * colon, so `posts.create:group::5` cannot match any genuine granted
+     * permission and the call returns false. This surfaces the typo loudly
+     * instead of silently producing a malformed scope.
+     */
+    expect($this->matcher->matches('posts.create', 'posts.create:group::5'))->toBeFalse()
+        ->and($this->matcher->matches('posts.create:group::5', 'posts.create::group::5'))->toBeFalse();
 });
 
 // --- Deep verb matching ---
@@ -98,24 +121,29 @@ it('matches deep verb wildcard against qualified verbs', function (string $requi
     'posts.delete.any',
 ]);
 
-// --- Deep verb: wildcard does not match the base verb alone ---
+// --- Deep verb: wildcard matches the base verb alone (zero-or-more semantics) ---
 
-it('does not match deep verb wildcard against the base verb without qualifier', function (): void {
-    expect($this->matcher->matches('posts.delete.*', 'posts.delete'))->toBeFalse();
+it('matches deep verb wildcard against the base verb without qualifier (zero-or-more)', function (): void {
+    /*
+     * `*` matches ZERO or more segments. A grant or boundary of
+     * `posts.delete.*` therefore covers the bare `posts.delete` permission.
+     * See WildcardMatcher::segmentsMatch for the rationale and BC notes.
+     */
+    expect($this->matcher->matches('posts.delete.*', 'posts.delete'))->toBeTrue();
 });
 
 // --- Wildcards combined with scopes ---
 
 it('matches wildcard verb with scope against scoped permission', function (): void {
-    expect($this->matcher->matches('posts.*:group::5', 'posts.create:group::5'))->toBeTrue();
+    expect($this->matcher->matches('posts.*::group::5', 'posts.create::group::5'))->toBeTrue();
 });
 
 it('matches wildcard verb without scope against scoped permission', function (): void {
-    expect($this->matcher->matches('posts.*', 'posts.create:group::5'))->toBeTrue();
+    expect($this->matcher->matches('posts.*', 'posts.create::group::5'))->toBeTrue();
 });
 
 it('does not match wildcard verb with wrong scope', function (): void {
-    expect($this->matcher->matches('posts.*:group::5', 'posts.create:group::9'))->toBeFalse();
+    expect($this->matcher->matches('posts.*::group::5', 'posts.create::group::9'))->toBeFalse();
 });
 
 // --- Mid-pattern wildcard with repeated segments ---
@@ -220,3 +248,53 @@ it('matches patterns at exactly 10 segments', function (): void {
     $pattern = implode('.', array_fill(0, 10, 'segment'));
     expect($this->matcher->matches($pattern, $pattern))->toBeTrue();
 });
+
+// --- Zero-or-more wildcard truth table ---
+
+/*
+ * Comprehensive truth table for `*` zero-or-more semantics.
+ *
+ * Granted patterns (rows) are the wildcard patterns operators write.
+ * Required permissions (columns) are the runtime checks.
+ *
+ *                         | posts | posts.create | posts.create.own |
+ * ------------------------+-------+--------------+------------------+
+ * posts                   |  T    |     F        |       F          |
+ * posts.*                 |  T    |     T        |       T          |
+ * *                       |  T    |     T        |       T          |
+ * posts.create.*          |  F    |     T        |       T          |
+ * *.create                |  F    |     T        |       F          |
+ *
+ * Notes on the zero-or-more change (vs. the prior one-or-more behavior):
+ *  - `posts.*` matches bare `posts` (was F under one-or-more).
+ *  - `posts.create.*` matches bare `posts.create` (was F under one-or-more).
+ * All other cells were already true/false under both semantics.
+ */
+it('matches the zero-or-more wildcard truth table', function (string $granted, string $required, bool $expected): void {
+    expect($this->matcher->matches($granted, $required))->toBe($expected);
+})->with([
+    // Granted: posts
+    ['posts', 'posts', true],
+    ['posts', 'posts.create', false],
+    ['posts', 'posts.create.own', false],
+
+    // Granted: posts.*
+    ['posts.*', 'posts', true],
+    ['posts.*', 'posts.create', true],
+    ['posts.*', 'posts.create.own', true],
+
+    // Granted: *
+    ['*', 'posts', true],
+    ['*', 'posts.create', true],
+    ['*', 'posts.create.own', true],
+
+    // Granted: posts.create.*
+    ['posts.create.*', 'posts', false],
+    ['posts.create.*', 'posts.create', true],
+    ['posts.create.*', 'posts.create.own', true],
+
+    // Granted: *.create
+    ['*.create', 'posts', false],
+    ['*.create', 'posts.create', true],
+    ['*.create', 'posts.create.own', false],
+]);

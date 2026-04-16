@@ -317,16 +317,18 @@ it('can middleware allows when Sanctum token includes the required ability', fun
         ->assertJson(['ok' => true]);
 });
 
-// --- RoleMiddleware: aborts when scope parameter not found in route ---
+// --- RoleMiddleware: misconfiguration surfaces as LogicException, not 403 ---
 
-it('role middleware aborts 403 when scope parameter does not match a route parameter', function (): void {
+it('role middleware throws LogicException when the configured scope parameter is missing from the route', function (): void {
     Route::middleware('role:editor,nonexistent_param')
         ->get('/test-warn', fn () => response()->json(['ok' => true]));
 
     $this->roleStore->save('editor', 'Editor', ['posts.create']);
     $this->user->assign('editor');
 
-    $this->actingAs($this->user)
-        ->getJson('/test-warn')
-        ->assertForbidden();
+    // Surface exceptions instead of letting Laravel render them as JSON 500.
+    $this->withoutExceptionHandling();
+
+    expect(fn () => $this->actingAs($this->user)->getJson('/test-warn'))
+        ->toThrow(LogicException::class, 'nonexistent_param');
 });

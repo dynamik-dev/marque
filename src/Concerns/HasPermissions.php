@@ -20,6 +20,7 @@ use DynamikDev\Marque\DTOs\Resource;
 use DynamikDev\Marque\Enums\Decision;
 use DynamikDev\Marque\Enums\Effect;
 use DynamikDev\Marque\Events\AuthorizationDenied;
+use DynamikDev\Marque\Exceptions\ScopeUnresolvableException;
 use DynamikDev\Marque\Models\Assignment;
 use DynamikDev\Marque\Models\Role;
 use Illuminate\Support\Collection;
@@ -163,12 +164,15 @@ trait HasPermissions
      *
      * Creates a hidden internal role and assigns it. The role is prefixed
      * with __dp. and is filtered from getRoles() / getRolesFor().
+     *
+     * Literal (non-wildcard) permissions that are not yet registered are
+     * auto-registered through the PermissionStore, mirroring RoleBuilder::grant
+     * so direct permission grants and role grants share identical semantics.
+     * Wildcard permissions are not auto-registered.
      */
     public function givePermission(string $permission, mixed $scope = null): void
     {
-        if (! app(PermissionStore::class)->exists($permission)) {
-            throw new \InvalidArgumentException("Permission [{$permission}] is not registered.");
-        }
+        $this->autoRegisterDirectPermission($permission);
 
         $roleStore = app(RoleStore::class);
 
@@ -177,6 +181,26 @@ trait HasPermissions
         }
 
         $this->assign(self::directPermissionRoleId($permission), $scope);
+    }
+
+    /**
+     * Register a literal permission with the PermissionStore if it isn't
+     * already present. Wildcard permissions are skipped, matching the
+     * behavior of RoleBuilder::grant via autoRegisterPermissions.
+     */
+    private function autoRegisterDirectPermission(string $permission): void
+    {
+        $base = str_starts_with($permission, '!') ? substr($permission, 1) : $permission;
+
+        if (str_contains($base, '*')) {
+            return;
+        }
+
+        $permissionStore = app(PermissionStore::class);
+
+        if (! $permissionStore->exists($base)) {
+            $permissionStore->register([$base]);
+        }
     }
 
     /**
@@ -280,7 +304,15 @@ trait HasPermissions
      * Return all effective (net-allowed) permission strings for this subject.
      *
      * Queries each PolicyResolver in the resolver chain with a wildcard request,
-     * then subtracts any action covered by a Deny statement.
+     * then expands wildcard allows and denies against the registered permission
+     * set so subtraction is performed literal-vs-literal. This mirrors the real
+     * evaluator's view: a member of the returned set is exactly what canDo()
+     * would return Allow for, and a non-member is what canDo() would return
+     * Deny for.
+     *
+     * Without this expansion the matcher's directional semantics would let a
+     * wildcard allow like `posts.*` survive a literal deny like `posts.create`,
+     * because matcher->matches treats wildcards on the granted side only.
      *
      * @return array<int, string>
      */
@@ -306,32 +338,57 @@ trait HasPermissions
             $statements = $statements->merge($resolver->resolve($request));
         }
 
-        /** @var Collection<int, PolicyStatement> $allows */
-        $allows = $statements->filter(
-            static fn (PolicyStatement $s): bool => $s->effect === Effect::Allow,
-        );
-
-        /** @var Collection<int, PolicyStatement> $denies */
-        $denies = $statements->filter(
-            static fn (PolicyStatement $s): bool => $s->effect === Effect::Deny,
-        );
-
         $matcher = app(Matcher::class);
+        $registeredIds = app(PermissionStore::class)->all()->pluck('id')->all();
 
-        return $allows
-            ->filter(function (PolicyStatement $allow) use ($denies, $matcher): bool {
-                foreach ($denies as $deny) {
-                    if ($matcher->matches($deny->action, $allow->action)) {
-                        return false;
-                    }
+        $concreteAllows = $this->expandStatements($statements, Effect::Allow, $registeredIds, $matcher);
+        $concreteDenies = $this->expandStatements($statements, Effect::Deny, $registeredIds, $matcher);
+
+        return array_values(array_diff($concreteAllows, $concreteDenies));
+    }
+
+    /**
+     * Expand statements of the given effect into a flat set of literal
+     * permission IDs.
+     *
+     * Wildcard actions (containing `*`) are expanded against the registered
+     * permission set so subtraction becomes literal-vs-literal. Literal actions
+     * are kept as-is so unregistered permissions still flow through (matching
+     * the evaluator's behavior, which doesn't gate on the permission registry).
+     *
+     * @param  Collection<int, PolicyStatement>  $statements
+     * @param  array<int, string>  $registeredIds
+     * @return array<int, string>
+     */
+    private function expandStatements(
+        Collection $statements,
+        Effect $effect,
+        array $registeredIds,
+        Matcher $matcher,
+    ): array {
+        $result = [];
+
+        foreach ($statements as $statement) {
+            if ($statement->effect !== $effect) {
+                continue;
+            }
+
+            $action = $statement->action;
+
+            if (! str_contains($action, '*')) {
+                $result[$action] = true;
+
+                continue;
+            }
+
+            foreach ($registeredIds as $permissionId) {
+                if ($matcher->matches($action, $permissionId)) {
+                    $result[$permissionId] = true;
                 }
+            }
+        }
 
-                return true;
-            })
-            ->pluck('action')
-            ->unique()
-            ->values()
-            ->all();
+        return array_keys($result);
     }
 
     /**
@@ -357,7 +414,7 @@ trait HasPermissions
         $resolvedScope = app(ScopeResolver::class)->resolve($scope);
 
         if ($resolvedScope === null) {
-            throw new \InvalidArgumentException('Scope could not be resolved.');
+            throw ScopeUnresolvableException::forNullScope();
         }
 
         return app(AssignmentStore::class)->forSubjectInScope(

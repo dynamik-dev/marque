@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 
 class CacheClearCommand extends Command
 {
-    protected $signature = 'marque:cache-clear';
+    protected $signature = 'marque:cache:clear';
 
     protected $description = 'Clear the policy engine permission cache';
 

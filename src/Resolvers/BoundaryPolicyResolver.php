@@ -16,6 +16,14 @@ use Illuminate\Support\Collection;
 
 class BoundaryPolicyResolver implements PolicyResolver
 {
+    /**
+     * Sentinel scope that operators register a boundary against to constrain
+     * unscoped (global) authorization requests. Looked up via
+     * `BoundaryStore::find(self::GLOBAL_SCOPE)` only when `enforceOnGlobal`
+     * is true and the request has no scope.
+     */
+    public const GLOBAL_SCOPE = 'global';
+
     public function __construct(
         private readonly BoundaryStore $boundaries,
         private readonly Matcher $matcher,
@@ -39,6 +47,15 @@ class BoundaryPolicyResolver implements PolicyResolver
     }
 
     /**
+     * Resolve the ceiling for an unscoped (global) request.
+     *
+     * When `enforceOnGlobal` is enabled, we look up a single dedicated
+     * boundary stored at `self::GLOBAL_SCOPE` and treat its `max_permissions`
+     * as the ceiling. We deliberately do NOT union per-scope boundaries here:
+     * a global request must not inherit `group::5`'s ceiling just because
+     * that scope happens to define one. If no global boundary is registered,
+     * this resolver is a no-op for the global request.
+     *
      * @return Collection<int, PolicyStatement>
      */
     private function resolveGlobal(): Collection
@@ -47,17 +64,36 @@ class BoundaryPolicyResolver implements PolicyResolver
             return collect();
         }
 
-        $allBoundaries = $this->boundaries->all();
-        $ceilingPatterns = $allBoundaries
-            ->flatMap(fn ($boundary) => $boundary->max_permissions)
-            ->unique()
-            ->values()
-            ->all();
+        $boundary = $this->boundaries->find(self::GLOBAL_SCOPE);
 
-        return $this->denyPermissionsOutsideCeiling($ceilingPatterns, 'boundary:global');
+        if ($boundary === null) {
+            return collect();
+        }
+
+        return $this->denyPermissionsOutsideCeiling(
+            ceilingPatterns: $boundary->max_permissions,
+            source: 'boundary:global',
+        );
     }
 
     /**
+     * Resolve the ceiling for a scoped request.
+     *
+     * If a boundary exists for the scope, generate Deny statements for every
+     * permission outside the ceiling. If no boundary exists and
+     * `denyUnboundedScopes` is enabled, deny ALL permissions for the scope.
+     *
+     * WARNING: `denyUnboundedScopes` is a coarse, "scope-must-be-pre-registered"
+     * toggle. When enabled it deny-locks every permission for any unbounded
+     * scope, INCLUDING permissions granted via direct-permission assignments
+     * (the synthetic `__dp.*` roles produced by `HasPermissions::assign()`).
+     * This resolver has no role context and cannot distinguish a direct grant
+     * from a role-based grant, so a deny here will override a user's
+     * explicitly granted direct permission. Operators should only enable
+     * `denyUnboundedScopes` when the intended policy is "no authorization
+     * may occur on any scope an operator has not explicitly bounded" —
+     * otherwise leave it disabled and let unbounded scopes pass through.
+     *
      * @return Collection<int, PolicyStatement>
      */
     private function resolveScoped(string $scope): Collection

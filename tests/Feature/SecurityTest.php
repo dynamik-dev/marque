@@ -288,3 +288,29 @@ it('rejects import from a path whose parent directory does not exist', function 
 
     $manager->import(storage_path('nonexistent-dir/policy.json'));
 })->throws(InvalidArgumentException::class, 'Path must be within the allowed directory');
+
+// --- task-6.10: PathValidator fails closed when document_path is unset ---
+
+it('rejects import when marque.document_path is not configured', function (): void {
+    config()->set('marque.document_path', null);
+
+    $manager = app(MarqueManager::class);
+
+    $manager->import('/etc/passwd');
+})->throws(RuntimeException::class, 'Marque document path is not configured');
+
+it('rejects import when marque.document_path is an empty string', function (): void {
+    config()->set('marque.document_path', '');
+
+    $manager = app(MarqueManager::class);
+
+    $manager->import('/etc/passwd');
+})->throws(RuntimeException::class, 'Marque document path is not configured');
+
+it('rejects export when marque.document_path is not configured', function (): void {
+    config()->set('marque.document_path', null);
+
+    $manager = app(MarqueManager::class);
+
+    $manager->exportToFile('/tmp/evil.json');
+})->throws(RuntimeException::class, 'Marque document path is not configured');

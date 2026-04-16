@@ -6,6 +6,7 @@ use DynamikDev\Marque\Contracts\RoleStore;
 use DynamikDev\Marque\Events\RoleCreated;
 use DynamikDev\Marque\Events\RoleDeleted;
 use DynamikDev\Marque\Events\RoleUpdated;
+use DynamikDev\Marque\Exceptions\RoleNotFoundException;
 use DynamikDev\Marque\Models\Permission;
 use DynamikDev\Marque\Models\Role;
 use DynamikDev\Marque\Models\RolePermission;
@@ -124,6 +125,10 @@ it('deletes a role', function (): void {
 
     expect(Role::query()->where('id', 'editor')->exists())->toBeFalse();
 });
+
+it('throws RoleNotFoundException when removing a non-existent role', function (): void {
+    $this->store->remove('does-not-exist');
+})->throws(RoleNotFoundException::class, 'Role [does-not-exist] not found.');
 
 it('throws RuntimeException when removing a system-protected role', function (): void {
     config()->set('marque.protect_system_roles', true);
@@ -279,4 +284,88 @@ it('dispatches RoleCreated when saveDirectPermissionRole creates a new role', fu
     Event::assertDispatched(RoleCreated::class, function (RoleCreated $event): bool {
         return $event->role->id === '__dp.posts.create';
     });
+});
+
+// --- afterCommit ordering ---
+
+it('defers RoleCreated until the outer transaction commits', function (): void {
+    Event::fake([RoleCreated::class]);
+
+    Role::query()->getConnection()->transaction(function (): void {
+        $this->store->save('editor', 'Editor', []);
+
+        Event::assertNotDispatched(RoleCreated::class);
+    });
+
+    Event::assertDispatched(RoleCreated::class, function (RoleCreated $event): bool {
+        return $event->role->id === 'editor';
+    });
+});
+
+it('does not dispatch RoleCreated when the outer transaction rolls back', function (): void {
+    Event::fake([RoleCreated::class]);
+
+    try {
+        Role::query()->getConnection()->transaction(function (): void {
+            $this->store->save('editor', 'Editor', []);
+
+            throw new RuntimeException('rollback');
+        });
+    } catch (RuntimeException) {
+        // expected
+    }
+
+    Event::assertNotDispatched(RoleCreated::class);
+    expect(Role::query()->where('id', 'editor')->exists())->toBeFalse();
+});
+
+it('defers RoleUpdated until the outer transaction commits', function (): void {
+    $this->store->save('editor', 'Editor', []);
+
+    Event::fake([RoleUpdated::class]);
+
+    Role::query()->getConnection()->transaction(function (): void {
+        $this->store->save('editor', 'Senior Editor', []);
+
+        Event::assertNotDispatched(RoleUpdated::class);
+    });
+
+    Event::assertDispatched(RoleUpdated::class, function (RoleUpdated $event): bool {
+        return $event->role->id === 'editor';
+    });
+});
+
+it('defers saveDirectPermissionRole events until the outer transaction commits', function (): void {
+    Permission::query()->create(['id' => 'posts.create']);
+
+    Event::fake([RoleCreated::class]);
+
+    Role::query()->getConnection()->transaction(function (): void {
+        $this->store->saveDirectPermissionRole('posts.create', ['posts.create']);
+
+        Event::assertNotDispatched(RoleCreated::class);
+    });
+
+    Event::assertDispatched(RoleCreated::class, function (RoleCreated $event): bool {
+        return $event->role->id === '__dp.posts.create';
+    });
+});
+
+it('does not dispatch saveDirectPermissionRole events when the outer transaction rolls back', function (): void {
+    Permission::query()->create(['id' => 'posts.create']);
+
+    Event::fake([RoleCreated::class]);
+
+    try {
+        Role::query()->getConnection()->transaction(function (): void {
+            $this->store->saveDirectPermissionRole('posts.create', ['posts.create']);
+
+            throw new RuntimeException('rollback');
+        });
+    } catch (RuntimeException) {
+        // expected
+    }
+
+    Event::assertNotDispatched(RoleCreated::class);
+    expect(Role::query()->where('id', '__dp.posts.create')->exists())->toBeFalse();
 });

@@ -268,3 +268,167 @@ it('applies a statement when resourcePattern matches the request resource', func
     expect($result->decision)->toBe(Decision::Allow)
         ->and($result->decidedBy)->toBe('policy:resource-grant');
 });
+
+// l) Principal wildcard — `principalPattern: 'user:*'` matches any user id
+
+it('matches a wildcard principal id pattern against any user id', function (): void {
+    $statement = new PolicyStatement(
+        effect: Effect::Allow,
+        action: 'posts.create',
+        principalPattern: 'user:*',
+        source: 'policy:any-user',
+    );
+
+    $evaluator = new DefaultEvaluator(
+        resolvers: [makeResolver([$statement])],
+        matcher: app(Matcher::class),
+    );
+
+    // makeRequest uses Principal(type: 'user', id: 1) by default
+    $result = $evaluator->evaluate(makeRequest('posts.create'));
+
+    expect($result->decision)->toBe(Decision::Allow)
+        ->and($result->decidedBy)->toBe('policy:any-user');
+});
+
+it('does not match a wildcard principal id pattern against a different principal type', function (): void {
+    $statement = new PolicyStatement(
+        effect: Effect::Allow,
+        action: 'posts.create',
+        principalPattern: 'service:*',
+        source: 'policy:any-service',
+    );
+
+    $evaluator = new DefaultEvaluator(
+        resolvers: [makeResolver([$statement])],
+        matcher: app(Matcher::class),
+    );
+
+    $result = $evaluator->evaluate(makeRequest('posts.create'));
+
+    expect($result->decision)->toBe(Decision::Deny)
+        ->and($result->decidedBy)->toBe('default-deny');
+});
+
+// m) Resource wildcard — `resourcePattern: 'post:*'` matches any post id
+
+it('matches a wildcard resource id pattern against any id of the given type', function (): void {
+    $statement = new PolicyStatement(
+        effect: Effect::Allow,
+        action: 'posts.edit',
+        resourcePattern: 'post:*',
+        source: 'policy:any-post',
+    );
+
+    $evaluator = new DefaultEvaluator(
+        resolvers: [makeResolver([$statement])],
+        matcher: app(Matcher::class),
+    );
+
+    $resource = new Resource(type: 'post', id: 99);
+    $result = $evaluator->evaluate(makeRequest('posts.edit', $resource));
+
+    expect($result->decision)->toBe(Decision::Allow)
+        ->and($result->decidedBy)->toBe('policy:any-post');
+});
+
+it('does not match a wildcard resource id pattern against a different resource type', function (): void {
+    $statement = new PolicyStatement(
+        effect: Effect::Allow,
+        action: 'posts.edit',
+        resourcePattern: 'post:*',
+        source: 'policy:any-post',
+    );
+
+    $evaluator = new DefaultEvaluator(
+        resolvers: [makeResolver([$statement])],
+        matcher: app(Matcher::class),
+    );
+
+    $resource = new Resource(type: 'comment', id: 99);
+    $result = $evaluator->evaluate(makeRequest('posts.edit', $resource));
+
+    expect($result->decision)->toBe(Decision::Deny)
+        ->and($result->decidedBy)->toBe('default-deny');
+});
+
+// n) Bare `*` resource pattern — matches any resource and resourceless requests
+
+it('matches a bare wildcard resource pattern against any resource', function (): void {
+    $statement = new PolicyStatement(
+        effect: Effect::Allow,
+        action: 'posts.edit',
+        resourcePattern: '*',
+        source: 'policy:any-resource',
+    );
+
+    $evaluator = new DefaultEvaluator(
+        resolvers: [makeResolver([$statement])],
+        matcher: app(Matcher::class),
+    );
+
+    $resource = new Resource(type: 'post', id: 42);
+    $result = $evaluator->evaluate(makeRequest('posts.edit', $resource));
+
+    expect($result->decision)->toBe(Decision::Allow)
+        ->and($result->decidedBy)->toBe('policy:any-resource');
+});
+
+it('matches a bare wildcard resource pattern when no resource is supplied', function (): void {
+    $statement = new PolicyStatement(
+        effect: Effect::Allow,
+        action: 'posts.create',
+        resourcePattern: '*',
+        source: 'policy:any-resource',
+    );
+
+    $evaluator = new DefaultEvaluator(
+        resolvers: [makeResolver([$statement])],
+        matcher: app(Matcher::class),
+    );
+
+    $result = $evaluator->evaluate(makeRequest('posts.create'));
+
+    expect($result->decision)->toBe(Decision::Allow)
+        ->and($result->decidedBy)->toBe('policy:any-resource');
+});
+
+it('does not match a typed resource pattern when no resource is supplied', function (): void {
+    $statement = new PolicyStatement(
+        effect: Effect::Allow,
+        action: 'posts.create',
+        resourcePattern: 'post:*',
+        source: 'policy:any-post',
+    );
+
+    $evaluator = new DefaultEvaluator(
+        resolvers: [makeResolver([$statement])],
+        matcher: app(Matcher::class),
+    );
+
+    $result = $evaluator->evaluate(makeRequest('posts.create'));
+
+    expect($result->decision)->toBe(Decision::Deny)
+        ->and($result->decidedBy)->toBe('default-deny');
+});
+
+// o) Bare `*` principal pattern — matches any principal
+
+it('matches a bare wildcard principal pattern against any principal', function (): void {
+    $statement = new PolicyStatement(
+        effect: Effect::Allow,
+        action: 'posts.create',
+        principalPattern: '*',
+        source: 'policy:any-principal',
+    );
+
+    $evaluator = new DefaultEvaluator(
+        resolvers: [makeResolver([$statement])],
+        matcher: app(Matcher::class),
+    );
+
+    $result = $evaluator->evaluate(makeRequest('posts.create'));
+
+    expect($result->decision)->toBe(Decision::Allow)
+        ->and($result->decidedBy)->toBe('policy:any-principal');
+});

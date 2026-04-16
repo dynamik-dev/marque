@@ -14,8 +14,13 @@ class SyncCommand extends Command
 
     public function handle(): int
     {
-        /** @var string $seederClass */
-        $seederClass = config('marque.seeder_class', 'PermissionSeeder');
+        $seederClass = config('marque.seeder_class');
+
+        if (! is_string($seederClass) || trim($seederClass) === '') {
+            $this->error('Failed to sync permissions: configure marque.seeder_class first (e.g. \\Database\\Seeders\\PermissionSeeder).');
+
+            return self::FAILURE;
+        }
 
         try {
             $this->call('db:seed', ['--class' => $seederClass]);

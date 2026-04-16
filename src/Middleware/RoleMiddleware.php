@@ -8,6 +8,7 @@ use Closure;
 use DynamikDev\Marque\Contracts\AssignmentStore;
 use DynamikDev\Marque\Contracts\ScopeResolver;
 use Illuminate\Http\Request;
+use LogicException;
 use Symfony\Component\HttpFoundation\Response;
 
 class RoleMiddleware
@@ -30,7 +31,10 @@ class RoleMiddleware
         $user = $request->user();
 
         if ($scopeParam !== null && $request->route($scopeParam) === null) {
-            abort(403, "Scope parameter [{$scopeParam}] not found in route.");
+            throw new LogicException(
+                "RoleMiddleware is configured with scope parameter [{$scopeParam}], but the current route has no parameter by that name. "
+                ."Either add {{$scopeParam}} to the route URI or remove the scope argument from the middleware declaration."
+            );
         }
 
         $resolvedScope = $scopeParam !== null

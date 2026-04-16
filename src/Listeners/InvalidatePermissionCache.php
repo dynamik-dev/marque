@@ -11,6 +11,8 @@ use DynamikDev\Marque\Events\BoundarySet;
 use DynamikDev\Marque\Events\DocumentImported;
 use DynamikDev\Marque\Events\PermissionCreated;
 use DynamikDev\Marque\Events\PermissionDeleted;
+use DynamikDev\Marque\Events\ResourcePolicyAttached;
+use DynamikDev\Marque\Events\ResourcePolicyDetached;
 use DynamikDev\Marque\Events\RoleDeleted;
 use DynamikDev\Marque\Events\RoleUpdated;
 use DynamikDev\Marque\Support\CacheStoreResolver;
@@ -22,7 +24,7 @@ class InvalidatePermissionCache
         private readonly CacheManager $cache,
     ) {}
 
-    public function handle(AssignmentCreated|AssignmentRevoked|RoleUpdated|RoleDeleted|PermissionCreated|PermissionDeleted|BoundarySet|BoundaryRemoved|DocumentImported $event): void
+    public function handle(AssignmentCreated|AssignmentRevoked|RoleUpdated|RoleDeleted|PermissionCreated|PermissionDeleted|BoundarySet|BoundaryRemoved|DocumentImported|ResourcePolicyAttached|ResourcePolicyDetached $event): void
     {
         if (! config('marque.cache.enabled')) {
             return;

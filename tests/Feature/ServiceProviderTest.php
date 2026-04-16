@@ -20,9 +20,9 @@ use DynamikDev\Marque\MarqueManager;
 use DynamikDev\Marque\MarqueServiceProvider;
 use DynamikDev\Marque\Matchers\WildcardMatcher;
 use DynamikDev\Marque\Resolvers\ModelScopeResolver;
+use DynamikDev\Marque\Stores\CachingBoundaryStore;
+use DynamikDev\Marque\Stores\CachingPermissionStore;
 use DynamikDev\Marque\Stores\EloquentAssignmentStore;
-use DynamikDev\Marque\Stores\EloquentBoundaryStore;
-use DynamikDev\Marque\Stores\EloquentPermissionStore;
 use DynamikDev\Marque\Stores\EloquentRoleStore;
 
 it('boots without errors', function (): void {
@@ -30,8 +30,8 @@ it('boots without errors', function (): void {
         ->not->toBeEmpty();
 });
 
-it('resolves PermissionStore to EloquentPermissionStore', function (): void {
-    expect(app(PermissionStore::class))->toBeInstanceOf(EloquentPermissionStore::class);
+it('resolves PermissionStore to CachingPermissionStore (decorating EloquentPermissionStore)', function (): void {
+    expect(app(PermissionStore::class))->toBeInstanceOf(CachingPermissionStore::class);
 });
 
 it('resolves RoleStore to EloquentRoleStore', function (): void {
@@ -42,8 +42,8 @@ it('resolves AssignmentStore to EloquentAssignmentStore', function (): void {
     expect(app(AssignmentStore::class))->toBeInstanceOf(EloquentAssignmentStore::class);
 });
 
-it('resolves BoundaryStore to EloquentBoundaryStore', function (): void {
-    expect(app(BoundaryStore::class))->toBeInstanceOf(EloquentBoundaryStore::class);
+it('resolves BoundaryStore to CachingBoundaryStore (decorating EloquentBoundaryStore)', function (): void {
+    expect(app(BoundaryStore::class))->toBeInstanceOf(CachingBoundaryStore::class);
 });
 
 it('resolves Matcher to WildcardMatcher', function (): void {

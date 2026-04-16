@@ -36,6 +36,8 @@ use DynamikDev\Marque\Events\BoundarySet;
 use DynamikDev\Marque\Events\DocumentImported;
 use DynamikDev\Marque\Events\PermissionCreated;
 use DynamikDev\Marque\Events\PermissionDeleted;
+use DynamikDev\Marque\Events\ResourcePolicyAttached;
+use DynamikDev\Marque\Events\ResourcePolicyDetached;
 use DynamikDev\Marque\Events\RoleDeleted;
 use DynamikDev\Marque\Events\RoleUpdated;
 use DynamikDev\Marque\Listeners\InvalidatePermissionCache;
@@ -45,6 +47,7 @@ use DynamikDev\Marque\Resolvers\BoundaryPolicyResolver;
 use DynamikDev\Marque\Resolvers\ModelScopeResolver;
 use DynamikDev\Marque\Resolvers\SanctumPolicyResolver;
 use DynamikDev\Marque\Stores\CachingBoundaryStore;
+use DynamikDev\Marque\Stores\CachingPermissionStore;
 use DynamikDev\Marque\Stores\EloquentAssignmentStore;
 use DynamikDev\Marque\Stores\EloquentBoundaryStore;
 use DynamikDev\Marque\Stores\EloquentPermissionStore;
@@ -69,14 +72,28 @@ class MarqueServiceProvider extends ServiceProvider
         // Reset memoized cache store when the app is re-bootstrapped (testing).
         CacheStoreResolver::reset();
 
-        $this->app->singleton(PermissionStore::class, EloquentPermissionStore::class);
+        $this->app->singleton(PermissionStore::class, function ($app): CachingPermissionStore {
+            return new CachingPermissionStore(
+                inner: new EloquentPermissionStore,
+                cache: $app->make(CacheManager::class),
+            );
+        });
         $this->app->singleton(RoleStore::class, EloquentRoleStore::class);
         $this->app->singleton(AssignmentStore::class, EloquentAssignmentStore::class);
-        $this->app->singleton(BoundaryStore::class, EloquentBoundaryStore::class);
+        $this->app->singleton(BoundaryStore::class, function ($app): CachingBoundaryStore {
+            return new CachingBoundaryStore(
+                inner: new EloquentBoundaryStore,
+                cache: $app->make(CacheManager::class),
+            );
+        });
         $this->app->singleton(ResourcePolicyStore::class, EloquentResourcePolicyStore::class);
         $this->app->singleton(Matcher::class, WildcardMatcher::class);
         $this->app->singleton(ScopeResolver::class, ModelScopeResolver::class);
-        $this->app->singleton(DocumentParser::class, JsonDocumentParser::class);
+        $this->app->singleton(DocumentParser::class, function ($app): JsonDocumentParser {
+            return new JsonDocumentParser(
+                conditionRegistry: $app->make(ConditionRegistry::class),
+            );
+        });
         $this->app->singleton(DocumentImporter::class, DefaultDocumentImporter::class);
         $this->app->singleton(DocumentExporter::class, DefaultDocumentExporter::class);
 
@@ -98,12 +115,9 @@ class MarqueServiceProvider extends ServiceProvider
             );
         });
 
-        $this->app->singleton(BoundaryPolicyResolver::class, function ($app) {
+        $this->app->singleton(BoundaryPolicyResolver::class, function ($app): BoundaryPolicyResolver {
             return new BoundaryPolicyResolver(
-                boundaries: new CachingBoundaryStore(
-                    inner: $app->make(BoundaryStore::class),
-                    cache: $app->make(CacheManager::class),
-                ),
+                boundaries: $app->make(BoundaryStore::class),
                 matcher: $app->make(Matcher::class),
                 permissionStore: $app->make(PermissionStore::class),
                 denyUnboundedScopes: (bool) config('marque.deny_unbounded_scopes', false),
@@ -153,6 +167,7 @@ class MarqueServiceProvider extends ServiceProvider
                 Commands\ValidateCommand::class,
                 Commands\SyncCommand::class,
                 Commands\CacheClearCommand::class,
+                Commands\CacheClearAliasCommand::class,
             ]);
 
             $this->publishes([
@@ -203,7 +218,7 @@ class MarqueServiceProvider extends ServiceProvider
 
     /**
      * @param  array<int, mixed>  $arguments
-     * @return array{0: mixed, 1: ?resource}
+     * @return array{0: mixed, 1: ?DTOs\Resource}
      */
     private static function resolveGateArguments(array $arguments): array
     {
@@ -211,7 +226,13 @@ class MarqueServiceProvider extends ServiceProvider
         $second = $arguments[1] ?? null;
 
         if ($first === null) {
-            return [null, null];
+            $resource = match (true) {
+                $second instanceof Resource => $second,
+                is_object($second) && method_exists($second, 'toPolicyResource') => $second->toPolicyResource(),
+                default => null,
+            };
+
+            return [null, $resource];
         }
 
         if ($second === null) {
@@ -245,6 +266,8 @@ class MarqueServiceProvider extends ServiceProvider
         Event::listen(BoundaryRemoved::class, InvalidatePermissionCache::class);
         Event::listen(PermissionCreated::class, InvalidatePermissionCache::class);
         Event::listen(DocumentImported::class, InvalidatePermissionCache::class);
+        Event::listen(ResourcePolicyAttached::class, InvalidatePermissionCache::class);
+        Event::listen(ResourcePolicyDetached::class, InvalidatePermissionCache::class);
 
         // Octane: reset memoized cache store between requests to prevent stale state.
         if (class_exists(RequestTerminated::class)) {

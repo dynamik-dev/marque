@@ -58,6 +58,14 @@ class OwnershipTestPost extends Model
     public $timestamps = false;
 
     protected $fillable = ['title', 'user_id'];
+
+    /** @return array<string, mixed> */
+    protected function resourceAttributes(): array
+    {
+        return [
+            'user_id' => $this->getAttribute('user_id'),
+        ];
+    }
 }
 
 beforeEach(function (): void {

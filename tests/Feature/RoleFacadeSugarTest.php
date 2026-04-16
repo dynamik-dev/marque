@@ -6,6 +6,7 @@ use DynamikDev\Marque\Concerns\Scopeable;
 use DynamikDev\Marque\Contracts\AssignmentStore;
 use DynamikDev\Marque\Contracts\PermissionStore;
 use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\Exceptions\RoleNotFoundException;
 use DynamikDev\Marque\Facades\Marque;
 use DynamikDev\Marque\Models\Role;
 use DynamikDev\Marque\Support\RoleBuilder;
@@ -97,9 +98,9 @@ it('returns a RoleBuilder for an existing role via role()', function (): void {
     expect(Marque::role('editor'))->toBeInstanceOf(RoleBuilder::class);
 });
 
-it('throws RuntimeException for a missing role via role()', function (): void {
+it('throws RoleNotFoundException for a missing role via role()', function (): void {
     Marque::role('nonexistent');
-})->throws(RuntimeException::class);
+})->throws(RoleNotFoundException::class, 'Role [nonexistent] not found.');
 
 // --- RoleBuilder::permissions ---
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use DynamikDev\Marque\Concerns\Scopeable;
 use DynamikDev\Marque\Contracts\BoundaryStore;
+use DynamikDev\Marque\Exceptions\ScopeUnresolvableException;
 use DynamikDev\Marque\Facades\Marque;
 use DynamikDev\Marque\Support\BoundaryBuilder;
 use Illuminate\Database\Eloquent\Model;
@@ -139,3 +140,11 @@ it('returns self from permits for chaining', function (): void {
 
     expect($builder->permits(['posts.create']))->toBe($builder);
 });
+
+it('throws ScopeUnresolvableException when createBoundary is given a null scope', function (): void {
+    Marque::createBoundary(null);
+})->throws(ScopeUnresolvableException::class, 'Boundary requires a non-null scope.');
+
+it('throws ScopeUnresolvableException when boundary() is given a null scope', function (): void {
+    Marque::boundary(null);
+})->throws(ScopeUnresolvableException::class, 'Boundary requires a non-null scope.');

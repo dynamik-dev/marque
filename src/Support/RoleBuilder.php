@@ -8,6 +8,7 @@ use DynamikDev\Marque\Contracts\AssignmentStore;
 use DynamikDev\Marque\Contracts\PermissionStore;
 use DynamikDev\Marque\Contracts\RoleStore;
 use DynamikDev\Marque\Contracts\ScopeResolver;
+use DynamikDev\Marque\Exceptions\RoleNotFoundException;
 use Illuminate\Database\Eloquent\Model;
 
 class RoleBuilder
@@ -15,9 +16,9 @@ class RoleBuilder
     public function __construct(
         private readonly RoleStore $roleStore,
         private readonly string $roleId,
-        private readonly ?PermissionStore $permissionStore = null,
-        private readonly ?AssignmentStore $assignmentStore = null,
-        private readonly ?ScopeResolver $scopeResolver = null,
+        private readonly PermissionStore $permissionStore,
+        private readonly AssignmentStore $assignmentStore,
+        private readonly ScopeResolver $scopeResolver,
     ) {}
 
     /**
@@ -34,7 +35,7 @@ class RoleBuilder
         $role = $this->roleStore->find($this->roleId);
 
         if ($role === null) {
-            throw new \RuntimeException("Role [{$this->roleId}] not found.");
+            throw RoleNotFoundException::forId($this->roleId);
         }
 
         $this->autoRegisterPermissions($permissions);
@@ -56,10 +57,6 @@ class RoleBuilder
      */
     private function autoRegisterPermissions(array $permissions): void
     {
-        if ($this->permissionStore === null) {
-            return;
-        }
-
         $toRegister = [];
 
         foreach ($permissions as $permission) {
@@ -102,7 +99,7 @@ class RoleBuilder
         $role = $this->roleStore->find($this->roleId);
 
         if ($role === null) {
-            throw new \RuntimeException("Role [{$this->roleId}] not found.");
+            throw RoleNotFoundException::forId($this->roleId);
         }
 
         $current = $this->roleStore->permissionsFor($this->roleId);
@@ -131,8 +128,6 @@ class RoleBuilder
 
     public function assignTo(Model $subject, mixed $scope = null): self
     {
-        $this->requireAssignmentDeps();
-
         $this->assignmentStore->assign(
             $subject->getMorphClass(),
             $this->resolveSubjectKey($subject),
@@ -145,8 +140,6 @@ class RoleBuilder
 
     public function revokeFrom(Model $subject, mixed $scope = null): self
     {
-        $this->requireAssignmentDeps();
-
         $this->assignmentStore->revoke(
             $subject->getMorphClass(),
             $this->resolveSubjectKey($subject),
@@ -166,18 +159,5 @@ class RoleBuilder
         }
 
         throw new \RuntimeException('Subject key must be an int or string.');
-    }
-
-    /**
-     * @phpstan-assert !null $this->assignmentStore
-     * @phpstan-assert !null $this->scopeResolver
-     */
-    private function requireAssignmentDeps(): void
-    {
-        if ($this->assignmentStore === null || $this->scopeResolver === null) {
-            throw new \RuntimeException(
-                'RoleBuilder requires AssignmentStore and ScopeResolver for assignment operations.',
-            );
-        }
     }
 }

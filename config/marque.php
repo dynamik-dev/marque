@@ -19,7 +19,35 @@ return [
     'deny_unbounded_scopes' => false,
     'enforce_boundaries_on_global' => false,
     'table_prefix' => '',
-    'seeder_class' => 'PermissionSeeder',
+
+    /*
+    |--------------------------------------------------------------------------
+    | Seeder Class
+    |--------------------------------------------------------------------------
+    |
+    | Fully qualified seeder class name re-run by `marque:sync`. Must include
+    | the namespace (e.g. \Database\Seeders\PermissionSeeder), since
+    | `db:seed --class` expects a resolvable class. Leave null to disable
+    | the sync command; calling it without configuring this value will fail
+    | with an actionable error rather than a class-not-found exception.
+    |
+    */
+    'seeder_class' => null,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Document Path
+    |--------------------------------------------------------------------------
+    |
+    | Absolute directory used as the boundary for policy document import/export
+    | filesystem operations. Must be set before calling Marque::import() or
+    | Marque::exportToFile() with a path argument; otherwise PathValidator
+    | fails closed with a RuntimeException to prevent reads/writes outside the
+    | intended directory.
+    |
+    | Example: storage_path('app/marque')
+    |
+    */
     'document_path' => null,
     'gate_passthrough' => [],
     'import_subject_types' => [],

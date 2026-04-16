@@ -41,15 +41,19 @@ class EloquentPermissionStore implements PermissionStore
         $new = array_values(array_unique(array_diff($permissions, $existing)));
 
         if ($new !== []) {
-            (new Permission)->getConnection()->transaction(function () use ($new): void {
+            $connection = (new Permission)->getConnection();
+
+            $connection->transaction(function () use ($new): void {
                 Permission::query()->insert(
                     array_map(static fn (string $id): array => ['id' => $id], $new),
                 );
             });
 
-            foreach ($new as $permission) {
-                Event::dispatch(new PermissionCreated($permission));
-            }
+            $connection->afterCommit(function () use ($new): void {
+                foreach ($new as $permission) {
+                    Event::dispatch(new PermissionCreated($permission));
+                }
+            });
         }
     }
 

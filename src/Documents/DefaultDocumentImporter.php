@@ -20,6 +20,7 @@ use DynamikDev\Marque\Events\DocumentImported;
 use DynamikDev\Marque\Models\Permission;
 use DynamikDev\Marque\Models\ResourcePolicy;
 use DynamikDev\Marque\Support\SubjectParser;
+use Illuminate\Database\Connection;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Event;
 use InvalidArgumentException;
@@ -44,8 +45,11 @@ class DefaultDocumentImporter implements DocumentImporter
 
         $isReplace = ! $options->merge;
 
+        $connection = Permission::query()->getConnection();
+        assert($connection instanceof Connection);
+
         /** @var ImportResult */
-        return Permission::query()->getConnection()->transaction(function () use ($document, $options, $warnings, $isReplace): ImportResult {
+        return $connection->transaction(function () use ($connection, $document, $options, $warnings, $isReplace): ImportResult {
             if ($isReplace && ! $options->dryRun) {
                 $this->clearAllData();
             }
@@ -67,7 +71,9 @@ class DefaultDocumentImporter implements DocumentImporter
             );
 
             if (! $options->dryRun) {
-                Event::dispatch(new DocumentImported($result));
+                $connection->afterCommit(static function () use ($result): void {
+                    Event::dispatch(new DocumentImported($result));
+                });
             }
 
             return $result;

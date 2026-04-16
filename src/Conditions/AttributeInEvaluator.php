@@ -22,7 +22,7 @@ class AttributeInEvaluator implements ConditionEvaluator
 
         $actual = match ($source) {
             'principal' => $request->principal->attributes[$key] ?? null,
-            'resource' => $request->resource?->attributes[$key] ?? null,
+            'resource' => $request->resource !== null ? ($request->resource->attributes[$key] ?? null) : null,
             'environment' => $request->context->environment[$key] ?? null,
             default => null,
         };
@@ -41,7 +41,7 @@ class AttributeInEvaluator implements ConditionEvaluator
     {
         return match ($source) {
             'principal' => $request->principal->attributes,
-            'resource' => $request->resource->attributes ?? [],
+            'resource' => $request->resource !== null ? $request->resource->attributes : [],
             'environment' => $request->context->environment,
             default => [],
         };

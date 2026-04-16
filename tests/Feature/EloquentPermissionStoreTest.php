@@ -62,6 +62,35 @@ it('does not dispatch PermissionCreated event for already existing permissions',
     Event::assertNotDispatched(PermissionCreated::class);
 });
 
+it('defers PermissionCreated until the outer transaction commits', function (): void {
+    Event::fake([PermissionCreated::class]);
+
+    Permission::query()->getConnection()->transaction(function (): void {
+        $this->store->register(['posts.create', 'posts.delete']);
+
+        Event::assertNotDispatched(PermissionCreated::class);
+    });
+
+    Event::assertDispatched(PermissionCreated::class, 2);
+});
+
+it('does not dispatch PermissionCreated when the outer transaction rolls back', function (): void {
+    Event::fake([PermissionCreated::class]);
+
+    try {
+        Permission::query()->getConnection()->transaction(function (): void {
+            $this->store->register(['posts.create', 'posts.delete']);
+
+            throw new RuntimeException('rollback');
+        });
+    } catch (RuntimeException) {
+        // expected
+    }
+
+    Event::assertNotDispatched(PermissionCreated::class);
+    expect(Permission::query()->where('id', 'posts.create')->exists())->toBeFalse();
+});
+
 // --- remove ---
 
 it('deletes a permission', function (): void {

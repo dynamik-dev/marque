@@ -97,6 +97,30 @@ it('still protects a system role from permission changes after initial setup', f
     )->toThrow(RuntimeException::class);
 });
 
+it('preserves granted permissions when createRole is called a second time', function (): void {
+    $this->permissionStore->register(['posts.create', 'posts.read', 'posts.delete']);
+
+    Marque::createRole('editor', 'Editor')
+        ->grant(['posts.create', 'posts.read']);
+
+    Marque::createRole('editor', 'Editor');
+
+    expect($this->roleStore->permissionsFor('editor'))
+        ->toContain('posts.create', 'posts.read')
+        ->toHaveCount(2);
+});
+
+it('allows further grants after createRole is called a second time', function (): void {
+    $this->permissionStore->register(['posts.create', 'posts.read', 'posts.delete']);
+
+    Marque::createRole('editor', 'Editor')->grant(['posts.create']);
+    Marque::createRole('editor', 'Editor')->grant(['posts.read', 'posts.delete']);
+
+    expect($this->roleStore->permissionsFor('editor'))
+        ->toContain('posts.create', 'posts.read', 'posts.delete')
+        ->toHaveCount(3);
+});
+
 it('removes a role via the builder', function (): void {
     Marque::createRole('editor', 'Editor');
 
@@ -135,6 +159,8 @@ it('imports a policy document from a raw string', function (): void {
 });
 
 it('imports a policy document from a file path', function (): void {
+    config()->set('marque.document_path', sys_get_temp_dir());
+
     $path = tempnam(sys_get_temp_dir(), 'policy_');
     file_put_contents($path, json_encode([
         'version' => '1.0',
@@ -177,6 +203,8 @@ it('exports the current configuration as a string', function (): void {
 });
 
 it('exports the current configuration to a file', function (): void {
+    config()->set('marque.document_path', sys_get_temp_dir());
+
     $this->permissionStore->register(['posts.create', 'posts.read']);
     $this->roleStore->save('editor', 'Editor', ['posts.create', 'posts.read']);
 

@@ -5,9 +5,13 @@ declare(strict_types=1);
 use DynamikDev\Marque\Concerns\HasPermissions;
 use DynamikDev\Marque\Concerns\HasResourcePolicies;
 use DynamikDev\Marque\Contracts\AssignmentStore;
+use DynamikDev\Marque\Contracts\Evaluator;
 use DynamikDev\Marque\Contracts\PermissionStore;
 use DynamikDev\Marque\Contracts\RoleStore;
+use DynamikDev\Marque\DTOs\EvaluationRequest;
+use DynamikDev\Marque\DTOs\EvaluationResult;
 use DynamikDev\Marque\DTOs\Resource;
+use DynamikDev\Marque\Enums\Decision;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -114,6 +118,63 @@ it('accepts a Resource DTO as a single argument', function (): void {
     $resource = new Resource(type: 'post', id: 1, attributes: ['title' => 'Hello']);
 
     expect(Gate::allows('posts.update', [$resource]))->toBeTrue();
+});
+
+// --- Null scope + Resource DTO as second argument ---
+
+it('preserves the resource when first Gate argument is null and second is a Resource DTO', function (): void {
+    $captured = new stdClass;
+    $captured->request = null;
+
+    app()->instance(Evaluator::class, new class($captured) implements Evaluator
+    {
+        public function __construct(private stdClass $captured) {}
+
+        public function evaluate(EvaluationRequest $request): EvaluationResult
+        {
+            $this->captured->request = $request;
+
+            return new EvaluationResult(
+                decision: Decision::Allow,
+                decidedBy: 'fake',
+            );
+        }
+    });
+
+    $resource = new Resource(type: 'post', id: 42, attributes: ['title' => 'Hello']);
+
+    expect(Gate::allows('posts.update', [null, $resource]))->toBeTrue();
+    expect($captured->request)->toBeInstanceOf(EvaluationRequest::class);
+    expect($captured->request->resource)->toBe($resource);
+    expect($captured->request->context->scope)->toBeNull();
+});
+
+it('preserves a Resource via toPolicyResource when first Gate argument is null', function (): void {
+    $captured = new stdClass;
+    $captured->request = null;
+
+    app()->instance(Evaluator::class, new class($captured) implements Evaluator
+    {
+        public function __construct(private stdClass $captured) {}
+
+        public function evaluate(EvaluationRequest $request): EvaluationResult
+        {
+            $this->captured->request = $request;
+
+            return new EvaluationResult(
+                decision: Decision::Allow,
+                decidedBy: 'fake',
+            );
+        }
+    });
+
+    $post = GateTestPost::query()->create(['title' => 'Hello', 'status' => 'draft']);
+
+    expect(Gate::allows('posts.update', [null, $post]))->toBeTrue();
+    expect($captured->request)->toBeInstanceOf(EvaluationRequest::class);
+    expect($captured->request->resource)->toBeInstanceOf(Resource::class);
+    expect($captured->request->resource->type)->toBe('GateTestPost');
+    expect($captured->request->resource->id)->toBe($post->getKey());
 });
 
 // --- Non-dot abilities are not intercepted ---

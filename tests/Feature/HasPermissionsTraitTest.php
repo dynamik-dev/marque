@@ -14,6 +14,7 @@ use DynamikDev\Marque\DTOs\Resource;
 use DynamikDev\Marque\Enums\Decision;
 use DynamikDev\Marque\Evaluators\CachedEvaluator;
 use DynamikDev\Marque\Evaluators\DefaultEvaluator;
+use DynamikDev\Marque\Facades\Marque;
 use DynamikDev\Marque\Resolvers\IdentityPolicyResolver;
 use DynamikDev\Marque\Support\CacheStoreResolver;
 use Illuminate\Cache\CacheManager;
@@ -247,4 +248,128 @@ it('effectivePermissions excludes permissions covered by deny statements', funct
 
 it('effectivePermissions returns an empty array when user has no assignments', function (): void {
     expect($this->user->effectivePermissions())->toBe([]);
+});
+
+it('effectivePermissions excludes literal denies under a wildcard allow', function (): void {
+    $this->roleStore->save('wildcard-editor', 'Wildcard Editor', ['posts.*']);
+    $this->roleStore->save('no-create', 'No Create', ['!posts.create']);
+    $this->user->assign('wildcard-editor');
+    $this->user->assign('no-create');
+
+    $permissions = $this->user->effectivePermissions();
+
+    expect($permissions)
+        ->toContain('posts.read', 'posts.update', 'posts.delete')
+        ->not->toContain('posts.create');
+});
+
+it('effectivePermissions expands a wildcard allow against the permission registry', function (): void {
+    $this->roleStore->save('wildcard-editor', 'Wildcard Editor', ['posts.*']);
+    $this->user->assign('wildcard-editor');
+
+    $permissions = $this->user->effectivePermissions();
+
+    expect($permissions)
+        ->toContain('posts.create', 'posts.read', 'posts.update', 'posts.delete')
+        ->toHaveCount(4);
+});
+
+it('effectivePermissions membership matches per-action canDo evaluation', function (): void {
+    $this->roleStore->save('wildcard-editor', 'Wildcard Editor', ['posts.*']);
+    $this->roleStore->save('no-delete', 'No Delete', ['!posts.delete']);
+    $this->user->assign('wildcard-editor');
+    $this->user->assign('no-delete');
+
+    $effective = $this->user->effectivePermissions();
+
+    foreach (['posts.create', 'posts.read', 'posts.update', 'posts.delete'] as $permission) {
+        $isAllowed = $this->user->canDo($permission);
+        $isMember = in_array($permission, $effective, true);
+
+        expect($isMember)->toBe($isAllowed, "[{$permission}] effective membership must match canDo");
+    }
+});
+
+it('effectivePermissions handles a wildcard deny that removes everything under a prefix', function (): void {
+    $this->roleStore->save('wildcard-editor', 'Wildcard Editor', ['posts.*']);
+    $this->roleStore->save('no-posts', 'No Posts', ['!posts.*']);
+    $this->user->assign('wildcard-editor');
+    $this->user->assign('no-posts');
+
+    expect($this->user->effectivePermissions())->toBe([]);
+});
+
+// --- givePermission auto-registration parity with RoleBuilder::grant ---
+
+it('givePermission auto-registers a literal permission that is not yet registered', function (): void {
+    expect($this->permissionStore->exists('reports.view'))->toBeFalse();
+
+    $this->user->givePermission('reports.view');
+
+    expect($this->permissionStore->exists('reports.view'))->toBeTrue()
+        ->and($this->user->canDo('reports.view'))->toBeTrue();
+});
+
+it('givePermission does not auto-register wildcard permissions', function (): void {
+    $this->user->givePermission('reports.*');
+
+    expect($this->permissionStore->exists('reports.*'))->toBeFalse();
+});
+
+it('givePermission strips the deny prefix when auto-registering', function (): void {
+    $this->user->givePermission('!reports.delete');
+
+    expect($this->permissionStore->exists('reports.delete'))->toBeTrue()
+        ->and($this->permissionStore->exists('!reports.delete'))->toBeFalse();
+});
+
+it('givePermission and grant register literal permissions identically', function (): void {
+    $this->user->givePermission('alpha.create');
+    Marque::createRole('beta-role', 'Beta')->grant(['beta.create']);
+
+    expect($this->permissionStore->exists('alpha.create'))->toBeTrue()
+        ->and($this->permissionStore->exists('beta.create'))->toBeTrue();
+});
+
+it('givePermission and grant skip wildcard registration identically', function (): void {
+    $this->user->givePermission('alpha.*');
+    Marque::createRole('beta-role', 'Beta')->grant(['beta.*']);
+
+    expect($this->permissionStore->exists('alpha.*'))->toBeFalse()
+        ->and($this->permissionStore->exists('beta.*'))->toBeFalse();
+});
+
+it('givePermission does not duplicate an already-registered permission', function (): void {
+    $this->permissionStore->register(['reports.view']);
+
+    $this->user->givePermission('reports.view');
+
+    $all = $this->permissionStore->all()->pluck('id')->all();
+    expect(array_count_values($all)['reports.view'] ?? 0)->toBe(1);
+});
+
+it('effectivePermissions scales linearly across a 100-permission registry', function (): void {
+    $bulk = [];
+    for ($i = 0; $i < 100; $i++) {
+        $bulk[] = "bulk.action_{$i}";
+    }
+
+    $this->permissionStore->register($bulk);
+    $this->roleStore->save('bulk-editor', 'Bulk Editor', ['bulk.*']);
+    $this->roleStore->save('bulk-no-50', 'Bulk No 50', ['!bulk.action_50']);
+    $this->user->assign('bulk-editor');
+    $this->user->assign('bulk-no-50');
+
+    $start = hrtime(true);
+    $permissions = $this->user->effectivePermissions();
+    $elapsedMs = (hrtime(true) - $start) / 1_000_000;
+
+    expect($permissions)
+        ->toHaveCount(99)
+        ->not->toContain('bulk.action_50')
+        ->toContain('bulk.action_0', 'bulk.action_99');
+
+    // Sanity ceiling: 100 permissions with two wildcard statements should
+    // resolve well under 500ms even on slow CI hardware.
+    expect($elapsedMs)->toBeLessThan(500.0);
 });

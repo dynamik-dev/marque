@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 
 class ExportCommand extends Command
 {
-    protected $signature = 'marque:export {--scope=} {--path=}';
+    protected $signature = 'marque:export {--scope=} {--path=} {--force}';
 
     protected $description = 'Export the current authorization state to JSON';
 
@@ -22,6 +22,14 @@ class ExportCommand extends Command
 
         try {
             if ($path) {
+                if (file_exists($path) && ! $this->option('force')) {
+                    if (! $this->confirm("File {$path} already exists. Overwrite?", false)) {
+                        $this->info('Export cancelled.');
+
+                        return self::SUCCESS;
+                    }
+                }
+
                 $manager->exportToFile($path, $scope);
                 $this->info("Exported to {$path}");
 

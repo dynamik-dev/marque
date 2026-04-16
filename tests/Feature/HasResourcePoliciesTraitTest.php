@@ -27,6 +27,27 @@ class ResourcePoliciesTestDocument extends Model
     protected $fillable = ['title', 'owner_id'];
 }
 
+class ResourcePoliciesTestDocumentWithAttributes extends Model
+{
+    use HasResourcePolicies;
+
+    protected $table = 'documents';
+
+    public $timestamps = false;
+
+    protected $guarded = [];
+
+    protected $fillable = ['title', 'owner_id'];
+
+    /** @return array<string, mixed> */
+    protected function resourceAttributes(): array
+    {
+        return [
+            'owner_id' => $this->getAttribute('owner_id'),
+        ];
+    }
+}
+
 beforeEach(function (): void {
     Schema::create('documents', function (Blueprint $table): void {
         $table->id();
@@ -56,11 +77,22 @@ it('toPolicyResource returns a Resource with the correct type and id', function 
         ->and($resource->id)->toBe($this->document->getKey());
 });
 
-it('toPolicyResource includes fillable attributes', function (): void {
+it('toPolicyResource returns empty attributes by default to prevent accidental data leaks', function (): void {
     $resource = $this->document->toPolicyResource();
 
-    expect($resource->attributes)->toHaveKey('title', 'Quarterly Report')
-        ->and($resource->attributes)->toHaveKey('owner_id', 1);
+    expect($resource->attributes)->toBe([]);
+});
+
+it('toPolicyResource exposes only the attributes returned by an overridden resourceAttributes()', function (): void {
+    $document = ResourcePoliciesTestDocumentWithAttributes::query()->create([
+        'title' => 'Quarterly Report',
+        'owner_id' => 1,
+    ]);
+
+    $resource = $document->toPolicyResource();
+
+    expect($resource->attributes)->toBe(['owner_id' => 1])
+        ->and($resource->attributes)->not->toHaveKey('title');
 });
 
 // --- attachPolicy ---

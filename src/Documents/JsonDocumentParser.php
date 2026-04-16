@@ -4,12 +4,18 @@ declare(strict_types=1);
 
 namespace DynamikDev\Marque\Documents;
 
+use DynamikDev\Marque\Contracts\ConditionRegistry;
 use DynamikDev\Marque\Contracts\DocumentParser;
 use DynamikDev\Marque\DTOs\PolicyDocument;
 use DynamikDev\Marque\DTOs\ValidationResult;
+use Throwable;
 
 class JsonDocumentParser implements DocumentParser
 {
+    public function __construct(
+        private readonly ?ConditionRegistry $conditionRegistry = null,
+    ) {}
+
     public function parse(string $content): PolicyDocument
     {
         $data = json_decode($content, associative: true);
@@ -59,7 +65,7 @@ class JsonDocumentParser implements DocumentParser
         $boundaries = $this->serializeBoundariesToKeyed($document->boundaries);
 
         return json_encode([
-            'version' => '2.0',
+            'version' => $document->version,
             'permissions' => $document->permissions,
             'roles' => $roles,
             'assignments' => $document->assignments,
@@ -114,10 +120,113 @@ class JsonDocumentParser implements DocumentParser
             $this->validateResourcePolicies($data['resource_policies'], $errors);
         }
 
+        $this->validateConditionTypes($data, $errors);
+
         return new ValidationResult(
             valid: $errors === [],
             errors: $errors,
         );
+    }
+
+    /**
+     * Walk every condition declared in roles and resource_policies and confirm its
+     * `type` is registered with the injected ConditionRegistry. A typo here would
+     * otherwise only surface at evaluation time (now fail-closed in DefaultEvaluator),
+     * so catching it at import/validate time gives admins a clear error instead of
+     * silently denying access post-deploy.
+     *
+     * No-ops when no ConditionRegistry is wired in (tests that instantiate the parser
+     * directly, or environments that haven't opted into conditions).
+     *
+     * @param  array<string, mixed>  $data
+     * @param  array<int, string>  $errors
+     */
+    private function validateConditionTypes(array $data, array &$errors): void
+    {
+        if ($this->conditionRegistry === null) {
+            return;
+        }
+
+        if (array_key_exists('roles', $data) && is_array($data['roles'])) {
+            $this->validateRoleConditionTypes($data['roles'], $errors);
+        }
+
+        if (array_key_exists('resource_policies', $data) && is_array($data['resource_policies'])) {
+            $this->validateResourcePolicyConditionTypes($data['resource_policies'], $errors);
+        }
+    }
+
+    /**
+     * @param  array<mixed>  $roles
+     * @param  array<int, string>  $errors
+     */
+    private function validateRoleConditionTypes(array $roles, array &$errors): void
+    {
+        foreach ($roles as $roleKey => $roleData) {
+            if (! is_array($roleData)) {
+                continue;
+            }
+
+            $roleId = is_string($roleKey) ? $roleKey : (is_string($roleData['id'] ?? null) ? $roleData['id'] : (string) $roleKey);
+
+            if (! array_key_exists('conditions', $roleData) || ! is_array($roleData['conditions'])) {
+                continue;
+            }
+
+            foreach ($roleData['conditions'] as $permission => $conditionList) {
+                if (! is_array($conditionList)) {
+                    continue;
+                }
+
+                foreach ($conditionList as $cIndex => $condition) {
+                    if (! is_array($condition) || ! is_string($condition['type'] ?? null)) {
+                        continue;
+                    }
+
+                    if (! $this->isConditionTypeRegistered($condition['type'])) {
+                        $errors[] = "roles[{$roleId}].conditions[{$permission}][{$cIndex}] references unregistered condition type: {$condition['type']}";
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * @param  array<mixed>  $resourcePolicies
+     * @param  array<int, string>  $errors
+     */
+    private function validateResourcePolicyConditionTypes(array $resourcePolicies, array &$errors): void
+    {
+        foreach ($resourcePolicies as $index => $entry) {
+            if (! is_array($entry) || ! array_key_exists('conditions', $entry) || ! is_array($entry['conditions'])) {
+                continue;
+            }
+
+            foreach ($entry['conditions'] as $cIndex => $condition) {
+                if (! is_array($condition) || ! is_string($condition['type'] ?? null)) {
+                    continue;
+                }
+
+                if (! $this->isConditionTypeRegistered($condition['type'])) {
+                    $errors[] = "resource_policies[{$index}].conditions[{$cIndex}] references unregistered condition type: {$condition['type']}";
+                }
+            }
+        }
+    }
+
+    private function isConditionTypeRegistered(string $type): bool
+    {
+        if ($this->conditionRegistry === null) {
+            return true;
+        }
+
+        try {
+            $this->conditionRegistry->evaluatorFor($type);
+
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /**
@@ -213,15 +322,23 @@ class JsonDocumentParser implements DocumentParser
 
         $result = [];
 
-        foreach ($raw as $entry) {
+        foreach ($raw as $index => $entry) {
             if (! is_array($entry)) {
                 continue;
+            }
+
+            if (! array_key_exists('effect', $entry) || ! is_string($entry['effect'])) {
+                throw new \InvalidArgumentException("resource_policies[{$index}] is missing required string field: effect");
+            }
+
+            if (! in_array($entry['effect'], ['Allow', 'Deny'], strict: true)) {
+                throw new \InvalidArgumentException("resource_policies[{$index}].effect must be 'Allow' or 'Deny', got: {$entry['effect']}");
             }
 
             $result[] = [
                 'resource_type' => is_string($entry['resource_type'] ?? null) ? $entry['resource_type'] : '',
                 'resource_id' => isset($entry['resource_id']) && is_scalar($entry['resource_id']) ? (string) $entry['resource_id'] : null,
-                'effect' => is_string($entry['effect'] ?? null) ? $entry['effect'] : 'Allow',
+                'effect' => $entry['effect'],
                 'action' => is_string($entry['action'] ?? null) ? $entry['action'] : '',
                 'principal_pattern' => isset($entry['principal_pattern']) && is_string($entry['principal_pattern']) ? $entry['principal_pattern'] : null,
                 'conditions' => is_array($entry['conditions'] ?? null) ? $entry['conditions'] : [],
@@ -552,6 +669,14 @@ class JsonDocumentParser implements DocumentParser
             foreach (['resource_type', 'effect', 'action'] as $key) {
                 if (! array_key_exists($key, $entry)) {
                     $errors[] = "resource_policies[{$index}] is missing required key: {$key}";
+                }
+            }
+
+            if (array_key_exists('effect', $entry)) {
+                if (! is_string($entry['effect'])) {
+                    $errors[] = "resource_policies[{$index}].effect must be a string";
+                } elseif (! in_array($entry['effect'], ['Allow', 'Deny'], strict: true)) {
+                    $errors[] = "resource_policies[{$index}].effect must be 'Allow' or 'Deny', got: {$entry['effect']}";
                 }
             }
         }

@@ -75,7 +75,7 @@ These are rare admin operations that can affect any subject. The listener calls 
 ## Clearing the cache manually
 
 ```bash
-php artisan marque:cache-clear
+php artisan marque:cache:clear
 ```
 
 Or programmatically:

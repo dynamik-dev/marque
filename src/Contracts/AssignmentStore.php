@@ -11,6 +11,9 @@ interface AssignmentStore
 {
     /**
      * Assign a role to a subject, optionally within a scope.
+     *
+     * Idempotent: assigning the same (subject, role, scope) tuple more than once is a silent no-op
+     * and does not throw, even under concurrent execution.
      */
     public function assign(string $subjectType, string|int $subjectId, string $roleId, ?string $scope = null): void;
 

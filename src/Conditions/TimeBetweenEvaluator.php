@@ -30,7 +30,10 @@ class TimeBetweenEvaluator implements ConditionEvaluator
             return false;
         }
 
-        if ($startTime === null || $endTime === null) {
+        // Carbon::createFromFormat returns false on parse failure (and null in some
+        // historical versions). Treat anything that is not a Carbon instance as a
+        // failed parse and deny, rather than evaluating against a surprise object.
+        if (! $startTime instanceof Carbon || ! $endTime instanceof Carbon) {
             return false;
         }
 
@@ -38,11 +41,14 @@ class TimeBetweenEvaluator implements ConditionEvaluator
         $startMinutes = $startTime->hour * 60 + $startTime->minute;
         $endMinutes = $endTime->hour * 60 + $endTime->minute;
 
+        // The window is a half-open interval [start, end): the start minute is
+        // included, the end minute is excluded. A 09:00-17:00 window passes at
+        // 09:00 sharp but fails at 17:00 sharp.
         if ($startMinutes <= $endMinutes) {
             return $nowMinutes >= $startMinutes && $nowMinutes < $endMinutes;
         }
 
-        // Wraps midnight
+        // Wraps midnight: same half-open semantics, with [start, midnight) ∪ [00:00, end).
         return $nowMinutes >= $startMinutes || $nowMinutes < $endMinutes;
     }
 }

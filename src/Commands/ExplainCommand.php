@@ -12,6 +12,7 @@ use DynamikDev\Marque\DTOs\Principal;
 use DynamikDev\Marque\Enums\Decision;
 use DynamikDev\Marque\Support\SubjectParser;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Config;
 use InvalidArgumentException;
 
 class ExplainCommand extends Command
@@ -39,12 +40,6 @@ class ExplainCommand extends Command
             return self::FAILURE;
         }
 
-        if (! config('marque.trace')) {
-            $this->error('Explain mode is disabled. Set marque.trace to true in your configuration.');
-
-            return self::FAILURE;
-        }
-
         $scopeOption = $this->option('scope');
         $scope = is_string($scopeOption) ? $scopeOption : null;
 
@@ -55,7 +50,17 @@ class ExplainCommand extends Command
             context: new Context(scope: $scope),
         );
 
-        $result = $evaluator->evaluate($request);
+        // Force trace on for the duration of the call so the evaluator
+        // populates matchedStatements. Restore previous value afterwards
+        // so we don't mutate global config for the rest of the request.
+        $previousTrace = config('marque.trace');
+        Config::set('marque.trace', true);
+
+        try {
+            $result = $evaluator->evaluate($request);
+        } finally {
+            Config::set('marque.trace', $previousTrace);
+        }
 
         $this->renderResult($subjectType, $subjectId, $permissionArg, $scope, $result);
 
@@ -96,7 +101,8 @@ class ExplainCommand extends Command
         }
 
         $this->newLine();
-        $this->line('  <info>Cache hit:</info>  N/A');
+        $this->line('  Cache: bypassed (trace mode)');
+        $this->line('  Note:  The cache is bypassed during explain so the evaluation trace can be captured.');
         $this->newLine();
     }
 }

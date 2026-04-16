@@ -5,15 +5,19 @@ declare(strict_types=1);
 namespace DynamikDev\Marque\Support;
 
 use InvalidArgumentException;
+use RuntimeException;
 
 class PathValidator
 {
     /**
      * Validate that a file path is within the configured allowed directory.
      *
-     * When `marque.document_path` is set, paths are restricted to that directory.
-     * When null (default), no restriction is applied.
+     * `marque.document_path` MUST be configured before any document import or
+     * export call that supplies a filesystem path. When unset, this validator
+     * fails closed: no path is accepted. This prevents a default-config
+     * deployment from allowing reads/writes of arbitrary files (e.g. /etc/passwd).
      *
+     * @throws RuntimeException If `marque.document_path` is not configured.
      * @throws InvalidArgumentException If the path is outside the allowed directory.
      */
     public static function validate(string $path): string
@@ -21,8 +25,10 @@ class PathValidator
         /** @var string|null $allowedBase */
         $allowedBase = config('marque.document_path');
 
-        if ($allowedBase === null) {
-            return $path;
+        if ($allowedBase === null || $allowedBase === '') {
+            throw new RuntimeException(
+                'Marque document path is not configured. Set [marque.document_path] to an absolute directory before importing or exporting policy documents.'
+            );
         }
 
         $allowedBaseReal = realpath($allowedBase);

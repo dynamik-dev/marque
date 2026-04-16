@@ -7,8 +7,12 @@ namespace DynamikDev\Marque\Stores;
 use DynamikDev\Marque\Contracts\ResourcePolicyStore;
 use DynamikDev\Marque\DTOs\Condition;
 use DynamikDev\Marque\DTOs\PolicyStatement;
+use DynamikDev\Marque\Enums\Effect;
+use DynamikDev\Marque\Events\ResourcePolicyAttached;
+use DynamikDev\Marque\Events\ResourcePolicyDetached;
 use DynamikDev\Marque\Models\ResourcePolicy;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Event;
 
 class EloquentResourcePolicyStore implements ResourcePolicyStore
 {
@@ -34,7 +38,7 @@ class EloquentResourcePolicyStore implements ResourcePolicyStore
                     : "resource:{$type}";
 
                 return new PolicyStatement(
-                    effect: $row->getEffectEnum(),
+                    effect: Effect::from($row->effect),
                     action: $row->action,
                     principalPattern: $row->principal_pattern,
                     resourcePattern: null,
@@ -49,21 +53,29 @@ class EloquentResourcePolicyStore implements ResourcePolicyStore
     {
         $idString = $resourceId !== null ? (string) $resourceId : null;
 
-        ResourcePolicy::query()->create([
+        $policy = ResourcePolicy::query()->create([
             'resource_type' => $resourceType,
             'resource_id' => $idString,
-            'effect' => $statement->effect->name,
+            'effect' => $statement->effect->value,
             'action' => $statement->action,
             'principal_pattern' => $statement->principalPattern,
             'conditions' => $this->serializeConditions($statement->conditions),
         ]);
+
+        $policy->getConnection()->afterCommit(static function () use ($resourceType, $resourceId, $statement): void {
+            Event::dispatch(new ResourcePolicyAttached(
+                resourceType: $resourceType,
+                resourceId: $resourceId,
+                action: $statement->action,
+            ));
+        });
     }
 
     public function detach(string $resourceType, string|int|null $resourceId, string $action): void
     {
         $idString = $resourceId !== null ? (string) $resourceId : null;
 
-        ResourcePolicy::query()
+        $deleted = ResourcePolicy::query()
             ->where('resource_type', $resourceType)
             ->where('action', $action)
             ->when(
@@ -72,6 +84,41 @@ class EloquentResourcePolicyStore implements ResourcePolicyStore
                 static fn ($query) => $query->where('resource_id', $idString),
             )
             ->delete();
+
+        if ($deleted === 0) {
+            return;
+        }
+
+        (new ResourcePolicy)->getConnection()->afterCommit(static function () use ($resourceType, $resourceId, $action): void {
+            Event::dispatch(new ResourcePolicyDetached(
+                resourceType: $resourceType,
+                resourceId: $resourceId,
+                action: $action,
+            ));
+        });
+    }
+
+    public function detachById(string $id): void
+    {
+        $policy = ResourcePolicy::query()->find($id);
+
+        if ($policy === null) {
+            return;
+        }
+
+        $resourceType = $policy->resource_type;
+        $resourceId = $policy->resource_id;
+        $action = $policy->action;
+
+        $policy->delete();
+
+        $policy->getConnection()->afterCommit(static function () use ($resourceType, $resourceId, $action): void {
+            Event::dispatch(new ResourcePolicyDetached(
+                resourceType: $resourceType,
+                resourceId: $resourceId,
+                action: $action,
+            ));
+        });
     }
 
     /**

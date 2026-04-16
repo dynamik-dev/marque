@@ -1,0 +1,84 @@
+rules:
+  strict-types:
+    description: "All src/ PHP files must declare strict_types=1."
+    engine: script
+    scope: "src/**/*.php"
+    severity: error
+    script: "head -5 {file} | grep -q 'declare(strict_types=1)' || exit 1"
+
+  no-compact:
+    description: "Do not use compact(). Use explicit arrays."
+    engine: script
+    scope: "**/*.php"
+    severity: error
+    script: "grep -nE '(^|[^a-zA-Z_])compact\\(' {file} && exit 1 || exit 0"
+
+  no-db-facade:
+    description: "Do not use the DB:: facade. Use Model::query() instead."
+    engine: script
+    scope: "**/*.php"
+    severity: error
+    script: "grep -nE '(^|[^a-zA-Z_])DB::' {file} && exit 1 || exit 0"
+
+  no-event-helper:
+    description: "Do not use the event() helper. Use Event::dispatch() (static) instead."
+    engine: script
+    scope: "**/*.php"
+    severity: error
+    script: "perl -ne 'if (/(?<![a-zA-Z_>:])event\\(/) { print qq(${.}: $_); $found = 1 } END { exit($found ? 1 : 0) }' {file}"
+
+  no-orchestration-labels:
+    description: >
+      No orchestration labels in source code. Reject sprint/wave/task/phase numbering
+      and v1/v2 version labels in class names, file names, identifiers, or comments.
+      The source tree describes what the code does, not the order of work that produced it.
+      Allowed exception: backlog/ docs and CHANGELOG entries.
+    engine: semantic
+    scope: "{src,tests}/**/*.php"
+    severity: error
+
+  full-type-hints:
+    description: >
+      Every method must have full type hints on every parameter and an explicit return type.
+      No untyped parameters, no missing return type declarations. Use union, intersection,
+      or `mixed` when truly necessary, but never omit.
+    engine: semantic
+    scope: "src/**/*.php"
+    severity: error
+
+  fluent-builder-pattern:
+    description: >
+      Facade and sugar APIs must return chainable builders, never raw DTOs or arrays.
+      A method that exists to start a fluent chain (Marque::role(), Marque::boundary(),
+      Marque::resourcePolicy(), etc.) returns a builder; a method that terminates a chain
+      (->get(), ->save()) returns the underlying value.
+    engine: semantic
+    scope: "src/{Support,MarqueManager.php}/**/*.php"
+    severity: warning
+
+  driver-decoupling:
+    description: >
+      The sugar/facade layer must go through contracts (PermissionStore, RoleStore,
+      AssignmentStore, BoundaryStore, ResourcePolicyStore, Evaluator, Matcher,
+      ScopeResolver), never directly through Eloquent models or query builders.
+      Directly typing on a concrete Eloquent\* class or calling Model::query() in
+      MarqueManager / facades / builders / traits is a violation.
+    engine: semantic
+    scope: "src/{Concerns,Facades,Support,MarqueManager.php}/**/*.php"
+    severity: error
+
+  canDo-is-internal:
+    description: >
+      canDo() and cannotDo() are internal engine methods. Consumer-facing code,
+      examples, docs, and tests should use can() / cannot() (the Laravel Gate API).
+      Adding a canDo()/cannotDo() call in a non-engine call site is a violation.
+    engine: semantic
+    scope: "{tests,docs}/**/*.php"
+    severity: warning
+
+  no-todo-without-ticket:
+    description: "TODO and FIXME comments must reference a ticket id (e.g. #123 or PROJ-456)."
+    engine: script
+    scope: "**/*.php"
+    severity: warning
+    script: "grep -nE '(TODO|FIXME)' {file} | grep -vE '(#|[A-Z]+-)[0-9]+' && exit 1 || exit 0"

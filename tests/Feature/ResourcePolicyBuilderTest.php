@@ -7,6 +7,7 @@ use DynamikDev\Marque\Concerns\HasResourcePolicies;
 use DynamikDev\Marque\Contracts\PermissionStore;
 use DynamikDev\Marque\Contracts\ResourcePolicyStore;
 use DynamikDev\Marque\Facades\Marque;
+use DynamikDev\Marque\Models\ResourcePolicy;
 use DynamikDev\Marque\Support\ResourcePolicyBuilder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
@@ -291,6 +292,107 @@ it('detaches statements for a given action via detach()', function (): void {
 
     expect($remaining)->toHaveCount(1)
         ->and($remaining->first()->action)->toBe('posts.delete');
+});
+
+it('removes a single statement via detachById() while siblings survive', function (): void {
+    Marque::resource(BuilderTestPost::class)
+        ->when(['status' => 'published'], fn ($policy) => $policy->anyoneCan('posts.view'))
+        ->when(['status' => 'draft'], fn ($policy) => $policy->anyoneCan('posts.view'));
+
+    $store = app(ResourcePolicyStore::class);
+
+    expect($store->forResource(BuilderTestPost::class, null))->toHaveCount(2);
+
+    $publishedRow = ResourcePolicy::query()
+        ->where('action', 'posts.view')
+        ->get()
+        ->first(function (ResourcePolicy $row): bool {
+            $first = ($row->conditions ?? [])[0] ?? null;
+
+            return is_array($first)
+                && is_array($first['parameters'] ?? null)
+                && in_array('published', $first['parameters']['values'] ?? [], true);
+        });
+
+    expect($publishedRow)->not->toBeNull();
+
+    /** @var ResourcePolicy $publishedRow */
+    Marque::resource(BuilderTestPost::class)->detachById($publishedRow->id);
+
+    $remaining = $store->forResource(BuilderTestPost::class, null);
+
+    expect($remaining)->toHaveCount(1);
+
+    $survivingValues = $remaining->first()->conditions[0]->parameters['values'];
+    expect($survivingValues)->toBe(['draft']);
+});
+
+it('does not leak ownedBy() called inside a when() closure to subsequent chain calls', function (): void {
+    Marque::resource(BuilderTestPost::class)
+        ->when(['status' => 'published'], function ($policy): void {
+            $policy->ownedBy('author_id', subjectKey: 'external_id')
+                ->ownerCan('posts.update');
+        })
+        ->ownerCan('posts.delete');
+
+    $statements = app(ResourcePolicyStore::class)
+        ->forResource(BuilderTestPost::class, null);
+
+    $update = $statements->firstWhere('action', 'posts.update');
+    $delete = $statements->firstWhere('action', 'posts.delete');
+
+    $updateOwnership = collect($update->conditions)
+        ->firstWhere('type', 'attribute_equals');
+    expect($updateOwnership->parameters)->toBe([
+        'subject_key' => 'external_id',
+        'resource_key' => 'author_id',
+    ]);
+
+    expect($delete->conditions)->toHaveCount(1)
+        ->and($delete->conditions[0]->type)->toBe('attribute_equals')
+        ->and($delete->conditions[0]->parameters)->toBe([
+            'subject_key' => 'id',
+            'resource_key' => 'user_id',
+        ]);
+});
+
+it('isolates ownedBy() state across nested when() blocks', function (): void {
+    Marque::resource(BuilderTestPost::class)
+        ->ownedBy('owner_id', subjectKey: 'uuid')
+        ->when(['status' => 'published'], function ($policy): void {
+            $policy->ownedBy('author_id', subjectKey: 'external_id')
+                ->when(['visibility' => 'public'], function ($policy): void {
+                    $policy->ownedBy('editor_id', subjectKey: 'staff_id')
+                        ->ownerCan('posts.edit');
+                })
+                ->ownerCan('posts.update');
+        })
+        ->ownerCan('posts.delete');
+
+    $statements = app(ResourcePolicyStore::class)
+        ->forResource(BuilderTestPost::class, null);
+
+    $edit = collect($statements->firstWhere('action', 'posts.edit')->conditions)
+        ->firstWhere('type', 'attribute_equals');
+    $update = collect($statements->firstWhere('action', 'posts.update')->conditions)
+        ->firstWhere('type', 'attribute_equals');
+    $delete = collect($statements->firstWhere('action', 'posts.delete')->conditions)
+        ->firstWhere('type', 'attribute_equals');
+
+    expect($edit->parameters)->toBe([
+        'subject_key' => 'staff_id',
+        'resource_key' => 'editor_id',
+    ]);
+
+    expect($update->parameters)->toBe([
+        'subject_key' => 'external_id',
+        'resource_key' => 'author_id',
+    ]);
+
+    expect($delete->parameters)->toBe([
+        'subject_key' => 'uuid',
+        'resource_key' => 'owner_id',
+    ]);
 });
 
 it('resolves a public view through the full evaluator pipeline', function (): void {

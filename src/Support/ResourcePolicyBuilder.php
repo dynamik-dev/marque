@@ -99,13 +99,18 @@ class ResourcePolicyBuilder
             ]);
         }
 
-        $previous = $this->activeConditions;
-        $this->activeConditions = [...$previous, ...$newConditions];
+        $previousConditions = $this->activeConditions;
+        $previousOwnerField = $this->ownerField;
+        $previousSubjectKey = $this->subjectKey;
+
+        $this->activeConditions = [...$previousConditions, ...$newConditions];
 
         try {
             $scope($this);
         } finally {
-            $this->activeConditions = $previous;
+            $this->activeConditions = $previousConditions;
+            $this->ownerField = $previousOwnerField;
+            $this->subjectKey = $previousSubjectKey;
         }
 
         return $this;
@@ -138,6 +143,19 @@ class ResourcePolicyBuilder
     public function detach(string $action): self
     {
         $this->store->detach($this->resourceType, null, $action);
+
+        return $this;
+    }
+
+    /**
+     * Remove a single statement by its primary key.
+     *
+     * Use this when multiple statements with the same action exist on this resource
+     * (different effects or conditions) and only one of them should be removed.
+     */
+    public function detachById(string $id): self
+    {
+        $this->store->detachById($id);
 
         return $this;
     }

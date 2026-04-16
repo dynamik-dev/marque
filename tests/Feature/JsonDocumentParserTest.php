@@ -182,7 +182,7 @@ it('returns empty resourcePolicies when not present in document', function (): v
 
 // --- serialize() ---
 
-it('serializes a document to v2 format with pretty-printed JSON', function (): void {
+it('serializes a document preserving its version field', function (): void {
     $document = new PolicyDocument(
         version: '1.0',
         permissions: ['posts.create'],
@@ -194,8 +194,8 @@ it('serializes a document to v2 format with pretty-printed JSON', function (): v
     $json = $this->parser->serialize($document);
     $decoded = json_decode($json, associative: true);
 
-    // Always outputs version 2.0
-    expect($decoded['version'])->toBe('2.0');
+    // Preserves the document's version (does not clobber to 2.0)
+    expect($decoded['version'])->toBe('1.0');
     expect($decoded['permissions'])->toBe(['posts.create']);
 
     // Roles converted to v2 keyed format
@@ -471,6 +471,116 @@ it('rejects v2 boundaries missing max_permissions key', function (): void {
     expect($result->errors)->toContain('boundaries[free-tier] is missing required key: max_permissions');
 });
 
+it('throws when parsing resource_policies with missing effect', function (): void {
+    $json = json_encode([
+        'version' => '2.0',
+        'resource_policies' => [
+            ['resource_type' => 'post', 'action' => 'posts.read'],
+        ],
+    ]);
+
+    $this->parser->parse($json);
+})->throws(InvalidArgumentException::class, 'resource_policies[0] is missing required string field: effect');
+
+it('throws when parsing resource_policies with non-string effect', function (): void {
+    $json = json_encode([
+        'version' => '2.0',
+        'resource_policies' => [
+            ['resource_type' => 'post', 'action' => 'posts.read', 'effect' => 42],
+        ],
+    ]);
+
+    $this->parser->parse($json);
+})->throws(InvalidArgumentException::class, 'resource_policies[0] is missing required string field: effect');
+
+it('throws when parsing resource_policies with effect other than Allow or Deny', function (): void {
+    $json = json_encode([
+        'version' => '2.0',
+        'resource_policies' => [
+            ['resource_type' => 'post', 'action' => 'posts.read', 'effect' => 'allow'],
+        ],
+    ]);
+
+    $this->parser->parse($json);
+})->throws(InvalidArgumentException::class, "resource_policies[0].effect must be 'Allow' or 'Deny', got: allow");
+
+it('parses resource_policies with Deny effect', function (): void {
+    $json = json_encode([
+        'version' => '2.0',
+        'resource_policies' => [
+            ['resource_type' => 'post', 'action' => 'posts.delete', 'effect' => 'Deny'],
+        ],
+    ]);
+
+    $document = $this->parser->parse($json);
+
+    expect($document->resourcePolicies)->toHaveCount(1);
+    expect($document->resourcePolicies[0]['effect'])->toBe('Deny');
+});
+
+it('rejects validation when resource_policies effect is not Allow or Deny', function (): void {
+    $json = json_encode([
+        'version' => '2.0',
+        'resource_policies' => [
+            ['resource_type' => 'post', 'action' => 'posts.read', 'effect' => 'permit'],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain("resource_policies[0].effect must be 'Allow' or 'Deny', got: permit");
+});
+
+it('rejects validation when resource_policies effect is not a string', function (): void {
+    $json = json_encode([
+        'version' => '2.0',
+        'resource_policies' => [
+            ['resource_type' => 'post', 'action' => 'posts.read', 'effect' => true],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result)->valid->toBeFalse();
+    expect($result->errors)->toContain('resource_policies[0].effect must be a string');
+});
+
+it('round-trips a v1 document preserving version and effects exactly', function (): void {
+    $original = new PolicyDocument(
+        version: '1.0',
+        permissions: ['posts.read', 'posts.delete'],
+        roles: [
+            ['id' => 'editor', 'name' => 'Editor', 'permissions' => ['posts.read']],
+        ],
+        resourcePolicies: [
+            [
+                'resource_type' => 'post',
+                'resource_id' => null,
+                'effect' => 'Allow',
+                'action' => 'posts.read',
+                'principal_pattern' => '*',
+                'conditions' => [],
+            ],
+            [
+                'resource_type' => 'post',
+                'resource_id' => '42',
+                'effect' => 'Deny',
+                'action' => 'posts.delete',
+                'principal_pattern' => 'user::*',
+                'conditions' => [],
+            ],
+        ],
+    );
+
+    $restored = $this->parser->parse($this->parser->serialize($original));
+
+    expect($restored->version)->toBe('1.0');
+    expect($restored->resourcePolicies)->toHaveCount(2);
+    expect($restored->resourcePolicies[0]['effect'])->toBe('Allow');
+    expect($restored->resourcePolicies[1]['effect'])->toBe('Deny');
+});
+
 it('rejects resource_policies missing required keys', function (): void {
     $json = json_encode([
         'version' => '2.0',
@@ -722,4 +832,71 @@ it('collects multiple validation errors', function (): void {
 
     expect($result)->valid->toBeFalse();
     expect(count($result->errors))->toBeGreaterThanOrEqual(6);
+});
+
+// --- validate() rejects unregistered condition types ---
+
+it('rejects a document that references an unregistered condition type in a role', function (): void {
+    $json = json_encode([
+        'version' => '2.0',
+        'roles' => [
+            'editor' => [
+                'permissions' => ['posts.update'],
+                'conditions' => [
+                    'posts.update' => [
+                        ['type' => 'time_beetween', 'parameters' => ['start' => '09:00', 'end' => '18:00']],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result->valid)->toBeFalse();
+    expect($result->errors)->toContain('roles[editor].conditions[posts.update][0] references unregistered condition type: time_beetween');
+});
+
+it('rejects a document that references an unregistered condition type in a resource policy', function (): void {
+    $json = json_encode([
+        'version' => '2.0',
+        'resource_policies' => [
+            [
+                'resource_type' => 'post',
+                'resource_id' => null,
+                'effect' => 'Allow',
+                'action' => 'posts.read',
+                'principal_pattern' => '*',
+                'conditions' => [
+                    ['type' => 'nonexistent_type', 'parameters' => []],
+                ],
+            ],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result->valid)->toBeFalse();
+    expect($result->errors)->toContain('resource_policies[0].conditions[0] references unregistered condition type: nonexistent_type');
+});
+
+it('accepts a document whose conditions all reference registered types', function (): void {
+    $json = json_encode([
+        'version' => '2.0',
+        'permissions' => ['posts.update'],
+        'roles' => [
+            'editor' => [
+                'permissions' => ['posts.update'],
+                'conditions' => [
+                    'posts.update' => [
+                        ['type' => 'attribute_equals', 'parameters' => ['subject_key' => 'dept', 'resource_key' => 'dept']],
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $result = $this->parser->validate($json);
+
+    expect($result->valid)->toBeTrue();
 });

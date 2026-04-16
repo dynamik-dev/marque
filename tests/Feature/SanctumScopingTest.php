@@ -138,6 +138,94 @@ it('allows normally when user is not authenticated', function (): void {
     expect($statements)->toBeEmpty();
 });
 
+// --- Cross-user evaluations (auth user != principal) ---
+
+it('does not apply auth user Sanctum token to a different principal', function (): void {
+    /* Bug regression: prior implementation read $token from auth()->user() directly,
+     * so a CLI/batch evaluator authed as user Y but explaining for user X would
+     * silently apply Y's token deny statements to X. The fix restricts Sanctum
+     * filtering to evaluations whose principal matches the authenticated user. */
+    $otherUser = SanctumTestUser::create(['name' => 'Other User']);
+
+    /* Authed user Y holds a token that would deny posts.create. */
+    $token = new PersonalAccessToken;
+    $token->abilities = ['posts.read'];
+    $otherUser->withAccessToken($token);
+    auth()->login($otherUser);
+
+    /* Resolve for user X (no token bound on X). */
+    $resolver = app(SanctumPolicyResolver::class);
+
+    $request = new EvaluationRequest(
+        principal: new Principal(
+            type: $this->user->getMorphClass(),
+            id: $this->user->getKey(),
+        ),
+        action: 'posts.create',
+        context: new Context,
+    );
+
+    $statements = $resolver->resolve($request);
+
+    expect($statements)->toBeEmpty();
+});
+
+it('explain for principal X while authed as Y is not blocked by Y Sanctum token', function (): void {
+    /* End-to-end version of the above through the evaluator: explain() for
+     * user X must reach decision Allow even though authed user Y holds a
+     * narrowly-scoped Sanctum token that does not include posts.create. */
+    $otherUser = SanctumTestUser::create(['name' => 'Other User']);
+
+    $token = new PersonalAccessToken;
+    $token->abilities = ['posts.read'];
+    $otherUser->withAccessToken($token);
+    auth()->login($otherUser);
+
+    $request = new EvaluationRequest(
+        principal: new Principal(
+            type: $this->user->getMorphClass(),
+            id: $this->user->getKey(),
+        ),
+        action: 'posts.create',
+        context: new Context,
+    );
+
+    $explanation = $this->evaluator->evaluate($request);
+
+    expect($explanation->decision)->toBe(Decision::Allow);
+    expect($explanation->decidedBy)->not->toBe('sanctum-token');
+});
+
+// --- Colon-syntax abilities are normalized to dot syntax ---
+
+it('does not silently deny when token holds a colon-syntax ability alongside a dot-syntax ability', function (): void {
+    /* Sanctum operators commonly issue colon-syntax abilities (`server:read`).
+     * The matcher treats `:` as a scope delimiter, so before normalization a
+     * colon ability matched no permission and produced a blanket deny. The
+     * dot-syntax ability in the same array must still grant its permission. */
+    $token = new PersonalAccessToken;
+    $token->abilities = ['server:read', 'posts.create'];
+    $this->user->withAccessToken($token);
+    auth()->login($this->user);
+
+    expect($this->user->canDo('posts.create'))->toBeTrue();
+});
+
+it('normalizes colon-syntax abilities to dot syntax when matching permissions', function (): void {
+    /* Register a permission whose id is the dot-notation equivalent of the
+     * colon-syntax ability and confirm it is granted. */
+    $this->permissionStore->register(['server.read']);
+    $this->roleStore->save('ops', 'Ops', ['server.read']);
+    $this->assignmentStore->assign($this->user->getMorphClass(), $this->user->getKey(), 'ops');
+
+    $token = new PersonalAccessToken;
+    $token->abilities = ['server:read'];
+    $this->user->withAccessToken($token);
+    auth()->login($this->user);
+
+    expect($this->user->canDo('server.read'))->toBeTrue();
+});
+
 // --- explain() mirrors Sanctum token scoping ---
 
 it('explain reports deny with sanctum note when token lacks required ability', function (): void {
